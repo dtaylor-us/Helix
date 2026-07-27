@@ -1,6 +1,6 @@
 # Product Experience Realignment Plan
 
-Status: Phase 1 in progress
+Status: Phase 1 shipped; Phase 2 slice A (guided transformation + experiment creation) shipped; CurrentFocus projection and server-persisted onboarding state still open
 Owner: Agent-assisted delivery session, 2026-07-27
 Source: External architecture/UX review of the `main` branch (2026-07-27), reconciled against the actual repository state in this document.
 
@@ -85,3 +85,25 @@ Phase 1 changes are presentation-layer only and do not add, remove, or reinterpr
 - `npm run test` (apps/web) — existing Today/Knowledge/Search/Memory/Wisdom page tests plus new tests for the onboarding empty state and navigation.
 - `./scripts/check-docs`
 - `./scripts/test-backend` and `./scripts/verify-architecture` are **not run in this session** because the execution sandbox has Java 11 installed and the backend requires Java 21; Phase 1 makes no backend changes, so risk is low, but this is a known gap and the user/CI should run these before merging.
+
+## Phase 2 progress (2026-07-27, second session)
+
+Shipped, as "Phase 2 slice A":
+
+- Guided transformation creation: `Transformation` gained optional `desiredIdentity` ("Who are you becoming through this?") and `obstacle` ("What currently gets in the way?") fields, surfaced on the Journey page's creation form and on the transformation detail view. Backed by `V6__guided_journey_fields.sql`.
+- Guided experiment design: `Experiment` gained optional `cadence` ("How often will you try this?"), `evidenceOfSuccess` ("What would count as useful evidence?"), and `reviewAt` (a plain review date) fields, surfaced on the experiment-creation form and echoed back on Today's Current Direction card when present.
+- `CreateTransformationRequest`/`CreateExperimentRequest` and `TransformationEntity`/`ExperimentEntity` extended accordingly; existing 4-arg/7-arg constructors were preserved (overloaded, not replaced) so existing tests and call sites did not need to change.
+- New `TransformationServiceTest` and `ExperimentServiceTest` were added (neither existed before this session).
+
+Deliberately trimmed from the original Phase 2 field list to avoid over-engineering: no separate "difficulty" or "smallest acceptable version" field was added — the existing `nextAction` ("smallest next action") already covers that ground, and adding a second, overlapping field would have duplicated it without adding real value.
+
+Still open from Phase 2 (not attempted this session):
+- The `CurrentFocus` backend projection (frontend still assembles Today from two calls: `/today` + `/transformations`).
+- Server-persisted onboarding state (Phase 1's data-driven welcome state is unchanged).
+- The dedicated "Reflect" primary nav destination (still correctly deferred to Phase 3 per the reasoning above).
+- Any UI surfacing of `reviewAt` as a "review due" prompt — the field is captured and displayed, but nothing yet acts on it when the date passes.
+
+Verification for this slice:
+- `npm run typecheck`, `npm run lint`, `npm run test` (10 tests / 7 files, including new `TransformationsPage.test.tsx`), and `npm run build` all passed for `apps/web`.
+- Backend changes (`apps/api`) were hand-reviewed carefully against existing conventions but **could not be compiled or tested**: this execution sandbox has no network path to install a JDK 21 toolchain (only JDK 11 is preinstalled, and the sandbox's outbound proxy blocks the JDK distribution host). Run `./scripts/test-backend` and `./scripts/verify-architecture` locally before relying on this backend change.
+- While fixing this slice's verification, an unrelated pre-existing break was found and fixed: a GitHub Copilot Autofix commit merged into Phase 1 had added an `@testing-library/user-event` import to `AppLayout.test.tsx` without adding the package as a dependency, which broke `npm run typecheck`. Replaced with `fireEvent` from the already-installed `@testing-library/react`, which achieves the same click-to-open assertion without a new dependency.

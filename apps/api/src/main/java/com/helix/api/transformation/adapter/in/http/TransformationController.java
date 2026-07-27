@@ -22,7 +22,7 @@ public class TransformationController {
 
     @PostMapping
     public TransformationDto create(@Valid @RequestBody CreateTransformationRequest request) {
-        return toDto(service.create(request.title(), request.purpose()));
+        return toDto(service.create(request.title(), request.purpose(), request.desiredIdentity(), request.obstacle()));
     }
 
     @GetMapping
@@ -36,13 +36,24 @@ public class TransformationController {
     }
 
     private TransformationDto toDto(TransformationEntity entity) {
-        return new TransformationDto(entity.getId(), entity.getTitle(), entity.getPurpose(), entity.getCreatedAt().toString());
+        return new TransformationDto(
+            entity.getId(),
+            entity.getTitle(),
+            entity.getPurpose(),
+            entity.getDesiredIdentity(),
+            entity.getObstacle(),
+            entity.getCreatedAt().toString()
+        );
     }
 
     public record CreateTransformationRequest(
         @NotBlank @Size(max = 140) String title,
-        @Size(max = 2000) String purpose
+        @Size(max = 2000) String purpose,
+        @Size(max = 2000) String desiredIdentity,
+        @Size(max = 2000) String obstacle
     ) {}
 
-    public record TransformationDto(UUID id, String title, String purpose, String createdAt) {}
+    public record TransformationDto(
+        UUID id, String title, String purpose, String desiredIdentity, String obstacle, String createdAt
+    ) {}
 }

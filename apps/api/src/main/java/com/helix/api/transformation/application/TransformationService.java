@@ -19,7 +19,13 @@ public class TransformationService {
     }
 
     public TransformationEntity create(String title, String purpose) {
-        var entity = new TransformationEntity(UUID.randomUUID(), title.trim(), purpose, OffsetDateTime.now());
+        return create(title, purpose, null, null);
+    }
+
+    public TransformationEntity create(String title, String purpose, String desiredIdentity, String obstacle) {
+        var entity = new TransformationEntity(
+            UUID.randomUUID(), title.trim(), purpose, desiredIdentity, obstacle, OffsetDateTime.now()
+        );
         return repository.save(entity);
     }
 

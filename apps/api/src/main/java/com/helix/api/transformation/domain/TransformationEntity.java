@@ -21,20 +21,36 @@ public class TransformationEntity {
     @Column(columnDefinition = "text")
     private String purpose;
 
+    @Column(name = "desired_identity", columnDefinition = "text")
+    private String desiredIdentity;
+
+    @Column(columnDefinition = "text")
+    private String obstacle;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
     protected TransformationEntity() {}
 
     public TransformationEntity(UUID id, String title, String purpose, OffsetDateTime createdAt) {
+        this(id, title, purpose, null, null, createdAt);
+    }
+
+    public TransformationEntity(
+        UUID id, String title, String purpose, String desiredIdentity, String obstacle, OffsetDateTime createdAt
+    ) {
         this.id = id;
         this.title = title;
         this.purpose = purpose;
+        this.desiredIdentity = desiredIdentity;
+        this.obstacle = obstacle;
         this.createdAt = createdAt;
     }
 
     public UUID getId() { return id; }
     public String getTitle() { return title; }
     public String getPurpose() { return purpose; }
+    public String getDesiredIdentity() { return desiredIdentity; }
+    public String getObstacle() { return obstacle; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
 }

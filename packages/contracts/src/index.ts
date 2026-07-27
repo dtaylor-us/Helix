@@ -4,6 +4,8 @@ export interface Transformation {
   id: UUID;
   title: string;
   purpose?: string;
+  desiredIdentity?: string;
+  obstacle?: string;
   createdAt: string;
 }
 
@@ -13,6 +15,9 @@ export interface Experiment {
   title: string;
   hypothesis?: string;
   nextAction?: string;
+  cadence?: string;
+  evidenceOfSuccess?: string;
+  reviewAt?: string;
   status: "ACTIVE" | "COMPLETED";
   createdAt: string;
 }
@@ -197,12 +202,17 @@ export interface TodayResponse {
 export interface CreateTransformationRequest {
   title: string;
   purpose?: string;
+  desiredIdentity?: string;
+  obstacle?: string;
 }
 
 export interface CreateExperimentRequest {
   title: string;
   hypothesis?: string;
   nextAction?: string;
+  cadence?: string;
+  evidenceOfSuccess?: string;
+  reviewAt?: string;
 }
 
 export interface CreateReflectionRequest {

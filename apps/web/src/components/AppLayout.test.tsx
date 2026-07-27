@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { createRootRoute, createRoute, createRouter, RouterProvider } from '@tanstack/react-router'
 import { AppLayout } from './AppLayout'
 
@@ -13,7 +12,6 @@ function renderShell() {
 
 describe('AppLayout', () => {
   it('shows a reduced primary navigation and a skip link', async () => {
-    const user = userEvent.setup()
     renderShell()
 
     expect(await screen.findByRole('link', { name: 'Skip to content' })).toBeInTheDocument()
@@ -22,7 +20,7 @@ describe('AppLayout', () => {
     expect(screen.getByRole('link', { name: 'Library' })).toBeInTheDocument()
     // Secondary destinations are tucked behind "More" rather than competing for primary attention.
     const moreSummary = screen.getByText('More')
-    await user.click(moreSummary)
+    fireEvent.click(moreSummary)
     expect(screen.getByRole('link', { name: 'Settings' })).toBeInTheDocument()
   })
 })

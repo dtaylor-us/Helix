@@ -25,7 +25,10 @@ public class TodayController {
                 true,
                 new ExperimentCard(snapshot.activeExperiment().getId(), snapshot.activeExperiment().getTransformationId(),
                     snapshot.activeExperiment().getTitle(), snapshot.activeExperiment().getHypothesis(),
-                    snapshot.activeExperiment().getNextAction(), snapshot.activeExperiment().getStatus().name(),
+                    snapshot.activeExperiment().getNextAction(), snapshot.activeExperiment().getCadence(),
+                    snapshot.activeExperiment().getEvidenceOfSuccess(),
+                    snapshot.activeExperiment().getReviewAt() != null ? snapshot.activeExperiment().getReviewAt().toString() : null,
+                    snapshot.activeExperiment().getStatus().name(),
                     snapshot.activeExperiment().getCreatedAt().toString()),
                 snapshot.reflectionHistory().stream().map(this::toReflectionCard).toList(),
                 snapshot.suggestionHistory().stream().map(this::toSuggestionCard).toList()
@@ -48,7 +51,8 @@ public class TodayController {
     public record TodayDto(boolean hasActiveExperiment, ExperimentCard activeExperiment,
                            List<ReflectionCard> reflectionHistory, List<SuggestionCard> suggestionHistory) {}
     public record ExperimentCard(UUID id, UUID transformationId, String title, String hypothesis,
-                                 String nextAction, String status, String createdAt) {}
+                                 String nextAction, String cadence, String evidenceOfSuccess, String reviewAt,
+                                 String status, String createdAt) {}
     public record ReflectionCard(UUID id, UUID experimentId, String content, String createdAt) {}
     public record SuggestionCard(UUID id, UUID experimentId, UUID reflectionId, String text,
                                  String status, String replacementText, String createdAt, String respondedAt) {}

@@ -10,15 +10,29 @@ export function TransformationDetailPage() {
   const [title, setTitle] = useState('')
   const [hypothesis, setHypothesis] = useState('')
   const [nextAction, setNextAction] = useState('')
+  const [cadence, setCadence] = useState('')
+  const [evidenceOfSuccess, setEvidenceOfSuccess] = useState('')
+  const [reviewAt, setReviewAt] = useState('')
 
   const transformation = useQuery({ queryKey: ['transformation', id], queryFn: () => api.getTransformation(id) })
 
   const createExperiment = useMutation({
-    mutationFn: () => api.createExperiment(id, { title, hypothesis, nextAction }),
+    mutationFn: () =>
+      api.createExperiment(id, {
+        title,
+        hypothesis,
+        nextAction,
+        cadence,
+        evidenceOfSuccess,
+        reviewAt: reviewAt || undefined,
+      }),
     onSuccess: () => {
       setTitle('')
       setHypothesis('')
       setNextAction('')
+      setCadence('')
+      setEvidenceOfSuccess('')
+      setReviewAt('')
       queryClient.invalidateQueries({ queryKey: ['today'] })
     },
   })
@@ -29,6 +43,12 @@ export function TransformationDetailPage() {
         <h2>Transformation</h2>
         <p>{transformation.data?.title}</p>
         <p className="muted">{transformation.data?.purpose}</p>
+        {transformation.data?.desiredIdentity && (
+          <p className="muted">Who you&rsquo;re becoming: {transformation.data.desiredIdentity}</p>
+        )}
+        {transformation.data?.obstacle && (
+          <p className="muted">What gets in the way: {transformation.data.obstacle}</p>
+        )}
       </section>
       <section className="card">
         <h2>Add an experiment</h2>
@@ -42,6 +62,23 @@ export function TransformationDetailPage() {
         <textarea id="exp-hypothesis" rows={3} value={hypothesis} onChange={(e) => setHypothesis(e.target.value)} />
         <label htmlFor="exp-next">Smallest next action</label>
         <input id="exp-next" value={nextAction} onChange={(e) => setNextAction(e.target.value)} />
+        <label htmlFor="exp-cadence">How often will you try this? (optional)</label>
+        <input
+          id="exp-cadence"
+          value={cadence}
+          onChange={(e) => setCadence(e.target.value)}
+          placeholder="e.g. Whenever I feel criticized"
+        />
+        <label htmlFor="exp-evidence">What would count as useful evidence? (optional)</label>
+        <textarea
+          id="exp-evidence"
+          rows={2}
+          value={evidenceOfSuccess}
+          onChange={(e) => setEvidenceOfSuccess(e.target.value)}
+          placeholder="e.g. Fewer moments of regretting how I responded"
+        />
+        <label htmlFor="exp-review">When will you review this? (optional)</label>
+        <input id="exp-review" type="date" value={reviewAt} onChange={(e) => setReviewAt(e.target.value)} />
         <div>
           <button disabled={!title.trim() || createExperiment.isPending} onClick={() => createExperiment.mutate()}>
             Save experiment
