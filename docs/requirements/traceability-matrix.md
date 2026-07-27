@@ -2,8 +2,8 @@
 
 | Requirement ID | Current Implementation | Tests | ADRs |
 |---|---|---|---|
-| HELIX-FR-001 | POST /api/v1/transformations, GET list/detail, Transformations page | Backend unit/integration foundations, web unit | ADR-001, ADR-003, ADR-010 |
-| HELIX-FR-002 | POST /api/v1/transformations/{id}/experiments | Backend service tests | ADR-001, ADR-003 |
+| HELIX-FR-001 | POST /api/v1/transformations (title, purpose, optional desiredIdentity/obstacle), GET list/detail, guided Journey page | TransformationServiceTest, TransformationsPage.test.tsx | ADR-001, ADR-003, ADR-004, ADR-010 |
+| HELIX-FR-002 | POST /api/v1/transformations/{id}/experiments (title, hypothesis, nextAction, optional cadence/evidenceOfSuccess/reviewAt), guided experiment form on TransformationDetailPage | ExperimentServiceTest | ADR-001, ADR-003, ADR-004 |
 | HELIX-FR-003 | POST /api/v1/experiments/{id}/reflections | ReflectionService test | ADR-004, ADR-010 |
 | HELIX-FR-004 | Deterministic suggestion generation after reflection | SuggestionEntity + ReflectionService tests | ADR-006, ADR-007 |
 | HELIX-FR-005 | Suggestion accept/dismiss/replace endpoints | Suggestion domain test | ADR-006 |

@@ -121,6 +121,15 @@ export function TodayPage() {
         <h2>Current Direction</h2>
         <p>Active experiment: {data.activeExperiment.title}</p>
         <p className="muted">Hypothesis: {data.activeExperiment.hypothesis || 'No hypothesis yet.'}</p>
+        {data.activeExperiment.cadence && (
+          <p className="muted">How often: {data.activeExperiment.cadence}</p>
+        )}
+        {data.activeExperiment.evidenceOfSuccess && (
+          <p className="muted">Evidence to watch for: {data.activeExperiment.evidenceOfSuccess}</p>
+        )}
+        {data.activeExperiment.reviewAt && (
+          <p className="muted">Review by: {data.activeExperiment.reviewAt}</p>
+        )}
         <TermHint term="Experiment" />
       </section>
 

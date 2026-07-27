@@ -8,6 +8,8 @@ export function TransformationsPage() {
   const queryClient = useQueryClient()
   const [title, setTitle] = useState('')
   const [purpose, setPurpose] = useState('')
+  const [desiredIdentity, setDesiredIdentity] = useState('')
+  const [obstacle, setObstacle] = useState('')
 
   const transformations = useQuery({
     queryKey: ['transformations'],
@@ -15,10 +17,12 @@ export function TransformationsPage() {
   })
 
   const createMutation = useMutation({
-    mutationFn: () => api.createTransformation({ title, purpose }),
+    mutationFn: () => api.createTransformation({ title, purpose, desiredIdentity, obstacle }),
     onSuccess: () => {
       setTitle('')
       setPurpose('')
+      setDesiredIdentity('')
+      setObstacle('')
       queryClient.invalidateQueries({ queryKey: ['transformations'] })
     },
   })
@@ -46,6 +50,22 @@ export function TransformationsPage() {
           />
           <label htmlFor="purpose">Why does this matter to you right now?</label>
           <textarea id="purpose" rows={3} value={purpose} onChange={(e) => setPurpose(e.target.value)} />
+          <label htmlFor="desired-identity">Who are you becoming through this? (optional)</label>
+          <textarea
+            id="desired-identity"
+            rows={2}
+            value={desiredIdentity}
+            onChange={(e) => setDesiredIdentity(e.target.value)}
+            placeholder="e.g. Someone who can hear feedback without spiraling"
+          />
+          <label htmlFor="obstacle">What currently gets in the way? (optional)</label>
+          <textarea
+            id="obstacle"
+            rows={2}
+            value={obstacle}
+            onChange={(e) => setObstacle(e.target.value)}
+            placeholder="e.g. I treat feedback as a verdict on who I am, not on what I did"
+          />
           <div>
             <button disabled={!title.trim() || createMutation.isPending} onClick={() => createMutation.mutate()}>
               Save transformation
