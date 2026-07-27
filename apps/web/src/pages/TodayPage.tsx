@@ -1,26 +1,46 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
+import { TermHint } from '../components/TermHint'
 import { api } from '../api/http'
 
-const DRAFT_KEY = 'helix:reflection-draft'
+const DRAFT_KEY_PREFIX = 'helix:reflection-draft:'
 
 export function TodayPage() {
   const queryClient = useQueryClient()
-  const [draft, setDraft] = useState(() => localStorage.getItem(DRAFT_KEY) ?? '')
   const [errorText, setErrorText] = useState<string | null>(null)
+  const [statusText, setStatusText] = useState<string | null>(null)
   const [replacementText, setReplacementText] = useState('')
 
   const todayQuery = useQuery({ queryKey: ['today'], queryFn: api.getToday })
+  const transformationsQuery = useQuery({ queryKey: ['transformations'], queryFn: api.listTransformations })
+
+  const activeExperimentId = todayQuery.data?.activeExperiment?.id
+  const draftKey = activeExperimentId ? `${DRAFT_KEY_PREFIX}${activeExperimentId}` : null
+
+  // Reflection drafts are namespaced per experiment so switching experiments never shows a
+  // draft written for a different one. When the active experiment changes, load whatever was
+  // saved locally for it (or start blank). This mirrors React's documented pattern for
+  // resetting state when a derived value changes, without a synchronous setState-in-effect.
+  const [draftExperimentId, setDraftExperimentId] = useState<string | undefined>(undefined)
+  const [draft, setDraft] = useState('')
+  if (activeExperimentId !== draftExperimentId) {
+    setDraftExperimentId(activeExperimentId)
+    setDraft(draftKey ? localStorage.getItem(draftKey) ?? '' : '')
+  }
 
   const reflectMutation = useMutation({
     mutationFn: (payload: { experimentId: string; content: string }) =>
       api.createReflection(payload.experimentId, { content: payload.content }),
     onSuccess: () => {
-      localStorage.removeItem(DRAFT_KEY)
+      if (draftKey) localStorage.removeItem(draftKey)
       setDraft('')
+      setErrorText(null)
+      setStatusText('Reflection saved.')
       queryClient.invalidateQueries({ queryKey: ['today'] })
     },
     onError: () => {
+      setStatusText(null)
       setErrorText('Reflection could not be saved. Your draft is kept on this device.')
     },
   })
@@ -34,15 +54,61 @@ export function TodayPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['today'] }),
   })
 
-  if (todayQuery.isLoading) return <p>Loading your active context...</p>
-  if (todayQuery.isError) return <p>Unable to load today view right now.</p>
+  if (todayQuery.isLoading || transformationsQuery.isLoading) {
+    return <p>Loading your active context...</p>
+  }
+
+  if (todayQuery.isError) {
+    return <p role="alert">Unable to load today view right now.</p>
+  }
 
   const data = todayQuery.data
+  const transformations = transformationsQuery.data ?? []
+
+  // True first-use state: nothing has been started yet.
+  if (transformations.length === 0) {
+    return (
+      <div className="stack">
+        <section className="card intro-card">
+          <h2>Welcome to Helix</h2>
+          <p>
+            Helix helps you turn who you want to become into small actions, reflection, and evidence of growth
+            &mdash; one transformation at a time.
+          </p>
+          <ol className="journey-loop">
+            <li>Start a transformation</li>
+            <li>Run one small experiment</li>
+            <li>Reflect on what happened</li>
+            <li>Notice the evidence it leaves behind</li>
+            <li>Keep what turns into wisdom</li>
+          </ol>
+          <div>
+            <Link to="/transformations" className="cta-button">
+              Begin my first transformation
+            </Link>
+          </div>
+        </section>
+      </div>
+    )
+  }
+
+  // Has transformations, but nothing active to work on today.
   if (!data || !data.hasActiveExperiment || !data.activeExperiment) {
+    const firstTransformation = transformations[0]
     return (
       <section className="card">
         <h2>Today</h2>
-        <p>No active experiment yet. Create a transformation, then add one small experiment.</p>
+        <p>No active experiment yet. Choose a transformation and add one small experiment to it.</p>
+        <div className="row">
+          {firstTransformation && (
+            <Link to="/transformations/$id" params={{ id: firstTransformation.id }} className="cta-button">
+              Add an experiment to &ldquo;{firstTransformation.title}&rdquo;
+            </Link>
+          )}
+          <Link to="/transformations" className="secondary-button">
+            See all transformations
+          </Link>
+        </div>
       </section>
     )
   }
@@ -55,17 +121,65 @@ export function TodayPage() {
         <h2>Current Direction</h2>
         <p>Active experiment: {data.activeExperiment.title}</p>
         <p className="muted">Hypothesis: {data.activeExperiment.hypothesis || 'No hypothesis yet.'}</p>
+        <TermHint term="Experiment" />
+      </section>
+
+      <section className="card">
+        <h2>Suggested Small Action</h2>
+        {latestSuggestion ? (
+          <>
+            <p>{latestSuggestion.text}</p>
+            <p className="muted">
+              Why this: part of your active experiment, &ldquo;{data.activeExperiment.title}&rdquo;. Status:{' '}
+              {latestSuggestion.status}.
+            </p>
+            <div className="row">
+              <button
+                onClick={() => suggestionAction.mutate({ action: 'accept', id: latestSuggestion.id })}
+                disabled={suggestionAction.isPending}
+              >
+                I&rsquo;ll try this
+              </button>
+              <button
+                onClick={() => suggestionAction.mutate({ action: 'dismiss', id: latestSuggestion.id })}
+                disabled={suggestionAction.isPending}
+              >
+                Not this one
+              </button>
+            </div>
+            <div className="row">
+              <input
+                aria-label="Replacement suggestion"
+                value={replacementText}
+                onChange={(e) => setReplacementText(e.target.value)}
+                placeholder="Or write your own smaller version"
+              />
+              <button
+                onClick={() =>
+                  suggestionAction.mutate({ action: 'replace', id: latestSuggestion.id, replacement: replacementText })
+                }
+                disabled={!replacementText.trim() || suggestionAction.isPending}
+              >
+                Use this instead
+              </button>
+            </div>
+            <TermHint term="Suggested Small Action" />
+          </>
+        ) : (
+          <p>No suggestion yet. Save a reflection below and Helix will offer one small next step.</p>
+        )}
       </section>
 
       <section className="card">
         <h2>Reflect</h2>
-        <label htmlFor="reflection">What happened today?</label>
+        <label htmlFor="reflection">What happened when you tried it &mdash; or what are you noticing today?</label>
         <textarea
           id="reflection"
           value={draft}
           onChange={(e) => {
             setDraft(e.target.value)
-            localStorage.setItem(DRAFT_KEY, e.target.value)
+            setStatusText(null)
+            if (draftKey) localStorage.setItem(draftKey, e.target.value)
           }}
           rows={5}
         />
@@ -76,57 +190,27 @@ export function TodayPage() {
           >
             Save reflection
           </button>
-          <span className="muted">Draft saved locally while you type.</span>
+          <span className="muted">Draft saved on this device while you type.</span>
         </div>
+        <p role="status" aria-live="polite" className="muted">
+          {statusText}
+        </p>
         {errorText && <p role="alert">{errorText}</p>}
-      </section>
-
-      <section className="card">
-        <h2>Suggested Small Action</h2>
-        {latestSuggestion ? (
-          <>
-            <p>{latestSuggestion.text}</p>
-            <p className="muted">Status: {latestSuggestion.status}</p>
-            <div className="row">
-              <button onClick={() => suggestionAction.mutate({ action: 'accept', id: latestSuggestion.id })}>Accept</button>
-              <button onClick={() => suggestionAction.mutate({ action: 'dismiss', id: latestSuggestion.id })}>Dismiss</button>
-            </div>
-            <div className="row">
-              <input
-                aria-label="Replacement suggestion"
-                value={replacementText}
-                onChange={(e) => setReplacementText(e.target.value)}
-                placeholder="Replace with your own wording"
-              />
-              <button
-                onClick={() =>
-                  suggestionAction.mutate({ action: 'replace', id: latestSuggestion.id, replacement: replacementText })
-                }
-                disabled={!replacementText.trim()}
-              >
-                Replace
-              </button>
-            </div>
-          </>
-        ) : (
-          <p>No suggestion yet. Save a reflection first.</p>
-        )}
+        <TermHint term="Reflection" />
       </section>
 
       <section className="card">
         <h2>History</h2>
         <h3>Recent reflections</h3>
-        <ul>
-          {data.reflectionHistory.slice(0, 5).map((item) => (
-            <li key={item.id}>{item.content}</li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="card">
-        <h2>Placeholders</h2>
-        <p>Recent Insight: coming in a later increment.</p>
-        <p>Continue Conversation: coming in a later increment.</p>
+        {data.reflectionHistory.length > 0 ? (
+          <ul>
+            {data.reflectionHistory.slice(0, 5).map((item) => (
+              <li key={item.id}>{item.content}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted">Nothing recorded yet.</p>
+        )}
       </section>
     </div>
   )
