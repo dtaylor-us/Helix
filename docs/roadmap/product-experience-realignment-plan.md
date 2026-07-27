@@ -1,6 +1,6 @@
 # Product Experience Realignment Plan
 
-Status: Phase 1 shipped; Phase 2 slice A (guided transformation + experiment creation) shipped; CurrentFocus projection and server-persisted onboarding state still open
+Status: Phase 1 shipped; Phase 2 slice A (guided transformation + experiment creation) shipped; Phase 3 slice A (progressive reflection questions + morning/evening framing) shipped; CurrentFocus projection, server-persisted onboarding state, and full evidence-extraction UX still open
 Owner: Agent-assisted delivery session, 2026-07-27
 Source: External architecture/UX review of the `main` branch (2026-07-27), reconciled against the actual repository state in this document.
 
@@ -107,3 +107,33 @@ Verification for this slice:
 - `npm run typecheck`, `npm run lint`, `npm run test` (10 tests / 7 files, including new `TransformationsPage.test.tsx`), and `npm run build` all passed for `apps/web`.
 - Backend changes (`apps/api`) were hand-reviewed carefully against existing conventions but **could not be compiled or tested**: this execution sandbox has no network path to install a JDK 21 toolchain (only JDK 11 is preinstalled, and the sandbox's outbound proxy blocks the JDK distribution host). Run `./scripts/test-backend` and `./scripts/verify-architecture` locally before relying on this backend change.
 - While fixing this slice's verification, an unrelated pre-existing break was found and fixed: a GitHub Copilot Autofix commit merged into Phase 1 had added an `@testing-library/user-event` import to `AppLayout.test.tsx` without adding the package as a dependency, which broke `npm run typecheck`. Replaced with `fireEvent` from the already-installed `@testing-library/react`, which achieves the same click-to-open assertion without a new dependency.
+
+## Phase 3 progress (2026-07-27, third session)
+
+Shipped, as "Phase 3 slice A":
+
+- Progressive reflection questions: `Reflection` gained optional `attempted` (boolean), `noticed`, `evidenceNoted`, and `surprise` fields. On Today, once the user has typed something into the required "What happened" answer, a single "+ next question" button appears; clicking it reveals that follow-up question's textarea and (if more remain) the next "+ ..." button for the following one — one at a time, rather than a wall of optional fields shown up front. Backed by `V7__progressive_reflection_fields.sql`.
+- A "Did you try it?" Yes/Not yet control was added ahead of the main answer, populating `attempted`.
+- The Reflect section heading is now time-of-day-conditional ("Morning check-in" before noon, "Evening review" after) with matching subtext, giving the section real, distinct content — this is what unblocks promoting "Reflect" to a primary nav destination in a later phase, per the reasoning recorded in the Phase 1 open-decision above (still not attempted this session; see "Still open" below).
+- `ReflectionCard` on the `/today` response now includes `attempted`/`noticed`/`evidenceNoted`/`surprise` when present; Today's reflection history list surfaces `noticed`/`evidenceNoted`/`surprise` when present.
+- After a successful save, a low-cost nudge — "This might be useful evidence — add it in Knowledge." — links to the already-existing evidence-from-reflection flow on `KnowledgePage` (confirmed implemented via its `EvidenceSourceMode` picker sourcing `reflectionHistory`). No new evidence-extraction UI was built, since one already exists and duplicating it would have been the over-engineering this plan is trying to avoid.
+- `CreateReflectionRequest`/`ReflectionEntity`/`ReflectionService.create` extended accordingly; the existing 2-arg `create(experimentId, content)` service method and 4-arg entity constructor were preserved as overloads, so the deterministic suggestion flow (confirmed to only read `nextAction` and attempt count, never reflection content) and existing call sites were unaffected.
+- New `ReflectionServiceTest` case (`createWithProgressiveAnswersPersistsThem`) added alongside the existing test, which now also asserts the new fields default to `null` when omitted.
+
+Deliberately trimmed from Phase 3 scope:
+- No new evidence-extraction UI (see above — the existing Knowledge flow already covers this; only a navigational nudge was added).
+- Follow-up answers (`noticed`/`evidenceNoted`/`surprise`) are **not** persisted to `localStorage` the way the main `content` draft is. Only the required answer survives a page reload/navigation-away; the optional follow-ups do not. This is called out explicitly in the UI itself ("Follow-up answers are not [saved on this device]") rather than silently losing data. Extending per-experiment draft persistence to the follow-up fields is straightforward but was left out of this slice to keep it small; it's a natural pickup for the next reflection-focused increment.
+- "Reflect" was **not** promoted to a primary nav destination this session, even though the morning/evening framing gives it more distinct content now — doing so is a nav-structure change that deserves its own deliberate pass (and ideally a check that Today doesn't become redundant with it) rather than a side effect of this slice.
+- The `reviewAt` "review due" surfacing carried over from Phase 2 remains open.
+
+Still open from Phase 3 (not attempted this session):
+- The `CurrentFocus` backend projection.
+- Server-persisted onboarding state.
+- Promoting "Reflect" to a primary nav destination.
+- Persisting follow-up answers to `localStorage`.
+- Any UI surfacing of `reviewAt` as a "review due" prompt.
+
+Verification for this slice:
+- `npm run typecheck`, `npm run lint`, `npm run test` (11 tests / 7 files, including the new progressive-follow-up test in `TodayPage.test.tsx`), and `npm run build` all passed for `apps/web`, run against a scratch clone with its own `npm install` (the sandbox's Linux/arm64 environment cannot run native bindings installed against the user's Mac `node_modules`).
+- `./scripts/check-docs` passed.
+- Backend changes (`apps/api`) were hand-reviewed carefully against existing conventions but **could not be compiled or tested**: this execution sandbox has only JDK 11 preinstalled, has no permissions to install packages via `apt`, and its outbound proxy blocks the JDK 21 distribution host (`api.adoptium.net`, confirmed via a direct `curl` returning `403 blocked-by-allowlist`). Run `./scripts/test-backend` and `./scripts/verify-architecture` locally before relying on this backend change.

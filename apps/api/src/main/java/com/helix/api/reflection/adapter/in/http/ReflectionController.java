@@ -24,7 +24,9 @@ public class ReflectionController {
         @PathVariable UUID experimentId,
         @Valid @RequestBody CreateReflectionRequest request
     ) {
-        var result = service.create(experimentId, request.content());
+        var result = service.create(
+            experimentId, request.content(), request.attempted(), request.noticed(), request.evidenceNoted(), request.surprise()
+        );
         return new CreateReflectionResponse(toReflectionDto(result.reflection()), toSuggestionDto(result.suggestion()));
     }
 
@@ -34,7 +36,16 @@ public class ReflectionController {
     }
 
     private ReflectionDto toReflectionDto(ReflectionEntity entity) {
-        return new ReflectionDto(entity.getId(), entity.getExperimentId(), entity.getContent(), entity.getCreatedAt().toString());
+        return new ReflectionDto(
+            entity.getId(),
+            entity.getExperimentId(),
+            entity.getContent(),
+            entity.getAttempted(),
+            entity.getNoticed(),
+            entity.getEvidenceNoted(),
+            entity.getSurprise(),
+            entity.getCreatedAt().toString()
+        );
     }
 
     private SuggestionDto toSuggestionDto(SuggestionEntity entity) {
@@ -50,10 +61,19 @@ public class ReflectionController {
         );
     }
 
-    public record CreateReflectionRequest(@NotBlank @Size(max = 4000) String content) {}
+    public record CreateReflectionRequest(
+        @NotBlank @Size(max = 4000) String content,
+        Boolean attempted,
+        @Size(max = 2000) String noticed,
+        @Size(max = 2000) String evidenceNoted,
+        @Size(max = 2000) String surprise
+    ) {}
     public record CreateReflectionResponse(ReflectionDto reflection, SuggestionDto suggestion) {}
 
-    public record ReflectionDto(UUID id, UUID experimentId, String content, String createdAt) {}
+    public record ReflectionDto(
+        UUID id, UUID experimentId, String content, Boolean attempted,
+        String noticed, String evidenceNoted, String surprise, String createdAt
+    ) {}
 
     public record SuggestionDto(
         UUID id,

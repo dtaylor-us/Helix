@@ -21,20 +21,47 @@ public class ReflectionEntity {
     @Column(nullable = false, columnDefinition = "text")
     private String content;
 
+    @Column
+    private Boolean attempted;
+
+    @Column(columnDefinition = "text")
+    private String noticed;
+
+    @Column(name = "evidence_noted", columnDefinition = "text")
+    private String evidenceNoted;
+
+    @Column(columnDefinition = "text")
+    private String surprise;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
     protected ReflectionEntity() {}
 
     public ReflectionEntity(UUID id, UUID experimentId, String content, OffsetDateTime createdAt) {
+        this(id, experimentId, content, null, null, null, null, createdAt);
+    }
+
+    public ReflectionEntity(
+        UUID id, UUID experimentId, String content, Boolean attempted,
+        String noticed, String evidenceNoted, String surprise, OffsetDateTime createdAt
+    ) {
         this.id = id;
         this.experimentId = experimentId;
         this.content = content;
+        this.attempted = attempted;
+        this.noticed = noticed;
+        this.evidenceNoted = evidenceNoted;
+        this.surprise = surprise;
         this.createdAt = createdAt;
     }
 
     public UUID getId() { return id; }
     public UUID getExperimentId() { return experimentId; }
     public String getContent() { return content; }
+    public Boolean getAttempted() { return attempted; }
+    public String getNoticed() { return noticed; }
+    public String getEvidenceNoted() { return evidenceNoted; }
+    public String getSurprise() { return surprise; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
 }

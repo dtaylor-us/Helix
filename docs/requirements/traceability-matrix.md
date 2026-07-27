@@ -4,7 +4,7 @@
 |---|---|---|---|
 | HELIX-FR-001 | POST /api/v1/transformations (title, purpose, optional desiredIdentity/obstacle), GET list/detail, guided Journey page | TransformationServiceTest, TransformationsPage.test.tsx | ADR-001, ADR-003, ADR-004, ADR-010 |
 | HELIX-FR-002 | POST /api/v1/transformations/{id}/experiments (title, hypothesis, nextAction, optional cadence/evidenceOfSuccess/reviewAt), guided experiment form on TransformationDetailPage | ExperimentServiceTest | ADR-001, ADR-003, ADR-004 |
-| HELIX-FR-003 | POST /api/v1/experiments/{id}/reflections | ReflectionService test | ADR-004, ADR-010 |
+| HELIX-FR-003 | POST /api/v1/experiments/{id}/reflections (content, optional attempted/noticed/evidenceNoted/surprise), progressive reflection UI on Today with morning/evening framing | ReflectionServiceTest, TodayPage.test.tsx | ADR-004, ADR-010 |
 | HELIX-FR-004 | Deterministic suggestion generation after reflection | SuggestionEntity + ReflectionService tests | ADR-006, ADR-007 |
 | HELIX-FR-005 | Suggestion accept/dismiss/replace endpoints | Suggestion domain test | ADR-006 |
 | HELIX-FR-006 | Today history payload and UI section | Web Today view behavior | ADR-010, ADR-012 |

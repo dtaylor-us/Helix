@@ -2,6 +2,41 @@
 
 This log is updated at the end of significant delivery sessions.
 
+## 2026-07-27 Session - Product Experience Realignment, Phase 3 Slice A: Progressive Reflection Questions
+
+Summary:
+- Continued `docs/roadmap/product-experience-realignment-plan.md` into Phase 3, scoped to one coherent slice: progressive reflection follow-up questions, an "attempted?" check, and morning/evening framing for the Reflect section — the most user-visible Phase 3 deliverables. New evidence-extraction UI was deliberately not built, since Knowledge already has a working reflection-to-evidence flow; only a navigational nudge toward it was added.
+- Backend (`apps/api`):
+  - Added `V7__progressive_reflection_fields.sql`, adding optional `attempted` (boolean), `noticed`, `evidence_noted`, and `surprise` columns to `reflections`.
+  - Extended `ReflectionEntity`, `ReflectionService`, and `ReflectionController` (request/DTO) with the four new fields. The original 4-arg entity constructor and 2-arg service `create` overload were preserved so existing call sites and the deterministic suggestion flow (confirmed to only read `nextAction` and attempt count, never reflection content) did not need to change.
+  - Updated `TodayController`'s `ReflectionCard` so the new fields flow through to the Today response's reflection history.
+  - Added a new `ReflectionServiceTest` case (`createWithProgressiveAnswersPersistsThem`) and updated the existing test to assert the new fields default to `null` when omitted.
+- Frontend (`apps/web`, `packages/contracts`):
+  - Extended `Reflection` and `CreateReflectionRequest` in `packages/contracts/src/index.ts`.
+  - Added `apps/web/src/content/reflectionQuestions.ts`, a small data module (mirroring the Phase 1 `glossary.ts` pattern) defining the three progressive follow-up questions in order.
+  - Reworked the Reflect section of `TodayPage`: renamed to a time-of-day-conditional "Morning check-in" / "Evening review" heading; added a "Did you try it?" Yes/Not yet control; and added a progressive reveal — once the main "What happened" answer has content, a single "+ next question" button appears, revealing one follow-up textarea and the next button at a time, instead of showing all optional fields up front.
+  - After a successful save, added a nudge — "This might be useful evidence — add it in Knowledge." — linking to the existing evidence-from-reflection flow on `KnowledgePage`.
+  - Today's reflection history list now shows `noticed`/`evidenceNoted`/`surprise` as muted sub-lines when present.
+  - Added a new test in `TodayPage.test.tsx` covering the progressive reveal and full submission payload, and registered a `/knowledge` route in the test router so the new `<Link>` renders correctly; fixed an existing test's heading assertion to match the new conditional heading text.
+
+**Governance (ADRs)**:
+- ADR-004: PostgreSQL remains authoritative; schema evolves through a new Flyway migration, all new columns nullable so no backfill is required.
+- ADR-010: the reflection-to-evidence nudge reinforces the existing evidence/provenance flow rather than introducing a new one.
+- No ADR superseded.
+
+Verification run:
+- `npm run typecheck` (apps/web) passed.
+- `npm run lint` (apps/web) passed.
+- `npm run test` (apps/web) passed — 11 tests across 7 files, including the new progressive-follow-up test in `TodayPage.test.tsx`.
+- `npm run build` (apps/web) passed.
+- `./scripts/check-docs` passed.
+- `./scripts/test-backend` and `./scripts/verify-architecture` were **not run**: this execution sandbox has Java 11 preinstalled and no permissions or network path to install Java 21 (a direct `curl` to the JDK distribution host returned `403 blocked-by-allowlist`). All backend Java changes were hand-reviewed line by line against existing conventions, and every new/changed constructor and service overload was checked against every call site in the repository, but this is not a substitute for compiling and running the test suite. **Please run `./scripts/test-backend` and `./scripts/verify-architecture` locally before merging.**
+
+Known limitations:
+- Follow-up answers (`noticed`/`evidenceNoted`/`surprise`) are not persisted to `localStorage`; only the main `content` draft survives a reload. This is stated explicitly in the UI's helper text rather than silently losing data.
+- "Reflect" was not promoted to a primary nav destination this session, even though it now has distinct morning/evening content — left for a deliberate nav-structure pass.
+- `CurrentFocus` backend projection, server-persisted onboarding state, and `reviewAt` "review due" surfacing (all carried over from Phase 2) remain open.
+
 ## 2026-07-27 Session - Product Experience Realignment, Phase 2 Slice A: Guided Transformation & Experiment Creation
 
 Summary:

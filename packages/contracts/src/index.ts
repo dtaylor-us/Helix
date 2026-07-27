@@ -26,6 +26,10 @@ export interface Reflection {
   id: UUID;
   experimentId: UUID;
   content: string;
+  attempted?: boolean | null;
+  noticed?: string | null;
+  evidenceNoted?: string | null;
+  surprise?: string | null;
   createdAt: string;
 }
 
@@ -217,6 +221,10 @@ export interface CreateExperimentRequest {
 
 export interface CreateReflectionRequest {
   content: string;
+  attempted?: boolean;
+  noticed?: string;
+  evidenceNoted?: string;
+  surprise?: string;
 }
 
 export interface CreateReflectionResponse {
