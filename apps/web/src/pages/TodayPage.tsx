@@ -13,7 +13,7 @@ export function TodayPage() {
   const [statusText, setStatusText] = useState<string | null>(null)
   const [replacementText, setReplacementText] = useState('')
   const [attempted, setAttempted] = useState<boolean | undefined>(undefined)
-  const [followUps, setFollowUps] = useState<Record<string, string>>({})
+  const [followUps, setFollowUps] = useState<Record<string, string | undefined>>({})
   const [revealedFollowUps, setRevealedFollowUps] = useState(0)
 
   const todayQuery = useQuery({ queryKey: ['today'], queryFn: api.getToday })
