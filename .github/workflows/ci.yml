@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: helix
+          POSTGRES_USER: helix
+          POSTGRES_PASSWORD: helix
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U helix -d helix"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install web dependencies
+        working-directory: apps/web
+        run: npm ci
+
+      - name: Backend tests
+        working-directory: apps/api
+        env:
+          HELIX_DB_URL: jdbc:postgresql://localhost:5432/helix
+          HELIX_DB_USER: helix
+          HELIX_DB_PASSWORD: helix
+        run: ./gradlew test
+
+      - name: Web lint
+        working-directory: apps/web
+        run: npm run lint
+
+      - name: Web typecheck
+        working-directory: apps/web
+        run: npm run typecheck
+
+      - name: Web unit tests
+        working-directory: apps/web
+        run: npm run test
+
+      - name: Web build
+        working-directory: apps/web
+        run: npm run build
+
+      - name: Docs check
+        run: ./scripts/check-docs

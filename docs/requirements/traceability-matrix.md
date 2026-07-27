@@ -1,0 +1,34 @@
+# Traceability Matrix
+
+| Requirement ID | Current Implementation | Tests | ADRs |
+|---|---|---|---|
+| HELIX-FR-001 | POST /api/v1/transformations, GET list/detail, Transformations page | Backend unit/integration foundations, web unit | ADR-001, ADR-003, ADR-010 |
+| HELIX-FR-002 | POST /api/v1/transformations/{id}/experiments | Backend service tests | ADR-001, ADR-003 |
+| HELIX-FR-003 | POST /api/v1/experiments/{id}/reflections | ReflectionService test | ADR-004, ADR-010 |
+| HELIX-FR-004 | Deterministic suggestion generation after reflection | SuggestionEntity + ReflectionService tests | ADR-006, ADR-007 |
+| HELIX-FR-005 | Suggestion accept/dismiss/replace endpoints | Suggestion domain test | ADR-006 |
+| HELIX-FR-006 | Today history payload and UI section | Web Today view behavior | ADR-010, ADR-012 |
+| HELIX-FR-008 | POST /api/v1/beliefs, GET /api/v1/beliefs, Knowledge belief form and list | BeliefService test, web knowledge page test | ADR-001, ADR-003, ADR-010 |
+| HELIX-FR-009 | POST /api/v1/beliefs/{id}/evidence with provenance payload | EvidenceService test | ADR-004, ADR-009, ADR-010 |
+| HELIX-FR-010 | POST /api/v1/beliefs/{id}/revisions and detail revision history | BeliefService test | ADR-001, ADR-009 |
+| HELIX-FR-011 | GET /api/v1/beliefs/{id} evidence timeline + narrative, Knowledge detail page | Belief detail API compile path, web knowledge page test | ADR-009, ADR-010 |
+| HELIX-FR-012 | GET /api/v1/wisdom/weekly-retrospective with reflection summaries and deterministic assistance | WeeklyRetrospectiveService test, web wisdom page test | ADR-001, ADR-003, ADR-010 |
+| HELIX-FR-013 | POST /api/v1/wisdom/weekly-retrospective and GET /api/v1/wisdom/retrospectives snapshot history | WeeklyRetrospectiveService test | ADR-004, ADR-010 |
+| HELIX-FR-014 | POST /api/v1/wisdom, GET /api/v1/wisdom, GET detail, POST revision + Wisdom page | WisdomService test, web wisdom page test | ADR-001, ADR-009, ADR-010 |
+| HELIX-FR-015 | Wisdom source links persisted with typed references (reflection, evidence, retrospective) | WisdomService test | ADR-009, ADR-010 |
+| HELIX-FR-016 | GET /api/v1/search returns structured keyword results across modules, merged with semantic matches where available | StructuredSearchService test, web search page test | ADR-010 |
+| HELIX-FR-017 | POST /api/v1/memory/proposals and review actions with provenance and lifecycle history | MemoryProposalServiceTest, web memory page test | ADR-008, ADR-010 |
+| HELIX-FR-018 | Semantic index rebuild workflow and deterministic local embedding adapter with source-cited hybrid retrieval | SemanticIndexingServiceTest, LocalHashEmbeddingAdapterTest, StructuredSearchServiceTest | ADR-004, ADR-006, ADR-010 |
+| HELIX-NFR-001 | Browser uses API client; no DB adapters in web | Architecture boundary tests | ADR-005 |
+| HELIX-NFR-002 | Persistence via PostgreSQL with Flyway migrations | Database integration tests | ADR-004 |
+| HELIX-NFR-003 | Modular monolith with explicit domain boundaries | Architecture boundary tests (ArchUnit) | ADR-001 |
+| HELIX-SEC-001 | Logging policy docs and no explicit content logging | CI policy checks + review | ADR-014 |
+| HELIX-SEC-002 | AI provider requires explicit configuration; consent via provider selection | Configuration docs (ai-provider-setup.md) and AiProperties | ADR-006, ADR-008 |
+| HELIX-AI-001 | AiAssistantPort interface, factory pattern for provider selection, OpenAI/Ollama/NoOp adapters | AiProviderFactoryTest, OpenAiAssistantAdapterTest, OllamaAssistantAdapterTest | ADR-006, ADR-007, ADR-008 |
+| HELIX-AI-002 | NoAiAssistantAdapter returns deterministic fallback; all providers gracefully degrade to NoOp on failure | NoAiAssistantAdapterTest, circuit breaker health checks, chaos tests | ADR-006, ADR-007 |
+| HELIX-BR-001 | All workflows tested and functional without AI enabled (provider=none) | Core flow integration tests with HELIX_AI_PROVIDER=none | ADR-006 |
+| HELIX-BR-002 | Evidence provenance payload and detail rendering | EvidenceService test | ADR-009 |
+| HELIX-BR-004 | Knowledge narrative is descriptive rather than scored | Web knowledge detail behavior | ADR-009 |
+| HELIX-BR-005 | Wisdom creation requires linked supporting sources | WisdomService test | ADR-009 |
+| HELIX-UX-001 | Calm and nonjudgmental language in suggestions and UI | Manual review + deterministic suggestion phrasing | ADR-001 |
+| HELIX-UX-002 | Keyboard-navigable core forms and actions | Web vitest keyboard navigation tests | ADR-002 |

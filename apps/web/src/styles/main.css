@@ -1,0 +1,165 @@
+:root {
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  line-height: 1.5;
+  color: #1f2937;
+  background: radial-gradient(circle at top left, #f2efe6 0%, #edf2f7 45%, #e7ecf2 100%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+.shell {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.shell-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.subtitle {
+  margin-top: 0.25rem;
+  color: #4b5563;
+}
+
+.nav-list {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0;
+  margin: 0;
+}
+
+.nav-link {
+  text-decoration: none;
+  padding: 0.45rem 0.75rem;
+  border-radius: 0.5rem;
+  color: #1f2937;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.content {
+  display: grid;
+  gap: 1rem;
+}
+
+.stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.card {
+  border: 1px solid #cdd4df;
+  background: rgba(255, 255, 255, 0.85);
+  padding: 1rem;
+  border-radius: 0.75rem;
+}
+
+.row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+label {
+  font-weight: 600;
+}
+
+input,
+textarea,
+select,
+button {
+  font: inherit;
+}
+
+input,
+textarea,
+select {
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid #9ca3af;
+}
+
+button {
+  border: none;
+  border-radius: 0.5rem;
+  background: #204a69;
+  color: #f8fafc;
+  padding: 0.55rem 0.85rem;
+  cursor: pointer;
+}
+
+button:disabled {
+  background: #7b8796;
+  cursor: not-allowed;
+}
+
+.muted {
+  color: #4b5563;
+}
+
+.knowledge-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.knowledge-detail {
+  grid-column: 1 / -1;
+}
+
+.split-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.secondary-button {
+  text-align: left;
+  display: grid;
+  gap: 0.2rem;
+  background: rgba(232, 238, 246, 0.95);
+  color: #163042;
+}
+
+.active-item {
+  outline: 2px solid #204a69;
+}
+
+.timeline-item {
+  border-left: 3px solid #89a9c2;
+  padding-left: 0.75rem;
+}
+
+.emphasis-block {
+  border: 1px solid #c9d6e2;
+  background: #f7fafc;
+  padding: 0.85rem;
+  border-radius: 0.75rem;
+}
+
+@media (max-width: 700px) {
+  .shell {
+    padding: 0.75rem;
+  }
+
+  .nav-list {
+    gap: 0.35rem;
+  }
+
+  .knowledge-grid,
+  .split-grid {
+    grid-template-columns: 1fr;
+  }
+}

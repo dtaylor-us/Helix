@@ -1,0 +1,62 @@
+# Helix AI Provider Configuration
+# 
+# This file contains AI provider settings. In production, use environment variables
+# or secure vaults for sensitive values like API keys.
+#
+# Governed by ADR-006 (optional AI), ADR-007 (local-first), ADR-008 (user governance)
+
+helix:
+  ai:
+    # Active provider: openai (default), ollama, or none
+    # - openai: Cloud-based LLM (requires OPENAI_API_KEY)
+    # - ollama: Local on-device inference (requires Ollama running on base-url)
+    # - none: Deterministic fallback (no external dependencies)
+    provider: openai
+    
+    # Request timeout in seconds (default: 10)
+    timeout-seconds: 10
+    
+    # Retry configuration
+    retry-max-attempts: 3
+    retry-delay-ms: 100
+    
+    # OpenAI provider configuration
+    openai:
+      # API key (required if provider=openai)
+      # Source from environment: export OPENAI_API_KEY="sk-..."
+      api-key: ${OPENAI_API_KEY}
+      
+      # Model name (default: gpt-4o-mini)
+      # Other options: gpt-4, gpt-4o, gpt-3.5-turbo
+      model: gpt-4o-mini
+      
+      # OpenAI API base URL (default: https://api.openai.com)
+      base-url: https://api.openai.com
+      
+      # Temperature for response generation (default: 0.7)
+      # Range: 0.0 (deterministic) to 2.0 (creative)
+      temperature: 0.7
+      
+      # Max tokens per response (default: 150)
+      max-tokens: 150
+    
+    # Ollama provider configuration (for local development)
+    ollama:
+      # Base URL for Ollama service (default: http://localhost:11434)
+      # Make sure Ollama is running: ollama serve
+      base-url: http://localhost:11434
+      
+      # Model name (default: llama2)
+      # Common options: llama2, neural-chat, mistral, dolphin-mixtral
+      model: llama2
+      
+      # Temperature for response generation (default: 0.7)
+      temperature: 0.7
+
+# Spring Boot configuration for async tasks and scheduling
+spring:
+  task:
+    scheduling:
+      pool:
+        size: 2
+      thread-name-prefix: "helix-ai-"

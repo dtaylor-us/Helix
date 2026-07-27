@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "Run in separate shells: ./scripts/dev-api and ./scripts/dev-web"

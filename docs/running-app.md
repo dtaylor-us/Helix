@@ -1,0 +1,166 @@
+# Running Helix Locally
+
+This guide covers starting the full app stack on macOS/Linux.
+
+## Prerequisites
+
+- Java 21 (required by apps/api)
+- Node.js and npm (required by apps/web)
+- Docker (required for PostgreSQL)
+
+## Default Ports
+
+- Web app: 5173
+- API: 8080
+- PostgreSQL: 5432
+
+## 1. Install Web Dependencies
+
+From repository root:
+
+```bash
+./scripts/bootstrap
+```
+
+This installs npm packages for apps/web.
+
+## 1.5 Configure Local Environment Variables
+
+From repository root:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and set values as needed, especially:
+
+- `OPENAI_API_KEY` for OpenAI provider
+- `HELIX_DB_URL` if PostgreSQL is not on `localhost:5432` (for example `jdbc:postgresql://localhost:55433/helix`)
+
+`./scripts/dev-api` and `./scripts/dev-web` automatically load `.env` from repository root.
+
+## 2. Start PostgreSQL
+
+From repository root:
+
+```bash
+docker compose -f infra/local/docker-compose.yml up -d
+```
+
+Database defaults from compose file:
+
+- Database: helix
+- Username: helix
+- Password: helix
+
+## 3. Start API
+
+In a new terminal from repository root:
+
+```bash
+./scripts/dev-api
+```
+
+The API uses these default values unless overridden:
+
+- HELIX_DB_URL=jdbc:postgresql://localhost:5432/helix
+- HELIX_DB_USER=helix
+- HELIX_DB_PASSWORD=helix
+- PORT=8080
+
+## 4. Start Web App
+
+In another terminal from repository root:
+
+```bash
+./scripts/dev-web
+```
+
+Open:
+
+- http://localhost:5173/today
+
+The web app calls the API at http://localhost:8080 by default.
+
+## Optional AI Provider Configuration
+
+Helix supports optional AI providers. Core flows still work without AI.
+
+- Default provider: openai
+- Override provider with HELIX_AI_PROVIDER
+
+Examples:
+
+```bash
+# Use deterministic no-AI fallback
+export HELIX_AI_PROVIDER=none
+
+# Use local Ollama
+export HELIX_AI_PROVIDER=ollama
+
+# Use OpenAI (default) with API key
+export HELIX_AI_PROVIDER=openai
+export OPENAI_API_KEY=your_key_here
+```
+
+## Useful Commands
+
+From repository root:
+
+```bash
+./scripts/dev        # reminder for running api/web in separate terminals
+./scripts/test       # backend + web tests
+./scripts/lint       # web lint
+./scripts/verify-architecture
+./scripts/check-docs
+```
+
+## Stop Local Services
+
+- Stop API/web with Ctrl+C in each terminal
+- Stop database:
+
+```bash
+docker compose -f infra/local/docker-compose.yml down
+```
+
+## Troubleshooting
+
+### Port already in use
+
+- Change PORT for API:
+
+```bash
+export PORT=8081
+./scripts/dev-api
+```
+
+- If API port changes, set web API base URL:
+
+```bash
+export VITE_API_BASE_URL=http://localhost:8081
+./scripts/dev-web
+```
+
+### Database connection errors
+
+- Ensure Docker is running
+- Recreate database container:
+
+```bash
+docker compose -f infra/local/docker-compose.yml down -v
+docker compose -f infra/local/docker-compose.yml up -d
+```
+
+- If PostgreSQL is running on a non-default host port, set `HELIX_DB_URL` in `.env`.
+	Example:
+
+```bash
+HELIX_DB_URL=jdbc:postgresql://localhost:55433/helix
+```
+
+### AI provider errors
+
+- Set HELIX_AI_PROVIDER=none to confirm non-AI flow works
+- For openai, verify OPENAI_API_KEY is set
+- For ollama, ensure Ollama is running at http://localhost:11434

@@ -1,0 +1,152 @@
+openapi: 3.1.0
+info:
+  title: Helix API
+  version: 0.1.0
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/v1/health:
+    get:
+      operationId: health
+      responses:
+        '200':
+          description: Health response
+  /api/v1/today:
+    get:
+      operationId: getToday
+      responses:
+        '200':
+          description: Today snapshot
+  /api/v1/transformations:
+    get:
+      operationId: listTransformations
+      responses:
+        '200':
+          description: List transformations
+    post:
+      operationId: createTransformation
+      responses:
+        '200':
+          description: Created transformation
+  /api/v1/transformations/{id}:
+    get:
+      operationId: getTransformation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Transformation detail
+  /api/v1/transformations/{id}/experiments:
+    post:
+      operationId: createExperiment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Created experiment
+  /api/v1/experiments/{id}:
+    get:
+      operationId: getExperiment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Experiment detail
+  /api/v1/experiments/{id}/reflections:
+    post:
+      operationId: createReflection
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Reflection and suggestion
+  /api/v1/reflections/{id}:
+    get:
+      operationId: getReflection
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Reflection detail
+  /api/v1/suggestions/{id}/accept:
+    post:
+      operationId: acceptSuggestion
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Suggestion accepted
+  /api/v1/suggestions/{id}/dismiss:
+    post:
+      operationId: dismissSuggestion
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Suggestion dismissed
+  /api/v1/suggestions/{id}/replace:
+    post:
+      operationId: replaceSuggestion
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Suggestion replaced
+  /api/v1/search:
+    get:
+      operationId: search
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Search results
+  /api/v1/search/index/rebuild:
+    post:
+      operationId: rebuildSearchIndex
+      responses:
+        '200':
+          description: Search index rebuilt

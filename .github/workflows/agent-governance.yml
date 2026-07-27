@@ -1,0 +1,43 @@
+name: Agent Governance
+
+on:
+  pull_request:
+    paths:
+      - '.github/**'
+      - 'AGENTS.md'
+      - 'docs/requirements/**'
+      - 'docs/decisions/**'
+
+permissions:
+  contents: read
+
+jobs:
+  policy-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify required .github assets
+        run: |
+          test -f .github/copilot-instructions.md
+          test -f .github/agents/_shared-agent-contract.md
+          test -f .github/prompts/implement-vertical-slice.md
+          test -f .github/prompts/release-readiness.md
+
+      - name: Validate prompt files have input and output sections
+        run: |
+          for f in .github/prompts/*.md; do
+            grep -Eq '^## (Inputs|Required Inputs)' "$f"
+            grep -Eq '^## (Output Contract|Required Output)' "$f"
+          done
+
+      - name: Ensure mandatory guardrail language exists
+        run: |
+          grep -q 'No direct browser-to-database' .github/copilot-instructions.md
+          grep -q 'AI optional' .github/copilot-instructions.md
+          grep -q 'no sensitive reflective content' .github/agents/_shared-agent-contract.md
+
+      - name: Confirm AGENTS and traceability docs exist
+        run: |
+          test -f AGENTS.md
+          test -f docs/requirements/traceability-matrix.md
