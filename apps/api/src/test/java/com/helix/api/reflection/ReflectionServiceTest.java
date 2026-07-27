@@ -15,6 +15,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -59,5 +60,55 @@ class ReflectionServiceTest {
         var result = service.create(experimentId, "I did half of it and felt better.");
 
         assertTrue(result.suggestion().getText().startsWith("Optional next step:"));
+        assertEquals(null, result.reflection().getAttempted());
+    }
+
+    @Test
+    void createWithProgressiveAnswersPersistsThem() {
+        var repo = Mockito.mock(ReflectionRepository.class);
+        var experimentService = Mockito.mock(ExperimentService.class);
+        var suggestionService = Mockito.mock(SuggestionService.class);
+
+        var experimentId = UUID.randomUUID();
+        var reflectionId = UUID.randomUUID();
+
+        when(experimentService.get(experimentId)).thenReturn(new ExperimentEntity(
+            UUID.randomUUID(),
+            UUID.randomUUID(),
+            "Pause before responding",
+            "Pausing helps me respond calmly",
+            "Take one breath before replying",
+            ExperimentStatus.ACTIVE,
+            OffsetDateTime.now()
+        ));
+
+        when(repo.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(repo.findByExperimentIdOrderByCreatedAtDesc(experimentId)).thenReturn(List.of());
+
+        when(suggestionService.createDeterministic(any(), any(), any(), anyInt())).thenReturn(new SuggestionEntity(
+            UUID.randomUUID(),
+            experimentId,
+            reflectionId,
+            "Optional next step: Take one breath before replying",
+            SuggestionStatus.PROPOSED,
+            null,
+            OffsetDateTime.now(),
+            null
+        ));
+
+        var service = new ReflectionService(repo, experimentService, suggestionService);
+        var result = service.create(
+            experimentId,
+            "I paused twice today.",
+            true,
+            "My shoulders were tense before I paused.",
+            "The conversation stayed calmer than usual.",
+            "I didn't expect it to feel this natural by the second try."
+        );
+
+        assertEquals(Boolean.TRUE, result.reflection().getAttempted());
+        assertEquals("My shoulders were tense before I paused.", result.reflection().getNoticed());
+        assertEquals("The conversation stayed calmer than usual.", result.reflection().getEvidenceNoted());
+        assertEquals("I didn't expect it to feel this natural by the second try.", result.reflection().getSurprise());
     }
 }

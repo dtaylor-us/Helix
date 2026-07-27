@@ -37,7 +37,16 @@ public class TodayController {
     }
 
     private ReflectionCard toReflectionCard(ReflectionEntity entity) {
-        return new ReflectionCard(entity.getId(), entity.getExperimentId(), entity.getContent(), entity.getCreatedAt().toString());
+        return new ReflectionCard(
+            entity.getId(),
+            entity.getExperimentId(),
+            entity.getContent(),
+            entity.getAttempted(),
+            entity.getNoticed(),
+            entity.getEvidenceNoted(),
+            entity.getSurprise(),
+            entity.getCreatedAt().toString()
+        );
     }
 
     private SuggestionCard toSuggestionCard(SuggestionEntity entity) {
@@ -53,7 +62,8 @@ public class TodayController {
     public record ExperimentCard(UUID id, UUID transformationId, String title, String hypothesis,
                                  String nextAction, String cadence, String evidenceOfSuccess, String reviewAt,
                                  String status, String createdAt) {}
-    public record ReflectionCard(UUID id, UUID experimentId, String content, String createdAt) {}
+    public record ReflectionCard(UUID id, UUID experimentId, String content, Boolean attempted,
+                                 String noticed, String evidenceNoted, String surprise, String createdAt) {}
     public record SuggestionCard(UUID id, UUID experimentId, UUID reflectionId, String text,
                                  String status, String replacementText, String createdAt, String respondedAt) {}
 }

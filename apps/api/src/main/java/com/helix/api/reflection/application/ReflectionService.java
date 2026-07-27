@@ -28,11 +28,22 @@ public class ReflectionService {
 
     @Transactional
     public ReflectionWithSuggestion create(UUID experimentId, String content) {
+        return create(experimentId, content, null, null, null, null);
+    }
+
+    @Transactional
+    public ReflectionWithSuggestion create(
+        UUID experimentId, String content, Boolean attempted, String noticed, String evidenceNoted, String surprise
+    ) {
         var experiment = experimentService.get(experimentId);
         var reflection = repository.save(new ReflectionEntity(
             UUID.randomUUID(),
             experimentId,
             content.trim(),
+            attempted,
+            noticed,
+            evidenceNoted,
+            surprise,
             OffsetDateTime.now()
         ));
         int previousAttempts = repository.findByExperimentIdOrderByCreatedAtDesc(experimentId).size();
