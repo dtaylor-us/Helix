@@ -7,6 +7,7 @@ import {
 import { AppLayout } from '../components/AppLayout'
 import { ExperimentPage } from '../pages/ExperimentPage'
 import { KnowledgePage } from '../pages/KnowledgePage'
+import { LibraryPage } from '../pages/LibraryPage'
 import { PlaceholderPage } from '../pages/PlaceholderPage'
 import { MemoryPage } from '../pages/MemoryPage'
 import { ReflectionPage } from '../pages/ReflectionPage'
@@ -62,6 +63,12 @@ const wisdomRoute = createRoute({
   component: WisdomPage,
 })
 
+const libraryRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/library',
+  component: LibraryPage,
+})
+
 const searchRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/search',
@@ -112,6 +119,7 @@ const routeTree = rootRoute.addChildren([
   experimentRoute,
   reflectionRoute,
   wisdomRoute,
+  libraryRoute,
   searchRoute,
   knowledgeRoute,
   settingsRoute,

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { useState } from 'react'
+import { TermHint } from '../components/TermHint'
 import { api } from '../api/http'
 
 export function TransformationDetailPage() {
@@ -30,16 +31,22 @@ export function TransformationDetailPage() {
         <p className="muted">{transformation.data?.purpose}</p>
       </section>
       <section className="card">
-        <h2>Create Experiment</h2>
+        <h2>Add an experiment</h2>
+        <p className="muted">
+          A small, time-bounded attempt that helps you learn what actually moves this transformation forward.
+        </p>
+        <TermHint term="Experiment" />
         <label htmlFor="exp-title">Experiment</label>
         <input id="exp-title" value={title} onChange={(e) => setTitle(e.target.value)} />
-        <label htmlFor="exp-hypothesis">Hypothesis</label>
+        <label htmlFor="exp-hypothesis">What do you want to learn?</label>
         <textarea id="exp-hypothesis" rows={3} value={hypothesis} onChange={(e) => setHypothesis(e.target.value)} />
-        <label htmlFor="exp-next">Suggested next action</label>
+        <label htmlFor="exp-next">Smallest next action</label>
         <input id="exp-next" value={nextAction} onChange={(e) => setNextAction(e.target.value)} />
-        <button disabled={!title.trim()} onClick={() => createExperiment.mutate()}>
-          Save experiment
-        </button>
+        <div>
+          <button disabled={!title.trim() || createExperiment.isPending} onClick={() => createExperiment.mutate()}>
+            Save experiment
+          </button>
+        </div>
       </section>
     </div>
   )
