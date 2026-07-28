@@ -2,6 +2,34 @@
 
 This log is updated at the end of significant delivery sessions.
 
+## 2026-07-27 Session - Product Experience Realignment, Phase 4 Slice A: Contextual Wisdom Capture
+
+Summary:
+- Continued `docs/roadmap/product-experience-realignment-plan.md` into Phase 4, scoped to one coherent slice: a contextual "this reflection may contain a lesson worth keeping" wisdom-capture prompt on Today, and a weekly narrative retrospective teaser also on Today. Both endpoints this slice calls (`POST /api/v1/wisdom` with a `REFLECTION` source, `GET /api/v1/wisdom/weekly-retrospective`) already existed from earlier increments, so **no backend changes were required** — this is a frontend-only slice.
+- Frontend (`apps/web`):
+  - `TodayPage`: after a reflection saves, a new card proposes a wisdom statement, deterministically prefilled by priority (`evidenceNoted` → `noticed` → `surprise` → the main answer, trimmed to 500 characters), editable before saving, with "Save as wisdom" and "Not now" actions. This is the new primary path for capturing wisdom from a reflection; manual entry on `WisdomPage` (via Library) is unchanged and remains the advanced/edit path, per the plan.
+  - `TodayPage`: a new "This week" card surfaces the same deterministic weekly retrospective `summary`/`assistance` text already used on the Wisdom page, linking to Library for the full workspace. Only renders when there's at least one reflection summary for the week; the underlying query only fires once the user has a transformation, so it's silent on the first-use welcome screen.
+  - Added two new `TodayPage.test.tsx` cases covering the prefill-priority/save flow and the retrospective teaser's presence/link.
+- Fixed an unrelated, pre-existing test-infrastructure gap discovered while verifying this slice: `@testing-library/react`'s automatic per-test DOM cleanup was never running, because it only self-registers when Vitest's `test.globals` option is enabled, which this project doesn't do. Every `render()` call across the test suite was leaving its DOM mounted instead of unmounting between tests. This had gone unnoticed because no prior test asserted the *absence* of something (`queryByText(...).not.toBeInTheDocument()`) in a way that stale DOM from an earlier test could break it — the two new Phase 4 tests were the first to do so, and only failed when run as part of the full suite, which is what surfaced it. Fixed by adding `afterEach(cleanup)` to `src/test/setup.ts`, protecting every test file going forward, not just this one.
+
+**Governance (ADRs)**:
+- ADR-006/ADR-007: the wisdom-statement prefill stays deterministic (no AI), consistent with AI remaining optional and assistive; nothing about this slice requires AI to be configured.
+- ADR-009: wisdom entries continue to require a linked supporting source; the contextual prompt always links back to the reflection that generated it.
+- No ADR superseded. No new backend surface was introduced, so no migration or ADR amendment was needed for this slice.
+
+Verification run:
+- `npm run typecheck` (apps/web) passed.
+- `npm run lint` (apps/web) passed.
+- `npm run test` (apps/web) passed — 13 tests across 7 files, including two new `TodayPage.test.tsx` cases.
+- `npm run build` (apps/web) passed.
+- `./scripts/check-docs` passed.
+- No backend changes were made in this slice, so the JDK 21 verification gap that applied to Phases 2 and 3 does not apply here; there was nothing under `apps/api` to hand-review or flag for local `./scripts/test-backend` / `./scripts/verify-architecture` runs.
+
+Known limitations:
+- The proposed wisdom statement is derived from a single reflection only; it doesn't look across a week's reflections the way the retrospective teaser summarizes a whole week. That remains open for a later increment.
+- `WisdomPage.tsx` itself is unchanged; it still requires selecting a source manually when used directly (unaffected by this slice, since Today's new prompt already supplies the source automatically).
+- `CurrentFocus` backend projection, server-persisted onboarding state, promoting "Reflect" to primary nav, persisting follow-up answers to `localStorage`, and `reviewAt` "review due" surfacing (all carried over from earlier phases) remain open.
+
 ## 2026-07-27 Session - Product Experience Realignment, Phase 3 Slice A: Progressive Reflection Questions
 
 Summary:

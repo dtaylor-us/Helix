@@ -15,9 +15,19 @@ export function TodayPage() {
   const [attempted, setAttempted] = useState<boolean | undefined>(undefined)
   const [followUps, setFollowUps] = useState<Record<string, string | undefined>>({})
   const [revealedFollowUps, setRevealedFollowUps] = useState(0)
+  const [wisdomDraft, setWisdomDraft] = useState<{ reflectionId: string; statement: string } | null>(null)
+  const [wisdomStatusText, setWisdomStatusText] = useState<string | null>(null)
 
   const todayQuery = useQuery({ queryKey: ['today'], queryFn: api.getToday })
   const transformationsQuery = useQuery({ queryKey: ['transformations'], queryFn: api.listTransformations })
+  // Fetched here (rather than only inside the Wisdom workspace) so a weekly narrative retrospective
+  // can be surfaced contextually on Today, per Phase 4. Only fetched once the user has at least one
+  // transformation, so it doesn't fire on the true first-use welcome screen.
+  const retrospectiveDraftQuery = useQuery({
+    queryKey: ['weekly-retrospective-draft'],
+    queryFn: api.getWeeklyRetrospectiveDraft,
+    enabled: (transformationsQuery.data?.length ?? 0) > 0,
+  })
 
   const activeExperimentId = todayQuery.data?.activeExperiment?.id
   const draftKey = activeExperimentId ? `${DRAFT_KEY_PREFIX}${activeExperimentId}` : null
@@ -37,6 +47,8 @@ export function TodayPage() {
     setAttempted(undefined)
     setFollowUps({})
     setRevealedFollowUps(0)
+    setWisdomDraft(null)
+    setWisdomStatusText(null)
   }
 
   const reflectMutation = useMutation({
@@ -55,7 +67,7 @@ export function TodayPage() {
         evidenceNoted: payload.evidenceNoted,
         surprise: payload.surprise,
       }),
-    onSuccess: () => {
+    onSuccess: (result, variables) => {
       if (draftKey) localStorage.removeItem(draftKey)
       setDraft('')
       setAttempted(undefined)
@@ -63,11 +75,35 @@ export function TodayPage() {
       setRevealedFollowUps(0)
       setErrorText(null)
       setStatusText('Reflection saved.')
+      // Deterministically propose a wisdom statement from the most specific answer given,
+      // falling back to the main answer. No AI involved (consistent with ADR-006); the user
+      // can edit or dismiss this before anything is saved as wisdom.
+      const proposedStatement = (
+        variables.evidenceNoted || variables.noticed || variables.surprise || variables.content
+      ).trim().slice(0, 500)
+      setWisdomDraft(proposedStatement ? { reflectionId: result.reflection.id, statement: proposedStatement } : null)
+      setWisdomStatusText(null)
       queryClient.invalidateQueries({ queryKey: ['today'] })
     },
     onError: () => {
       setStatusText(null)
       setErrorText('Reflection could not be saved. Your draft is kept on this device.')
+    },
+  })
+
+  const captureWisdom = useMutation({
+    mutationFn: (payload: { reflectionId: string; statement: string }) =>
+      api.createWisdom({
+        statement: payload.statement,
+        sources: [{ sourceType: 'REFLECTION', sourceRecordId: payload.reflectionId }],
+      }),
+    onSuccess: () => {
+      setWisdomDraft(null)
+      setWisdomStatusText('Wisdom saved to your Library.')
+      queryClient.invalidateQueries({ queryKey: ['wisdom'] })
+    },
+    onError: () => {
+      setWisdomStatusText('Could not save wisdom. You can also add it from Library.')
     },
   })
 
@@ -296,6 +332,50 @@ export function TodayPage() {
         {errorText && <p role="alert">{errorText}</p>}
         <TermHint term="Reflection" />
       </section>
+
+      {wisdomDraft && (
+        <section className="card">
+          <h2>This reflection may contain a lesson worth keeping</h2>
+          <p className="muted">
+            Edit it, or save it as-is. You can always refine or revise it later in Library.
+          </p>
+          <label htmlFor="wisdom-draft-statement">Proposed wisdom statement</label>
+          <textarea
+            id="wisdom-draft-statement"
+            rows={3}
+            value={wisdomDraft.statement}
+            onChange={(e) => setWisdomDraft({ ...wisdomDraft, statement: e.target.value })}
+          />
+          <div className="row">
+            <button
+              onClick={() => captureWisdom.mutate(wisdomDraft)}
+              disabled={!wisdomDraft.statement.trim() || captureWisdom.isPending}
+            >
+              Save as wisdom
+            </button>
+            <button type="button" className="secondary-button" onClick={() => setWisdomDraft(null)}>
+              Not now
+            </button>
+          </div>
+          <TermHint term="Wisdom" />
+        </section>
+      )}
+      {wisdomStatusText && (
+        <p role="status" aria-live="polite" className="muted">
+          {wisdomStatusText}
+        </p>
+      )}
+
+      {retrospectiveDraftQuery.data && retrospectiveDraftQuery.data.reflectionSummaries.length > 0 && (
+        <section className="card">
+          <h2>This week</h2>
+          <p>{retrospectiveDraftQuery.data.summary}</p>
+          <p className="muted">{retrospectiveDraftQuery.data.assistance}</p>
+          <Link to="/library" className="secondary-button">
+            See full weekly retrospective
+          </Link>
+        </section>
+      )}
 
       <section className="card">
         <h2>History</h2>

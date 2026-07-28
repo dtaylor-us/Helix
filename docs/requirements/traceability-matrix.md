@@ -12,9 +12,9 @@
 | HELIX-FR-009 | POST /api/v1/beliefs/{id}/evidence with provenance payload | EvidenceService test | ADR-004, ADR-009, ADR-010 |
 | HELIX-FR-010 | POST /api/v1/beliefs/{id}/revisions and detail revision history | BeliefService test | ADR-001, ADR-009 |
 | HELIX-FR-011 | GET /api/v1/beliefs/{id} evidence timeline + narrative, Knowledge detail page | Belief detail API compile path, web knowledge page test | ADR-009, ADR-010 |
-| HELIX-FR-012 | GET /api/v1/wisdom/weekly-retrospective with reflection summaries and deterministic assistance | WeeklyRetrospectiveService test, web wisdom page test | ADR-001, ADR-003, ADR-010 |
+| HELIX-FR-012 | GET /api/v1/wisdom/weekly-retrospective with reflection summaries and deterministic assistance; also surfaced contextually as a "This week" teaser on Today when there is one to show | WeeklyRetrospectiveService test, web wisdom page test, TodayPage.test.tsx (weekly retrospective teaser) | ADR-001, ADR-003, ADR-010 |
 | HELIX-FR-013 | POST /api/v1/wisdom/weekly-retrospective and GET /api/v1/wisdom/retrospectives snapshot history | WeeklyRetrospectiveService test | ADR-004, ADR-010 |
-| HELIX-FR-014 | POST /api/v1/wisdom, GET /api/v1/wisdom, GET detail, POST revision + Wisdom page | WisdomService test, web wisdom page test | ADR-001, ADR-009, ADR-010 |
+| HELIX-FR-014 | POST /api/v1/wisdom, GET /api/v1/wisdom, GET detail, POST revision + Wisdom page; contextual "this reflection may contain a lesson worth keeping" prompt on Today (editable, deterministically prefilled, reflection-sourced) as the primary capture path, manual entry on the Wisdom page remains available | WisdomService test, web wisdom page test, TodayPage.test.tsx (contextual wisdom prompt) | ADR-001, ADR-009, ADR-010 |
 | HELIX-FR-015 | Wisdom source links persisted with typed references (reflection, evidence, retrospective) | WisdomService test | ADR-009, ADR-010 |
 | HELIX-FR-016 | GET /api/v1/search returns structured keyword results across modules, merged with semantic matches where available | StructuredSearchService test, web search page test | ADR-010 |
 | HELIX-FR-017 | POST /api/v1/memory/proposals and review actions with provenance and lifecycle history | MemoryProposalServiceTest, web memory page test | ADR-008, ADR-010 |
