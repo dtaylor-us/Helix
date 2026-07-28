@@ -71,6 +71,10 @@ describe('TodayPage', () => {
   afterEach(() => {
     vi.mocked(api.getToday).mockReset()
     vi.mocked(api.listTransformations).mockReset()
+    vi.mocked(api.createReflection).mockReset()
+    vi.mocked(api.acceptSuggestion).mockReset()
+    vi.mocked(api.dismissSuggestion).mockReset()
+    vi.mocked(api.replaceSuggestion).mockReset()
     vi.mocked(api.getWeeklyRetrospectiveDraft).mockReset()
     vi.mocked(api.createWisdom).mockReset()
   })
