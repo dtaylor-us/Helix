@@ -343,8 +343,9 @@ export function TodayPage() {
           <textarea
             id="wisdom-draft-statement"
             rows={3}
+            maxLength={500}
             value={wisdomDraft.statement}
-            onChange={(e) => setWisdomDraft({ ...wisdomDraft, statement: e.target.value })}
+            onChange={(e) => setWisdomDraft({ ...wisdomDraft, statement: e.target.value.slice(0, 500) })}
           />
           <div className="row">
             <button
