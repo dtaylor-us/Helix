@@ -2,6 +2,24 @@
 
 This log is updated at the end of significant delivery sessions.
 
+## 2026-07-27 Fix - Add missing CORS configuration to apps/api
+
+Summary:
+- The user reported the web app failing to load Today with a browser CORS error (`No 'Access-Control-Allow-Origin' header is present`) when running the API and web app locally against each other, after separately resolving an unrelated local `.env` port-mismatch issue.
+- Investigation found `apps/api` had **no CORS configuration anywhere** — no `CorsConfigurationSource` bean, no `@CrossOrigin`, no CORS-related properties. This is a pre-existing gap that predates this session's work; it would affect anyone running the web app against the API cross-origin (including the documented local dev setup in `docs/running-app.md`), not just this user.
+- Fixed by adding a `CorsConfigurationSource` bean and `.cors(Customizer.withDefaults())` to the existing `SecurityConfig` (`apps/api/src/main/java/com/helix/api/identity/config/SecurityConfig.java`), configured via a new `helix.web.allowed-origins` property (`application.properties`), defaulting to `http://localhost:5173` (the Vite dev server) and overridable via `HELIX_WEB_ALLOWED_ORIGINS`.
+- Updated `.env.example` and `docs/running-app.md` (new "CORS errors" troubleshooting entry) to document the new variable.
+
+**Governance (ADRs)**:
+- ADR-005/ADR-010 (browser communicates with backend via REST over HTTP) — this fix makes that communication actually functional cross-origin; no ADR change needed, this closes an implementation gap rather than changing the architecture.
+- No ADR superseded.
+
+Verification run:
+- Hand-reviewed against Spring Security conventions; this execution sandbox has no JDK 21, so `./scripts/test-backend` and `./scripts/verify-architecture` were **not run** here. **Please run them locally before relying on this change.** The fix was applied directly to the user's local working tree so they could restart `./scripts/dev-api` and unblock immediately; confirmation that it resolves the browser CORS error is still pending.
+
+Known limitations:
+- The default allowed origin is a single dev-server URL; deployed environments will need `HELIX_WEB_ALLOWED_ORIGINS` set explicitly (comma-separated for multiple origins).
+
 ## 2026-07-27 Session - Product Experience Realignment, Phase 4 Slice A: Contextual Wisdom Capture
 
 Summary:

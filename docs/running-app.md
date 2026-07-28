@@ -159,6 +159,11 @@ docker compose -f infra/local/docker-compose.yml up -d
 HELIX_DB_URL=jdbc:postgresql://localhost:55433/helix
 ```
 
+### CORS errors in the browser console
+
+- If the browser blocks requests from the web app with a CORS error, the API's allowed origins don't include the web app's origin.
+- The API defaults to allowing `http://localhost:5173`. If you run the web app on a different port or host, set `HELIX_WEB_ALLOWED_ORIGINS` in `.env` (comma-separated for multiple origins) and restart `./scripts/dev-api`.
+
 ### AI provider errors
 
 - Set HELIX_AI_PROVIDER=none to confirm non-AI flow works
