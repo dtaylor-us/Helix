@@ -29,8 +29,19 @@ public class NoAiAssistantAdapter implements AiAssistantPort {
     }
 
     @Override
-    public AiExperimentDraft proposeExperiment(ExperimentDraftRequest request) {
-        String transformationTitle = hasText(request.transformationTitle()) ? request.transformationTitle().trim() : "this transformation";
+    public AiWeeklySummary summarizeWeek(String context) {
+        return new AiWeeklySummary(
+            "This week's reflections are recorded below.",
+            "Choose one recurring pattern and run a smaller experiment next week.",
+            "none",
+            "deterministic",
+            true
+        );
+    }
+
+    @Override
+    public AiExperimentDraft proposeExperiment(String context) {
+        String transformationTitle = extractTransformationTitle(context);
         return new AiExperimentDraft(
             trimToLength("First small step toward " + transformationTitle, 180),
             "A smaller, repeatable action will help me learn what actually moves this transformation forward.",
@@ -39,16 +50,47 @@ public class NoAiAssistantAdapter implements AiAssistantPort {
             "You notice one concrete sign that this transformation felt easier to practice.",
             "none",
             "deterministic",
+            true
+        );
+    }
+
+    private String extractTransformationTitle(String context) {
+        if (context != null) {
+            for (String line : context.lines().toList()) {
+                if (line.startsWith("Transformation: ") && !line.substring(16).isBlank()) {
+                    return line.substring(16).trim();
+                }
+            }
+        }
+        return "this transformation";
+    }
+
+    private String trimToLength(String value, int maxLength) {
+        return value.length() <= maxLength ? value : value.substring(0, maxLength);
+    }
+
+    @Override
+    public AiSuggestion continueReflectionChat(String context) {
+        return new AiSuggestion(
+            "What else stood out about today?",
+            "none",
+            "deterministic",
             "v1",
             true
         );
     }
 
-    private boolean hasText(String value) {
-        return value != null && !value.isBlank();
-    }
-
-    private String trimToLength(String value, int maxLength) {
-        return value.length() <= maxLength ? value : value.substring(0, maxLength);
+    @Override
+    public AiReflectionStructure structureReflection(String context) {
+        return new AiReflectionStructure(
+            "I reflected on what happened today and noticed a few meaningful moments.",
+            null,
+            null,
+            null,
+            null,
+            "none",
+            "deterministic",
+            true
+        );
     }
 }

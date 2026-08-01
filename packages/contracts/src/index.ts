@@ -118,6 +118,10 @@ export interface WeeklyRetrospectiveDraft {
   reflectionSummaries: ReflectionSummary[];
   summary: string;
   assistance: string;
+  /** Whether summary/assistance came from a live AI call or a deterministic/fallback response (ADR-016). */
+  source: "AI" | "DETERMINISTIC";
+  aiProvider?: string;
+  aiModel?: string;
 }
 
 export interface WeeklyRetrospective {
@@ -127,6 +131,9 @@ export interface WeeklyRetrospective {
   summary: string;
   assistance: string;
   createdAt: string;
+  source: "AI" | "DETERMINISTIC";
+  aiProvider?: string;
+  aiModel?: string;
 }
 
 export interface WisdomEntry {
@@ -240,6 +247,29 @@ export interface CreateReflectionRequest {
   noticed?: string;
   evidenceNoted?: string;
   surprise?: string;
+}
+
+export interface ReflectionChatMessage {
+  role: "user" | "assistant";
+  text: string;
+}
+
+export interface ReflectionChatTurnResponse {
+  text: string;
+  source: "AI" | "DETERMINISTIC";
+  aiProvider?: string;
+  aiModel?: string;
+}
+
+export interface ReflectionChatFinishResponse {
+  content?: string;
+  attempted?: boolean;
+  noticed?: string;
+  evidenceNoted?: string;
+  surprise?: string;
+  source: "AI" | "DETERMINISTIC";
+  aiProvider?: string;
+  aiModel?: string;
 }
 
 export interface CreateReflectionResponse {

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { useState } from 'react'
+import type { Experiment } from '../../../../packages/contracts/src/index'
 import { TermHint } from '../components/TermHint'
 import { api } from '../api/http'
 
@@ -14,29 +15,10 @@ export function TransformationDetailPage() {
   const [evidenceOfSuccess, setEvidenceOfSuccess] = useState('')
   const [reviewAt, setReviewAt] = useState('')
   const [draftStatusText, setDraftStatusText] = useState<string | null>(null)
-  const [draftErrorText, setDraftErrorText] = useState<string | null>(null)
-  const [draftMeta, setDraftMeta] = useState<{ source: 'AI' | 'DETERMINISTIC'; aiProvider?: string; aiModel?: string } | null>(null)
+  const [saveStatusText, setSaveStatusText] = useState<string | null>(null)
+  const [savedExperiment, setSavedExperiment] = useState<Experiment | null>(null)
 
   const transformation = useQuery({ queryKey: ['transformation', id], queryFn: () => api.getTransformation(id) })
-
-  const draftExperiment = useMutation({
-    mutationFn: () => api.proposeExperimentDraft(id),
-    onSuccess: (draft) => {
-      setTitle(draft.title)
-      setHypothesis(draft.hypothesis)
-      setNextAction(draft.nextAction)
-      setCadence(draft.cadence ?? '')
-      setEvidenceOfSuccess(draft.evidenceOfSuccess ?? '')
-      setDraftErrorText(null)
-      setDraftStatusText('Drafted a starting point. Review and edit before saving.')
-      setDraftMeta({ source: draft.source, aiProvider: draft.aiProvider, aiModel: draft.aiModel })
-    },
-    onError: () => {
-      setDraftStatusText(null)
-      setDraftMeta(null)
-      setDraftErrorText('Could not draft an experiment right now. You can still write one manually.')
-    },
-  })
 
   const createExperiment = useMutation({
     mutationFn: () =>
@@ -48,7 +30,7 @@ export function TransformationDetailPage() {
         evidenceOfSuccess,
         reviewAt: reviewAt || undefined,
       }),
-    onSuccess: () => {
+    onSuccess: (experiment) => {
       setTitle('')
       setHypothesis('')
       setNextAction('')
@@ -56,17 +38,35 @@ export function TransformationDetailPage() {
       setEvidenceOfSuccess('')
       setReviewAt('')
       setDraftStatusText(null)
-      setDraftErrorText(null)
-      setDraftMeta(null)
+      setSavedExperiment(experiment)
+      setSaveStatusText(`Saved "${experiment.title}" as your current active experiment.`)
       queryClient.invalidateQueries({ queryKey: ['today'] })
+    },
+    onError: () => {
+      setSaveStatusText('Could not save the experiment. Please try again.')
     },
   })
 
-  const draftProvenanceLabel = draftMeta
-    ? draftMeta.source === 'AI'
-      ? `AI drafted${draftMeta.aiProvider ? ` — ${draftMeta.aiProvider}` : ''}`
-      : `Fallback draft${draftMeta.aiProvider ? ` — ${draftMeta.aiProvider}` : ''}`
-    : null
+  // Prefills the form below with an AI-proposed experiment (ADR-016). Nothing is created until the
+  // user reviews/edits these fields and presses "Save experiment" themselves (ADR-008).
+  const proposeDraft = useMutation({
+    mutationFn: () => api.proposeExperimentDraft(id),
+    onSuccess: (draft) => {
+      setTitle(draft.title ?? '')
+      setHypothesis(draft.hypothesis ?? '')
+      setNextAction(draft.nextAction ?? '')
+      setCadence(draft.cadence ?? '')
+      setEvidenceOfSuccess(draft.evidenceOfSuccess ?? '')
+      setDraftStatusText(
+        draft.source === 'AI'
+          ? `Drafted by AI${draft.aiProvider ? ` (${draft.aiProvider})` : ''}. Review and edit before saving.`
+          : `Fallback draft${draft.aiProvider ? ` — ${draft.aiProvider}` : ''}. Review and edit before saving.`,
+      )
+    },
+    onError: () => {
+      setDraftStatusText('Could not draft an experiment right now. You can still fill this in yourself.')
+    },
+  })
 
   return (
     <div className="stack">
@@ -88,19 +88,15 @@ export function TransformationDetailPage() {
         </p>
         <TermHint term="Experiment" />
         <div className="row">
-          <button type="button" className="secondary-button" disabled={draftExperiment.isPending} onClick={() => draftExperiment.mutate()}>
-            Draft this for me
+          <button type="button" className="secondary-button" onClick={() => proposeDraft.mutate()} disabled={proposeDraft.isPending}>
+            {proposeDraft.isPending ? 'Drafting…' : 'Draft this for me'}
           </button>
         </div>
         {draftStatusText && (
-          <p className="muted" role="status">
-            {draftStatusText}{' '}
-            {draftProvenanceLabel && (
-              <span title={draftMeta?.aiModel ? `Model: ${draftMeta.aiModel}` : undefined}>({draftProvenanceLabel})</span>
-            )}
+          <p role="status" aria-live="polite" className="muted">
+            {draftStatusText}
           </p>
         )}
-        {draftErrorText && <p role="alert">{draftErrorText}</p>}
         <label htmlFor="exp-title">Experiment</label>
         <input id="exp-title" value={title} onChange={(e) => setTitle(e.target.value)} />
         <label htmlFor="exp-hypothesis">What do you want to learn?</label>
@@ -129,6 +125,17 @@ export function TransformationDetailPage() {
             Save experiment
           </button>
         </div>
+        <p role="status" aria-live="polite" className="muted">
+          {saveStatusText}
+        </p>
+        {savedExperiment && (
+          <div>
+            <h3>Current active experiment</h3>
+            <p>{savedExperiment.title}</p>
+            {savedExperiment.hypothesis && <p className="muted">{savedExperiment.hypothesis}</p>}
+            {savedExperiment.nextAction && <p className="muted">Next action: {savedExperiment.nextAction}</p>}
+          </div>
+        )}
       </section>
     </div>
   )

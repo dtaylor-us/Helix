@@ -1,69 +1,119 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, afterEach } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterProvider } from '@tanstack/react-router'
 import { TransformationDetailPage } from './TransformationDetailPage'
 import { api } from '../api/http'
-
-vi.mock('@tanstack/react-router', async () => {
-  const actual = await vi.importActual<typeof import('@tanstack/react-router')>('@tanstack/react-router')
-  return {
-    ...actual,
-    useParams: () => ({ id: 't-1' }),
-  }
-})
 
 vi.mock('../api/http', () => ({
   api: {
     getTransformation: vi.fn(),
-    proposeExperimentDraft: vi.fn(),
     createExperiment: vi.fn(),
+    proposeExperimentDraft: vi.fn(),
   },
 }))
 
-function renderTransformationDetailPage() {
+function renderDetailPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const rootRoute = createRootRoute({})
+  const detailRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/transformations/$id',
+    component: TransformationDetailPage,
+  })
+  const router = createRouter({
+    routeTree: rootRoute.addChildren([detailRoute]),
+    history: createMemoryHistory({ initialEntries: ['/transformations/t-1'] }),
+  })
+
   return render(
     <QueryClientProvider client={client}>
-      <TransformationDetailPage />
+      <RouterProvider router={router} />
     </QueryClientProvider>,
   )
 }
 
 describe('TransformationDetailPage', () => {
-  it('fills the hypothesis from a deterministic draft and shows fallback provenance', async () => {
+  afterEach(() => {
+    vi.mocked(api.getTransformation).mockReset()
+    vi.mocked(api.createExperiment).mockReset()
+    vi.mocked(api.proposeExperimentDraft).mockReset()
+  })
+
+  it('offers to draft an experiment with AI and prefills the form for review before saving', async () => {
     vi.mocked(api.getTransformation).mockResolvedValue({
       id: 't-1',
       title: 'Become more peaceful',
       purpose: 'Practice steadiness',
-      desiredIdentity: 'Respond calmly',
-      obstacle: 'Feeling rushed',
       createdAt: '2026-01-01T00:00:00Z',
     })
     vi.mocked(api.proposeExperimentDraft).mockResolvedValue({
-      title: 'First small step toward Become more peaceful',
-      hypothesis: 'A smaller, repeatable action will help me learn what actually moves this transformation forward.',
-      nextAction: 'Choose one action you can finish in under ten minutes and try it once today.',
-      cadence: 'Once today',
-      evidenceOfSuccess: 'You notice one concrete sign that this transformation felt easier to practice.',
-      source: 'DETERMINISTIC',
-      aiProvider: 'none',
-      aiModel: 'deterministic',
+      title: 'Pause before responding',
+      hypothesis: 'If I pause, I respond more calmly',
+      nextAction: 'Take one breath before replying',
+      cadence: 'Whenever I feel criticized',
+      evidenceOfSuccess: 'Fewer moments of regret',
+      source: 'AI',
+      aiProvider: 'openai',
+      aiModel: 'gpt-4o-mini',
     })
 
-    renderTransformationDetailPage()
+    renderDetailPage()
 
-    await screen.findByText('Become more peaceful')
-    fireEvent.click(screen.getByRole('button', { name: /Draft this for me/i }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Draft this for me' }))
 
-    await waitFor(() => expect(api.proposeExperimentDraft).toHaveBeenCalledWith('t-1'))
+    await waitFor(() => expect(screen.getByLabelText('Experiment')).toHaveValue('Pause before responding'))
+    expect(screen.getByLabelText('What do you want to learn?')).toHaveValue('If I pause, I respond more calmly')
+    expect(screen.getByLabelText('Smallest next action')).toHaveValue('Take one breath before replying')
+    expect(await screen.findByText(/Drafted by AI \(openai\)/i)).toBeInTheDocument()
 
-    expect(await screen.findByLabelText(/What do you want to learn\?/i)).toHaveValue(
-      'A smaller, repeatable action will help me learn what actually moves this transformation forward.',
+    // Nothing is created until the user explicitly saves the (editable) draft.
+    expect(api.createExperiment).not.toHaveBeenCalled()
+  })
+
+  it('lets the user save the experiment normally without drafting with AI', async () => {
+    vi.mocked(api.getTransformation).mockResolvedValue({
+      id: 't-1',
+      title: 'Become more peaceful',
+      purpose: 'Practice steadiness',
+      createdAt: '2026-01-01T00:00:00Z',
+    })
+    vi.mocked(api.createExperiment).mockResolvedValue({
+      id: 'e-1',
+      transformationId: 't-1',
+      title: 'Pause before responding',
+      hypothesis: 'Pausing will help me stay grounded',
+      nextAction: 'Take one breath',
+      status: 'ACTIVE',
+      createdAt: '2026-01-01T00:00:00Z',
+    })
+
+    renderDetailPage()
+
+    fireEvent.change(await screen.findByLabelText('Experiment'), { target: { value: 'Pause before responding' } })
+    fireEvent.change(screen.getByLabelText('What do you want to learn?'), {
+      target: { value: 'Pausing will help me stay grounded' },
+    })
+    fireEvent.change(screen.getByLabelText('Smallest next action'), { target: { value: 'Take one breath' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save experiment' }))
+
+    await waitFor(() =>
+      expect(api.createExperiment).toHaveBeenCalledWith('t-1', {
+        title: 'Pause before responding',
+        hypothesis: 'Pausing will help me stay grounded',
+        nextAction: 'Take one breath',
+        cadence: '',
+        evidenceOfSuccess: '',
+        reviewAt: undefined,
+      }),
     )
-    expect(screen.getByLabelText(/Experiment/i)).toHaveValue('First small step toward Become more peaceful')
-    expect(screen.getByLabelText(/Smallest next action/i)).toHaveValue(
-      'Choose one action you can finish in under ten minutes and try it once today.',
-    )
-    expect(screen.getByRole('status')).toHaveTextContent(/Fallback draft — none/i)
+    expect(api.proposeExperimentDraft).not.toHaveBeenCalled()
+    expect(await screen.findByText(/Saved "Pause before responding" as your current active experiment./i)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Current active experiment' })).toBeInTheDocument()
+    expect(screen.getByText('Pausing will help me stay grounded')).toBeInTheDocument()
+    expect(screen.getByText('Next action: Take one breath')).toBeInTheDocument()
+    expect(screen.getByLabelText('Experiment')).toHaveValue('')
+    expect(screen.getByLabelText('What do you want to learn?')).toHaveValue('')
+    expect(screen.getByLabelText('Smallest next action')).toHaveValue('')
   })
 })

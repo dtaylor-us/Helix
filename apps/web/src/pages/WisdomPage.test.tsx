@@ -22,6 +22,7 @@ const DRAFT = {
   reflectionSummaries: [{ reflectionId: 'r-1', createdAt: '2026-01-01T00:00:00Z', summary: 'Paused before responding.' }],
   summary: 'A calmer week overall.',
   assistance: 'Patterns point toward steadier pauses.',
+  source: 'AI' as const,
 }
 
 function renderWisdomPage() {
@@ -61,6 +62,7 @@ describe('WisdomPage', () => {
       periodEnd: '2025-12-31',
       summary: 'Closed the year with more consistency.',
       assistance: 'Steady habits stayed visible.',
+      source: 'AI' as const,
       createdAt: '2026-01-01T00:00:00Z',
     }
     const savedSnapshot = {
@@ -69,6 +71,7 @@ describe('WisdomPage', () => {
       periodEnd: '2026-01-07',
       summary: 'A calmer week overall.',
       assistance: 'Patterns point toward steadier pauses.',
+      source: 'AI' as const,
       createdAt: '2026-01-08T00:00:00Z',
     }
 

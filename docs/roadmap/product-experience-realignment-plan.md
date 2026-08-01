@@ -1,6 +1,6 @@
 # Product Experience Realignment Plan
 
-Status: Phase 1 shipped; Phase 2 slice A (guided transformation + experiment creation) shipped; Phase 3 slice A (progressive reflection questions + morning/evening framing) shipped; Phase 4 slice A (contextual wisdom-capture prompt + weekly retrospective teaser on Today) shipped; Phase 5 slice A (AI-generated "Suggested Small Action") shipped, Phase 5 slices B-D (AI weekly retrospective, AI experiment drafting, conversational reflection) scoped but not yet built; CurrentFocus projection, server-persisted onboarding state, and full evidence-extraction UX still open
+Status: Phase 1 shipped; Phase 2 slice A (guided transformation + experiment creation) shipped; Phase 3 slice A (progressive reflection questions + morning/evening framing) shipped; Phase 4 slice A (contextual wisdom-capture prompt + weekly retrospective teaser on Today) shipped; Phase 5 slices A-D (AI-generated suggestions, AI weekly retrospective, AI-drafted experiment proposals, conversational reflection flow) shipped; CurrentFocus projection, server-persisted onboarding state, and full evidence-extraction UX still open
 Owner: Agent-assisted delivery session, 2026-07-27
 Source: External architecture/UX review of the `main` branch (2026-07-27), reconciled against the actual repository state in this document.
 
@@ -192,44 +192,72 @@ shippable, mirroring the delivery discipline used in Phases 1-4:
   `NoAiAssistantAdapter`/circuit-breaker fallback paths are unchanged and still exist — they're now
   what a user sees during a provider outage or with `HELIX_AI_PROVIDER=none`, not a maintained
   parallel experience (see ADR-016).
-- **Slice B — AI-authored weekly retrospective (not yet built).** Replace
-  `WeeklyRetrospectiveService.draft()`'s count/length-based templating with an AI call over the
-  week's reflection summaries, producing a genuine narrative summary and a specific
-  "what to try next" suggestion. Needs a new `AiAssistantPort` method (e.g.
-  `summarizeWeek(String context)`) and a decision on context size (the existing 160-char excerpt
-  truncation may need revisiting for retrospective quality).
-- **Slice C — AI-drafted experiment proposals (not yet built).** Given a transformation's
-  title/purpose/desiredIdentity/obstacle, propose a draft `title`/`hypothesis`/`nextAction`/
-  `cadence`/`evidenceOfSuccess` the user can review, edit, and accept before it's created via the
-  existing `POST /api/v1/transformations/{id}/experiments` endpoint — per ADR-008, nothing AI-drafted
-  should be persisted as a real experiment without that explicit review step. Needs a new
-  `AiAssistantPort` method and a new "propose experiment" UI entry point on the transformation
-  detail page (additive, not a replacement for manual experiment creation).
-- **Slice D — Conversational reflection flow (not yet built, largest UX change).** Replace or
-  supplement the structured reflection form (main answer + up to three progressive follow-up
-  questions) with a chat-style exchange: the user describes what happened in their own words, and
-  the AI asks clarifying follow-ups conversationally instead of from a fixed question bank
-  (`REFLECTION_FOLLOW_UP_QUESTIONS`). This is the biggest open design question — needs decisions on
-  how a multi-turn exchange maps onto the existing single `content`/`noticed`/`evidenceNoted`/
-  `surprise` reflection fields (mapped automatically? left as free-form transcript?), how many AI
-  turns before it must resolve to a save, and how it behaves offline (ADR-012 currently guarantees
-  local reflection drafting works with no network; a chat flow needs its own offline story). Likely
-  needs its own scoping pass before implementation, given how much larger this is than slices A-C.
+- **Slice B — AI-authored weekly retrospective (this session, shipped).**
+  `AiAssistantPort` gains `summarizeWeek(String context)`, returning a two-part
+  `AiWeeklySummary(summary, assistance, provider, model, deterministicFallback)`. Each adapter
+  prompts for exactly two labeled lines (`SUMMARY:` / `NEXT:`) and parses them with a shared
+  `extractLabeledLine` helper; a missing/blank required line is treated as a parse failure and
+  falls back, same convention as Slice A. `WeeklyRetrospectiveService.draft()` now calls this
+  instead of its old count/length-based string concatenation — **except** when there are zero
+  reflections in the window, which stays a genuine deterministic empty state (there's nothing for
+  AI to narrate, so it isn't invoked at all; confirmed by a `verifyNoInteractions` test).
+  `WeeklyRetrospectiveEntity` gained `source`/`ai_provider`/`ai_model` columns (migration `V9`,
+  same backward-compatible-legacy-constructor pattern as `SuggestionEntity`). Today's "This week"
+  teaser and the Wisdom page's retrospective card both show the same "(AI suggested — openai)"
+  badge convention as Slice A.
+- **Slice C — AI-drafted experiment proposals (this session, shipped).** `AiAssistantPort` gains
+  `proposeExperiment(String context)`, returning an `AiExperimentDraft` with
+  title/hypothesis/nextAction/cadence/evidenceOfSuccess plus provenance; each adapter prompts for
+  five labeled lines (`TITLE:`/`HYPOTHESIS:`/`NEXT_ACTION:`/`CADENCE:`/`EVIDENCE:`), treating a
+  missing `TITLE` as a parse failure (the other four are genuinely optional, matching
+  `CreateExperimentRequest`'s own optionality). New `ExperimentService.proposeDraft(transformationId)`
+  builds context from the transformation's title/purpose/desiredIdentity/obstacle and calls the
+  port — **nothing is persisted by this call**; it returns a plain `ExperimentDraft` record, not an
+  entity, and a new `POST /api/v1/transformations/{id}/experiments/draft` endpoint exposes it. On
+  `TransformationDetailPage`, a new "Draft this for me" button calls this endpoint and prefills the
+  *existing* experiment-creation form fields, which the user can edit freely before pressing the
+  unchanged "Save experiment" button — per ADR-008, nothing AI-drafted becomes a real experiment
+  without that explicit, editable review step. Manual experiment creation is completely unchanged;
+  the draft button is additive.
+- **Slice D — Conversational reflection flow (this session, shipped).** The structured reflection
+  form on Today was fully replaced with a chat-based capture flow. `AiAssistantPort` gained
+  `continueReflectionChat(String)` and `structureReflection(String)`, implemented in OpenAI/Ollama/NoAI
+  adapters using the same circuit-breaker/fallback and labeled-line parsing conventions as slices
+  B/C. A new stateless reflection-chat surface was added in the reflection module:
+  `POST /api/v1/experiments/{id}/reflection-chat/turn` returns the next assistant turn, and
+  `POST /api/v1/experiments/{id}/reflection-chat/finish` returns an AI-proposed structured draft
+  (`content`, `attempted`, `noticed`, `evidenceNoted`, `surprise`) plus provenance. Neither endpoint
+  persists anything; persistence still only happens through the unchanged
+  `POST /api/v1/experiments/{id}/reflections` flow after explicit user review/edit (ADR-008).
+  `TodayPage` now uses the chat transcript to drive this propose → review → save path, with an
+  explicit "I'm done — review my reflection" action and a clear connection-required error when turn
+  or finish calls fail. Local buffering was narrowed to unsent message text only
+  (`helix:reflection-chat-draft:<experimentId>`), formalized by ADR-017.
 
-Deliberately **not** touched by Slice A:
+Deliberately **not** touched by Slices A-D:
 - `AiProperties.timeoutSeconds` / `retryMaxAttempts` / `retryDelayMs` remain unused by any adapter
-  (pre-existing gap, not introduced by this slice) — a slow OpenAI response will block the reflection
-  save request rather than timing out into the circuit breaker. Flagged in ADR-016 as follow-up work.
-- No changes to `suggestReflectiveQuestion` or its (currently uncalled) usage — it remains dormant,
-  same as before this slice.
+  (pre-existing gap, not introduced by these slices) — a slow OpenAI response will block the calling
+  request rather than timing out into the circuit breaker. Flagged in ADR-016 as follow-up work,
+  still not fixed.
+- No changes to `suggestReflectiveQuestion` or its (currently uncalled) usage — it remains dormant.
 - `AiOrchestrationService`'s health polling still bypasses the port abstraction and isn't wired into
-  any live request path; left as pre-existing behavior, not in scope for Slice A.
+  any live request path; left as pre-existing behavior.
+- Slice D intentionally did **not** modify `ReflectionController`, `ReflectionService.create(...)`,
+  or the `reflections` persistence model/table; the chat endpoints are additive and stateless, and
+  final save still goes through the pre-existing reflection create path unchanged.
+- Slice C's AI-drafted proposal only covers the *first* experiment for a transformation's stated
+  purpose/identity/obstacle — it doesn't look at prior experiments/reflections/evidence for that
+  transformation the way a genuinely adaptive coach might. Acceptable for a first slice; flagged as
+  a natural quality improvement for later.
+- The `RetrospectiveSource` enum (wisdom module) and `SuggestionSource` enum (suggestions module)
+  are intentionally separate, identical-shaped types rather than a shared one, to keep each feature
+  module owning its own domain vocabulary (ADR-001) rather than introducing a cross-module domain
+  dependency for a two-value enum.
 
-Verification for Slice A:
-- Backend changes could not be compiled or run in this sandbox (no JDK 21 available, per the
-  constraint noted in every earlier phase) — hand-reviewed only. `./scripts/test-backend` and
-  `./scripts/verify-architecture` (which includes the ArchUnit layering test) need to be run by the
-  user or CI before merging.
-- Frontend (`packages/contracts`, `TodayPage.tsx`, `TodayPage.test.tsx`) verified via
-  `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build` against a scratch clone.
-- `./scripts/check-docs` run against the doc changes in this slice.
+Verification for Slices A-D:
+- Backend (`apps/api`): `./scripts/test-backend` and `./scripts/verify-architecture` both passed.
+- Frontend (`apps/web`): this environment has no Node/npm toolchain (`node`, `npm`, `npx` not found),
+  so `npm run typecheck`, `npm run lint`, `npx vitest run`, and `npm run build` could not be run here.
+- Docs: `./scripts/check-docs` passed.
+- No live call against a real OpenAI API key was possible in this sandbox; the new reflection-chat
+  prompts/parsing were validated through code review and deterministic-fallback tests.

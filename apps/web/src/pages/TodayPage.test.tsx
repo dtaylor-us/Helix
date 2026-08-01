@@ -10,6 +10,8 @@ vi.mock('../api/http', () => ({
     getToday: vi.fn(),
     listTransformations: vi.fn(),
     createReflection: vi.fn(),
+    continueReflectionChat: vi.fn(),
+    finishReflectionChat: vi.fn(),
     acceptSuggestion: vi.fn(),
     dismissSuggestion: vi.fn(),
     replaceSuggestion: vi.fn(),
@@ -24,6 +26,7 @@ const EMPTY_RETROSPECTIVE_DRAFT = {
   reflectionSummaries: [],
   summary: '',
   assistance: '',
+  source: 'DETERMINISTIC' as const,
 }
 
 function renderTodayPage() {
@@ -72,12 +75,13 @@ describe('TodayPage', () => {
     vi.mocked(api.getToday).mockReset()
     vi.mocked(api.listTransformations).mockReset()
     vi.mocked(api.createReflection).mockReset()
+    vi.mocked(api.continueReflectionChat).mockReset()
+    vi.mocked(api.finishReflectionChat).mockReset()
     vi.mocked(api.acceptSuggestion).mockReset()
     vi.mocked(api.dismissSuggestion).mockReset()
     vi.mocked(api.replaceSuggestion).mockReset()
     vi.mocked(api.getWeeklyRetrospectiveDraft).mockReset()
     vi.mocked(api.createWisdom).mockReset()
-    localStorage.clear()
   })
 
   it('shows loading state', async () => {
@@ -166,7 +170,7 @@ describe('TodayPage', () => {
     expect(screen.queryByText(/^Placeholders$/i)).not.toBeInTheDocument()
   })
 
-  it('reveals progressive follow-up questions one at a time once the main answer has content, and submits them all', async () => {
+  it('captures reflection via chat, allows review edits, and saves the edited structured payload', async () => {
     vi.mocked(api.getToday).mockResolvedValue({
       hasActiveExperiment: true,
       activeExperiment: {
@@ -184,6 +188,22 @@ describe('TodayPage', () => {
       { id: 't-1', title: 'Become more peaceful', createdAt: '2026-01-01T00:00:00Z' },
     ])
     vi.mocked(api.getWeeklyRetrospectiveDraft).mockResolvedValue(EMPTY_RETROSPECTIVE_DRAFT)
+    vi.mocked(api.continueReflectionChat).mockResolvedValue({
+      text: 'What did you notice internally afterward?',
+      source: 'AI',
+      aiProvider: 'openai',
+      aiModel: 'gpt-4o-mini',
+    })
+    vi.mocked(api.finishReflectionChat).mockResolvedValue({
+      content: 'I paused twice today before replying.',
+      attempted: true,
+      noticed: 'My shoulders were tense at first.',
+      evidenceNoted: 'The conversation stayed calmer.',
+      surprise: 'It felt easier by the second attempt.',
+      source: 'AI',
+      aiProvider: 'openai',
+      aiModel: 'gpt-4o-mini',
+    })
     vi.mocked(api.createReflection).mockResolvedValue({
       reflection: {
         id: 'r-1',
@@ -205,34 +225,55 @@ describe('TodayPage', () => {
 
     renderTodayPage()
 
-    // No follow-up prompts before there is any main answer.
-    await screen.findByLabelText(/What happened/i)
-    expect(screen.queryByText(/What did you notice internally\?/i)).not.toBeInTheDocument()
+    await screen.findByLabelText(/Your message/i)
+    fireEvent.change(screen.getByLabelText(/Your message/i), { target: { value: 'I paused twice today.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
-    fireEvent.click(screen.getByRole('button', { name: 'Yes' }))
-    fireEvent.change(screen.getByLabelText(/What happened/i), { target: { value: 'I paused twice today.' } })
+    await waitFor(() =>
+      expect(api.continueReflectionChat).toHaveBeenCalledWith('e-1', [{ role: 'user', text: 'I paused twice today.' }]),
+    )
+    expect(await screen.findByText(/Helix:/i)).toBeInTheDocument()
+    expect(screen.getByText(/What did you notice internally afterward\?/i)).toBeInTheDocument()
 
-    // Follow-ups reveal one at a time.
-    fireEvent.click(screen.getByRole('button', { name: /\+ What did you notice internally\?/i }))
-    fireEvent.change(screen.getByLabelText('What did you notice internally?'), {
-      target: { value: 'My shoulders were tense.' },
-    })
-    expect(screen.queryByLabelText('What evidence did this give you?')).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText(/Your message/i), { target: { value: 'My shoulders relaxed after.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
-    fireEvent.click(screen.getByRole('button', { name: /\+ What evidence did this give you\?/i }))
+    await waitFor(() =>
+      expect(api.continueReflectionChat).toHaveBeenLastCalledWith('e-1', [
+        { role: 'user', text: 'I paused twice today.' },
+        { role: 'assistant', text: 'What did you notice internally afterward?' },
+        { role: 'user', text: 'My shoulders relaxed after.' },
+      ]),
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /I'm done — review my reflection/i }))
+
+    await waitFor(() =>
+      expect(api.finishReflectionChat).toHaveBeenCalledWith('e-1', [
+        { role: 'user', text: 'I paused twice today.' },
+        { role: 'assistant', text: 'What did you notice internally afterward?' },
+        { role: 'user', text: 'My shoulders relaxed after.' },
+        { role: 'assistant', text: 'What did you notice internally afterward?' },
+      ]),
+    )
+
+    expect(await screen.findByRole('heading', { name: /Review before saving/i })).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('What evidence did this give you?'), {
-      target: { value: 'The conversation stayed calmer.' },
+      target: { value: 'The conversation stayed calmer and shorter.' },
+    })
+    fireEvent.change(screen.getByLabelText('What surprised you?'), {
+      target: { value: 'I felt less defensive than usual.' },
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'Save reflection' }))
 
     await waitFor(() =>
       expect(api.createReflection).toHaveBeenCalledWith('e-1', {
-        content: 'I paused twice today.',
+        content: 'I paused twice today before replying.',
         attempted: true,
-        noticed: 'My shoulders were tense.',
-        evidenceNoted: 'The conversation stayed calmer.',
-        surprise: undefined,
+        noticed: 'My shoulders were tense at first.',
+        evidenceNoted: 'The conversation stayed calmer and shorter.',
+        surprise: 'I felt less defensive than usual.',
       }),
     )
 
@@ -257,6 +298,22 @@ describe('TodayPage', () => {
       { id: 't-1', title: 'Become more peaceful', createdAt: '2026-01-01T00:00:00Z' },
     ])
     vi.mocked(api.getWeeklyRetrospectiveDraft).mockResolvedValue(EMPTY_RETROSPECTIVE_DRAFT)
+    vi.mocked(api.continueReflectionChat).mockResolvedValue({
+      text: 'What evidence did that give you?',
+      source: 'AI',
+      aiProvider: 'openai',
+      aiModel: 'gpt-4o-mini',
+    })
+    vi.mocked(api.finishReflectionChat).mockResolvedValue({
+      content: 'I paused twice today.',
+      attempted: true,
+      noticed: 'My shoulders were tense.',
+      evidenceNoted: 'The conversation stayed calmer.',
+      surprise: '',
+      source: 'AI',
+      aiProvider: 'openai',
+      aiModel: 'gpt-4o-mini',
+    })
     vi.mocked(api.createReflection).mockResolvedValue({
       reflection: {
         id: 'r-1',
@@ -285,18 +342,14 @@ describe('TodayPage', () => {
 
     renderTodayPage()
 
-    await screen.findByLabelText(/What happened/i)
+    await screen.findByLabelText(/Your message/i)
     expect(screen.queryByText(/This reflection may contain a lesson worth keeping/i)).not.toBeInTheDocument()
 
-    fireEvent.change(screen.getByLabelText(/What happened/i), { target: { value: 'I paused twice today.' } })
-    fireEvent.click(screen.getByRole('button', { name: /\+ What did you notice internally\?/i }))
-    fireEvent.change(screen.getByLabelText('What did you notice internally?'), {
-      target: { value: 'My shoulders were tense.' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: /\+ What evidence did this give you\?/i }))
-    fireEvent.change(screen.getByLabelText('What evidence did this give you?'), {
-      target: { value: 'The conversation stayed calmer.' },
-    })
+    fireEvent.change(screen.getByLabelText(/Your message/i), { target: { value: 'I paused twice today.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    await waitFor(() => expect(api.continueReflectionChat).toHaveBeenCalled())
+    fireEvent.click(screen.getByRole('button', { name: /I'm done — review my reflection/i }))
+    await waitFor(() => expect(api.finishReflectionChat).toHaveBeenCalled())
     fireEvent.click(screen.getByRole('button', { name: 'Save reflection' }))
 
     await screen.findByText(/This reflection may contain a lesson worth keeping/i)
@@ -315,13 +368,7 @@ describe('TodayPage', () => {
     expect(screen.queryByText(/This reflection may contain a lesson worth keeping/i)).not.toBeInTheDocument()
   })
 
-  it('wisdom-capture card reappears after a page reload when a draft was saved to localStorage', async () => {
-    // Seed localStorage as if the user had saved a reflection and not yet acted on the wisdom prompt.
-    localStorage.setItem(
-      'helix:wisdom-draft',
-      JSON.stringify({ experimentId: 'e-1', reflectionId: 'r-1', statement: 'The conversation stayed calmer.' }),
-    )
-
+  it('shows a clear connection-required error when chat turn request fails', async () => {
     vi.mocked(api.getToday).mockResolvedValue({
       hasActiveExperiment: true,
       activeExperiment: {
@@ -339,62 +386,15 @@ describe('TodayPage', () => {
       { id: 't-1', title: 'Become more peaceful', createdAt: '2026-01-01T00:00:00Z' },
     ])
     vi.mocked(api.getWeeklyRetrospectiveDraft).mockResolvedValue(EMPTY_RETROSPECTIVE_DRAFT)
+    vi.mocked(api.continueReflectionChat).mockRejectedValue(new Error('network down'))
 
     renderTodayPage()
 
-    // The wisdom-capture card should appear without the user having to save another reflection,
-    // because the draft was restored from localStorage.
-    await screen.findByText(/This reflection may contain a lesson worth keeping/i)
-    expect(screen.getByLabelText('Proposed wisdom statement')).toHaveValue('The conversation stayed calmer.')
-  })
+    await screen.findByLabelText(/Your message/i)
+    fireEvent.change(screen.getByLabelText(/Your message/i), { target: { value: 'I paused once.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
-  it('wisdom-capture card survives a today query re-fetch triggered by reflection save', async () => {
-    // Regression guard: the query invalidation that follows reflectMutation.onSuccess must not
-    // clear wisdomDraft when the same experiment remains active after the re-fetch.
-    let getTodayCallCount = 0
-    vi.mocked(api.getToday).mockImplementation(() => {
-      getTodayCallCount++
-      return Promise.resolve({
-        hasActiveExperiment: true,
-        activeExperiment: {
-          id: 'e-1',
-          transformationId: 't-1',
-          title: 'Pause before responding',
-          hypothesis: 'Pausing helps me respond calmly',
-          status: 'ACTIVE',
-          createdAt: '2026-01-01T00:00:00Z',
-        },
-        reflectionHistory:
-          getTodayCallCount > 1
-            ? [{ id: 'r-1', experimentId: 'e-1', content: 'I tried it.', createdAt: '2026-01-01T00:00:00Z' }]
-            : [],
-        suggestionHistory: [],
-      })
-    })
-    vi.mocked(api.listTransformations).mockResolvedValue([
-      { id: 't-1', title: 'Become more peaceful', createdAt: '2026-01-01T00:00:00Z' },
-    ])
-    vi.mocked(api.getWeeklyRetrospectiveDraft).mockResolvedValue(EMPTY_RETROSPECTIVE_DRAFT)
-    vi.mocked(api.createReflection).mockResolvedValue({
-      reflection: { id: 'r-1', experimentId: 'e-1', content: 'I tried it.', createdAt: '2026-01-01T00:00:00Z' },
-      suggestion: null,
-    })
-
-    renderTodayPage()
-    await screen.findByLabelText(/What happened/i)
-
-    fireEvent.change(screen.getByLabelText(/What happened/i), { target: { value: 'I tried it.' } })
-    fireEvent.click(screen.getByRole('button', { name: /\+ What did you notice internally\?/i }))
-    fireEvent.click(screen.getByRole('button', { name: /\+ What evidence did this give you\?/i }))
-    fireEvent.change(screen.getByLabelText('What evidence did this give you?'), {
-      target: { value: 'Things felt calmer.' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Save reflection' }))
-
-    // The wisdom-capture card must still be visible after the today query re-fetches with new
-    // reflection history (simulating getTodayCallCount > 1 in the mock above).
-    await screen.findByText(/This reflection may contain a lesson worth keeping/i)
-    expect(screen.getByLabelText('Proposed wisdom statement')).toHaveValue('Things felt calmer.')
+    expect(await screen.findByRole('alert')).toHaveTextContent('You need a connection to continue this reflection.')
   })
 
   it('surfaces a weekly retrospective teaser on Today when there is one to show', async () => {
@@ -420,11 +420,15 @@ describe('TodayPage', () => {
       reflectionSummaries: [{ reflectionId: 'r-1', createdAt: '2026-01-01T00:00:00Z', summary: 'Paused before responding.' }],
       summary: 'You practiced pausing three times this week.',
       assistance: 'Notice how often the pause changed the outcome.',
+      source: 'AI',
+      aiProvider: 'openai',
+      aiModel: 'gpt-4o-mini',
     })
 
     renderTodayPage()
 
     expect(await screen.findByText(/You practiced pausing three times this week\./i)).toBeInTheDocument()
+    expect(screen.getByText(/AI suggested — openai/i)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /See full weekly retrospective/i })).toHaveAttribute('href', '/library')
   })
 })

@@ -35,24 +35,23 @@ public class ExperimentController {
         ));
     }
 
-    @GetMapping("/api/v1/transformations/{transformationId}/experiments/draft")
-    public ExperimentDraftDto draft(@PathVariable UUID transformationId) {
-        var draft = service.proposeDraft(transformationId);
-        return new ExperimentDraftDto(
-            draft.title(),
-            draft.hypothesis(),
-            draft.nextAction(),
-            draft.cadence(),
-            draft.evidenceOfSuccess(),
-            draft.source(),
-            draft.aiProvider(),
-            draft.aiModel()
-        );
-    }
-
     @GetMapping("/api/v1/experiments/{id}")
     public ExperimentDto get(@PathVariable UUID id) {
         return toDto(service.get(id));
+    }
+
+    /**
+     * Propose an AI-drafted experiment for a transformation. Nothing is persisted — the response is
+     * meant to prefill the normal experiment-creation form for the user to review, edit, and submit
+     * via {@link #create}, per ADR-008's explicit-review requirement for AI-derived content.
+     */
+    @PostMapping("/api/v1/transformations/{transformationId}/experiments/draft")
+    public ExperimentDraftDto proposeDraft(@PathVariable UUID transformationId) {
+        var draft = service.proposeDraft(transformationId);
+        return new ExperimentDraftDto(
+            draft.title(), draft.hypothesis(), draft.nextAction(), draft.cadence(), draft.evidenceOfSuccess(),
+            draft.source(), draft.aiProvider(), draft.aiModel()
+        );
     }
 
     private ExperimentDto toDto(ExperimentEntity entity) {

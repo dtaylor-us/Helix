@@ -44,7 +44,10 @@ public class WisdomController {
                 .map(item -> new ReflectionSummaryDto(item.reflectionId(), item.createdAt().toString(), item.summary()))
                 .toList(),
             draft.summary(),
-            draft.assistance()
+            draft.assistance(),
+            draft.source().name(),
+            draft.aiProvider(),
+            draft.aiModel()
         );
     }
 
@@ -95,7 +98,10 @@ public class WisdomController {
             entity.getPeriodEnd().toString(),
             entity.getSummary(),
             entity.getAssistance(),
-            entity.getCreatedAt().toString()
+            entity.getCreatedAt().toString(),
+            entity.getSource().name(),
+            entity.getAiProvider(),
+            entity.getAiModel()
         );
     }
 
@@ -134,12 +140,14 @@ public class WisdomController {
 
     public record WeeklyRetrospectiveDraftDto(String periodStart, String periodEnd,
                                               List<ReflectionSummaryDto> reflectionSummaries,
-                                              String summary, String assistance) {}
+                                              String summary, String assistance,
+                                              String source, String aiProvider, String aiModel) {}
 
     public record ReflectionSummaryDto(UUID reflectionId, String createdAt, String summary) {}
 
     public record WeeklyRetrospectiveDto(UUID id, String periodStart, String periodEnd,
-                                         String summary, String assistance, String createdAt) {}
+                                         String summary, String assistance, String createdAt,
+                                         String source, String aiProvider, String aiModel) {}
 
     public record CreateWisdomRequest(@NotBlank @Size(max = 2000) String statement,
                                       UUID retrospectiveId,

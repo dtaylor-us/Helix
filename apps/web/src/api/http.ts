@@ -16,6 +16,9 @@ import type {
   MemoryProposalDetail,
   MemoryProposalRevision,
   Reflection,
+  ReflectionChatFinishResponse,
+  ReflectionChatMessage,
+  ReflectionChatTurnResponse,
   ReviewMemoryProposalRequest,
   ReviseBeliefRequest,
   ReviseMemoryProposalRequest,
@@ -98,18 +101,28 @@ export const api = {
     }),
   listTransformations: () => request<Transformation[]>('/api/v1/transformations'),
   getTransformation: (id: string) => request<Transformation>(`/api/v1/transformations/${id}`),
-  proposeExperimentDraft: (transformationId: string) =>
-    request<ExperimentDraft>(`/api/v1/transformations/${transformationId}/experiments/draft`),
   createExperiment: (transformationId: string, payload: CreateExperimentRequest) =>
     request<Experiment>(`/api/v1/transformations/${transformationId}/experiments`, {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
   getExperiment: (id: string) => request<Experiment>(`/api/v1/experiments/${id}`),
+  proposeExperimentDraft: (transformationId: string) =>
+    request<ExperimentDraft>(`/api/v1/transformations/${transformationId}/experiments/draft`, { method: 'POST' }),
   createReflection: (experimentId: string, payload: CreateReflectionRequest) =>
     request<CreateReflectionResponse>(`/api/v1/experiments/${experimentId}/reflections`, {
       method: 'POST',
       body: JSON.stringify(payload),
+    }),
+  continueReflectionChat: (experimentId: string, transcript: ReflectionChatMessage[]) =>
+    request<ReflectionChatTurnResponse>(`/api/v1/experiments/${experimentId}/reflection-chat/turn`, {
+      method: 'POST',
+      body: JSON.stringify({ transcript }),
+    }),
+  finishReflectionChat: (experimentId: string, transcript: ReflectionChatMessage[]) =>
+    request<ReflectionChatFinishResponse>(`/api/v1/experiments/${experimentId}/reflection-chat/finish`, {
+      method: 'POST',
+      body: JSON.stringify({ transcript }),
     }),
   listBeliefs: () => request<Belief[]>('/api/v1/beliefs'),
   createBelief: (payload: CreateBeliefRequest) =>

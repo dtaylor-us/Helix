@@ -83,17 +83,18 @@ class NoAiAssistantAdapterTest {
     }
 
     @Test
-    @DisplayName("proposeExperiment should populate title, hypothesis, and next action for deterministic fallback")
-    void testProposeExperimentFallback() {
-        AiAssistantPort.AiExperimentDraft draft = adapter.proposeExperiment(
-            new AiAssistantPort.ExperimentDraftRequest("Become more peaceful", "Practice steadiness", null, null)
-        );
+    @DisplayName("reflection chat methods should return deterministic fallback responses")
+    void testReflectionChatFallbacks() {
+        AiAssistantPort.AiSuggestion turn = adapter.continueReflectionChat("User: I paused once.");
+        AiAssistantPort.AiReflectionStructure structure = adapter.structureReflection("User: I paused once.");
 
-        assertThat(draft).isNotNull();
-        assertThat(draft.title()).isNotBlank();
-        assertThat(draft.hypothesis()).isNotBlank();
-        assertThat(draft.nextAction()).isNotBlank();
-        assertThat(draft.provider()).isEqualTo("none");
-        assertThat(draft.deterministicFallback()).isTrue();
+        assertThat(turn.provider()).isEqualTo("none");
+        assertThat(turn.deterministicFallback()).isTrue();
+        assertThat(turn.text()).isNotEmpty();
+
+        assertThat(structure.provider()).isEqualTo("none");
+        assertThat(structure.model()).isEqualTo("deterministic");
+        assertThat(structure.deterministicFallback()).isTrue();
+        assertThat(structure.content()).isNotBlank();
     }
 }

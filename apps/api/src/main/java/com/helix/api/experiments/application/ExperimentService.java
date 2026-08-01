@@ -5,6 +5,7 @@ import com.helix.api.experiments.adapter.out.persistence.ExperimentRepository;
 import com.helix.api.experiments.domain.ExperimentEntity;
 import com.helix.api.experiments.domain.ExperimentStatus;
 import com.helix.api.transformation.application.TransformationService;
+import com.helix.api.transformation.domain.TransformationEntity;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -21,9 +22,7 @@ public class ExperimentService {
     private final AiAssistantPort aiAssistantPort;
 
     public ExperimentService(
-        ExperimentRepository repository,
-        TransformationService transformationService,
-        AiAssistantPort aiAssistantPort
+        ExperimentRepository repository, TransformationService transformationService, AiAssistantPort aiAssistantPort
     ) {
         this.repository = repository;
         this.transformationService = transformationService;
@@ -62,34 +61,37 @@ public class ExperimentService {
         return repository.findFirstByStatusOrderByCreatedAtDesc(ExperimentStatus.ACTIVE);
     }
 
+    /**
+     * Propose a draft experiment for a transformation using AI (ADR-016, Phase 5 slice C). Nothing
+     * is persisted by this call — per ADR-008, the caller must route the result through the normal
+     * explicit-review/accept flow ({@link #create}) before anything becomes a real experiment.
+     */
     public ExperimentDraft proposeDraft(UUID transformationId) {
         var transformation = transformationService.get(transformationId);
-        var draft = aiAssistantPort.proposeExperiment(new AiAssistantPort.ExperimentDraftRequest(
-            transformation.getTitle(),
-            transformation.getPurpose(),
-            transformation.getDesiredIdentity(),
-            transformation.getObstacle()
-        ));
+        var aiDraft = aiAssistantPort.proposeExperiment(buildDraftContext(transformation));
         return new ExperimentDraft(
-            draft.title(),
-            draft.hypothesis(),
-            draft.nextAction(),
-            draft.cadence(),
-            draft.evidenceOfSuccess(),
-            draft.deterministicFallback() ? "DETERMINISTIC" : "AI",
-            draft.provider(),
-            draft.model()
+            aiDraft.title(), aiDraft.hypothesis(), aiDraft.nextAction(), aiDraft.cadence(), aiDraft.evidenceOfSuccess(),
+            aiDraft.deterministicFallback() ? "DETERMINISTIC" : "AI", aiDraft.provider(), aiDraft.model()
         );
     }
 
+    private String buildDraftContext(TransformationEntity transformation) {
+        var context = new StringBuilder();
+        context.append("Transformation: ").append(transformation.getTitle()).append(". ");
+        if (transformation.getPurpose() != null && !transformation.getPurpose().isBlank()) {
+            context.append("Purpose: ").append(transformation.getPurpose()).append(". ");
+        }
+        if (transformation.getDesiredIdentity() != null && !transformation.getDesiredIdentity().isBlank()) {
+            context.append("Who they're becoming: ").append(transformation.getDesiredIdentity()).append(". ");
+        }
+        if (transformation.getObstacle() != null && !transformation.getObstacle().isBlank()) {
+            context.append("What gets in the way: ").append(transformation.getObstacle()).append(". ");
+        }
+        return context.toString();
+    }
+
     public record ExperimentDraft(
-        String title,
-        String hypothesis,
-        String nextAction,
-        String cadence,
-        String evidenceOfSuccess,
-        String source,
-        String aiProvider,
-        String aiModel
+        String title, String hypothesis, String nextAction, String cadence, String evidenceOfSuccess,
+        String source, String aiProvider, String aiModel
     ) {}
 }

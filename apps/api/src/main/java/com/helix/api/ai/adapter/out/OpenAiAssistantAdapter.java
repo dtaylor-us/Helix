@@ -125,16 +125,16 @@ public class OpenAiAssistantAdapter implements AiAssistantPort {
     }
 
     @Override
-    public AiExperimentDraft proposeExperiment(ExperimentDraftRequest request) {
+    public AiWeeklySummary summarizeWeek(String context) {
         if (!isAvailable && System.currentTimeMillis() - lastFailureTime < AVAILABILITY_RESET_MS) {
-            return createExperimentFallback(request);
+            return createWeeklySummaryFallback();
         }
 
         try {
-            OpenAiRequest aiRequest = buildExperimentDraftRequest(request);
+            OpenAiRequest request = buildWeeklySummaryRequest(context);
             OpenAiResponse response = restClient.post()
                 .uri("/v1/chat/completions")
-                .body(aiRequest)
+                .body(request)
                 .retrieve()
                 .onStatus(status -> !status.is2xxSuccessful(),
                     (httpRequest, httpResponse) -> {
@@ -145,22 +145,101 @@ public class OpenAiAssistantAdapter implements AiAssistantPort {
 
             if (response == null || response.choices == null || response.choices.isEmpty()) {
                 recordFailure();
-                return createExperimentFallback(request);
+                return createWeeklySummaryFallback();
             }
 
-            AiExperimentDraft parsedDraft = parseExperimentDraft(response.choices.get(0).message.content);
-            if (parsedDraft == null || !hasText(parsedDraft.title()) || !hasText(parsedDraft.hypothesis()) || !hasText(parsedDraft.nextAction())) {
+            String text = response.choices.get(0).message.content;
+            String summary = extractLabeledLine(text, "SUMMARY");
+            String assistance = extractLabeledLine(text, "NEXT");
+            if (summary == null || summary.isBlank() || assistance == null || assistance.isBlank()) {
                 recordFailure();
-                return createExperimentFallback(request);
+                return createWeeklySummaryFallback();
+            }
+
+            isAvailable = true;
+            return new AiWeeklySummary(summary, assistance, "openai", aiProperties.getOpenai().getModel(), false);
+        } catch (RestClientException | OpenAiException e) {
+            recordFailure();
+            return createWeeklySummaryFallback();
+        }
+    }
+
+    @Override
+    public AiExperimentDraft proposeExperiment(String context) {
+        if (!isAvailable && System.currentTimeMillis() - lastFailureTime < AVAILABILITY_RESET_MS) {
+            return createExperimentDraftFallback();
+        }
+
+        try {
+            OpenAiRequest request = buildExperimentDraftRequest(context);
+            OpenAiResponse response = restClient.post()
+                .uri("/v1/chat/completions")
+                .body(request)
+                .retrieve()
+                .onStatus(status -> !status.is2xxSuccessful(),
+                    (httpRequest, httpResponse) -> {
+                        throw new OpenAiException("OpenAI API error: " + httpResponse.getStatusCode());
+                    })
+                .toEntity(OpenAiResponse.class)
+                .getBody();
+
+            if (response == null || response.choices == null || response.choices.isEmpty()) {
+                recordFailure();
+                return createExperimentDraftFallback();
+            }
+
+            String text = response.choices.get(0).message.content;
+            String title = extractLabeledLine(text, "TITLE");
+            if (title == null || title.isBlank()) {
+                recordFailure();
+                return createExperimentDraftFallback();
             }
 
             isAvailable = true;
             return new AiExperimentDraft(
-                parsedDraft.title().trim(),
-                parsedDraft.hypothesis().trim(),
-                parsedDraft.nextAction().trim(),
-                normalizeOptional(parsedDraft.cadence()),
-                normalizeOptional(parsedDraft.evidenceOfSuccess()),
+                title,
+                extractLabeledLine(text, "HYPOTHESIS"),
+                extractLabeledLine(text, "NEXT_ACTION"),
+                extractLabeledLine(text, "CADENCE"),
+                extractLabeledLine(text, "EVIDENCE"),
+                "openai",
+                aiProperties.getOpenai().getModel(),
+                false
+            );
+        } catch (RestClientException | OpenAiException e) {
+            recordFailure();
+            return createExperimentDraftFallback();
+        }
+    }
+
+    @Override
+    public AiSuggestion continueReflectionChat(String context) {
+        if (!isAvailable && System.currentTimeMillis() - lastFailureTime < AVAILABILITY_RESET_MS) {
+            return createReflectionChatFallback();
+        }
+
+        try {
+            OpenAiRequest request = buildReflectionChatRequest(context);
+            OpenAiResponse response = restClient.post()
+                .uri("/v1/chat/completions")
+                .body(request)
+                .retrieve()
+                .onStatus(status -> !status.is2xxSuccessful(),
+                    (httpRequest, httpResponse) -> {
+                        throw new OpenAiException("OpenAI API error: " + httpResponse.getStatusCode());
+                    })
+                .toEntity(OpenAiResponse.class)
+                .getBody();
+
+            if (response == null || response.choices == null || response.choices.isEmpty()) {
+                recordFailure();
+                return createReflectionChatFallback();
+            }
+
+            String text = response.choices.get(0).message.content;
+            isAvailable = true;
+            return new AiSuggestion(
+                text == null ? null : text.trim(),
                 "openai",
                 aiProperties.getOpenai().getModel(),
                 "v1",
@@ -168,7 +247,55 @@ public class OpenAiAssistantAdapter implements AiAssistantPort {
             );
         } catch (RestClientException | OpenAiException e) {
             recordFailure();
-            return createExperimentFallback(request);
+            return createReflectionChatFallback();
+        }
+    }
+
+    @Override
+    public AiReflectionStructure structureReflection(String context) {
+        if (!isAvailable && System.currentTimeMillis() - lastFailureTime < AVAILABILITY_RESET_MS) {
+            return createReflectionStructureFallback();
+        }
+
+        try {
+            OpenAiRequest request = buildReflectionStructureRequest(context);
+            OpenAiResponse response = restClient.post()
+                .uri("/v1/chat/completions")
+                .body(request)
+                .retrieve()
+                .onStatus(status -> !status.is2xxSuccessful(),
+                    (httpRequest, httpResponse) -> {
+                        throw new OpenAiException("OpenAI API error: " + httpResponse.getStatusCode());
+                    })
+                .toEntity(OpenAiResponse.class)
+                .getBody();
+
+            if (response == null || response.choices == null || response.choices.isEmpty()) {
+                recordFailure();
+                return createReflectionStructureFallback();
+            }
+
+            String text = response.choices.get(0).message.content;
+            String content = extractLabeledLine(text, "CONTENT");
+            if (content == null || content.isBlank()) {
+                recordFailure();
+                return createReflectionStructureFallback();
+            }
+
+            isAvailable = true;
+            return new AiReflectionStructure(
+                content,
+                parseAttempted(extractLabeledLine(text, "ATTEMPTED")),
+                extractLabeledLine(text, "NOTICED"),
+                extractLabeledLine(text, "EVIDENCE"),
+                extractLabeledLine(text, "SURPRISE"),
+                "openai",
+                aiProperties.getOpenai().getModel(),
+                false
+            );
+        } catch (RestClientException | OpenAiException e) {
+            recordFailure();
+            return createReflectionStructureFallback();
         }
     }
 
@@ -233,30 +360,6 @@ public class OpenAiAssistantAdapter implements AiAssistantPort {
         return request;
     }
 
-    private OpenAiRequest buildExperimentDraftRequest(ExperimentDraftRequest request) {
-        String systemPrompt = """
-            You are a behavior-change coach helping someone define a small experiment for a personal transformation.
-            Return ONLY valid JSON with these keys: title, hypothesis, nextAction, cadence, evidenceOfSuccess.
-            Requirements:
-            - title: concise, under 180 characters
-            - hypothesis: 1-2 sentences about what the user wants to learn
-            - nextAction: one concrete first step
-            - cadence: a short phrase, or an empty string if unclear
-            - evidenceOfSuccess: one short observable sign, or an empty string if unclear
-            Do not include markdown, code fences, or extra commentary.
-            """;
-
-        OpenAiRequest aiRequest = new OpenAiRequest();
-        aiRequest.model = aiProperties.getOpenai().getModel();
-        aiRequest.temperature = aiProperties.getOpenai().getTemperature();
-        aiRequest.maxTokens = aiProperties.getOpenai().getMaxTokens();
-        aiRequest.messages = List.of(
-            new OpenAiRequest.Message("system", systemPrompt),
-            new OpenAiRequest.Message("user", buildExperimentContext(request))
-        );
-        return aiRequest;
-    }
-
     private AiSuggestion createNextActionFallback() {
         return new AiSuggestion(
             "Try repeating today's experiment on a smaller scale tomorrow.",
@@ -267,47 +370,95 @@ public class OpenAiAssistantAdapter implements AiAssistantPort {
         );
     }
 
-    private AiExperimentDraft parseExperimentDraft(String content) {
-        try {
-            ExperimentDraftPayload payload = objectMapper.readValue(stripCodeFences(content), ExperimentDraftPayload.class);
-            return new AiExperimentDraft(
-                payload.title,
-                payload.hypothesis,
-                payload.nextAction,
-                payload.cadence,
-                payload.evidenceOfSuccess,
-                "openai",
-                aiProperties.getOpenai().getModel(),
-                "v1",
-                false
-            );
-        } catch (Exception ignored) {
-            return null;
-        }
+    private OpenAiRequest buildWeeklySummaryRequest(String context) {
+        String systemPrompt = """
+            You are a thoughtful personal-growth coach writing a short weekly retrospective from a
+            list of the user's reflection excerpts. Respond with EXACTLY two lines, no preamble, no
+            markdown, in this format:
+            SUMMARY: <one short paragraph (2-3 sentences) narrating the week in a warm, honest, non-judgmental tone>
+            NEXT: <one specific, concrete sentence suggesting what to try or focus on next week>
+            """;
+
+        OpenAiRequest request = new OpenAiRequest();
+        request.model = aiProperties.getOpenai().getModel();
+        request.temperature = aiProperties.getOpenai().getTemperature();
+        request.maxTokens = aiProperties.getOpenai().getMaxTokens();
+        request.messages = List.of(
+            new OpenAiRequest.Message("system", systemPrompt),
+            new OpenAiRequest.Message("user", context)
+        );
+        return request;
     }
 
-    private String buildExperimentContext(ExperimentDraftRequest request) {
-        return """
-            Transformation title: %s
-            Purpose: %s
-            Desired identity: %s
-            Obstacle: %s
-            """.formatted(
-            defaultValue(request.transformationTitle()),
-            defaultValue(request.purpose()),
-            defaultValue(request.desiredIdentity()),
-            defaultValue(request.obstacle())
+    private AiWeeklySummary createWeeklySummaryFallback() {
+        return new AiWeeklySummary(
+            "This week's reflections are recorded below.",
+            "Choose one recurring pattern and run a smaller experiment next week.",
+            "openai",
+            aiProperties.getOpenai().getModel(),
+            true
         );
     }
 
-    private AiExperimentDraft createExperimentFallback(ExperimentDraftRequest request) {
-        String transformationTitle = hasText(request.transformationTitle()) ? request.transformationTitle().trim() : "this transformation";
+    private OpenAiRequest buildExperimentDraftRequest(String context) {
+        String systemPrompt = """
+            You are a behavior-change coach helping someone design one small experiment for a
+            personal transformation they've described. Respond with EXACTLY these labeled lines, no
+            preamble, no markdown, omitting a line only if you have nothing useful to add for it:
+            TITLE: <short experiment title, at most 20 words>
+            HYPOTHESIS: <one sentence: if I do X, then Y>
+            NEXT_ACTION: <one small, concrete, immediately actionable step>
+            CADENCE: <how often, e.g. "daily" or "3x this week">
+            EVIDENCE: <one sentence describing what would count as useful evidence of progress>
+            """;
+
+        OpenAiRequest request = new OpenAiRequest();
+        request.model = aiProperties.getOpenai().getModel();
+        request.temperature = aiProperties.getOpenai().getTemperature();
+        request.maxTokens = aiProperties.getOpenai().getMaxTokens();
+        request.messages = List.of(
+            new OpenAiRequest.Message("system", systemPrompt),
+            new OpenAiRequest.Message("user", context)
+        );
+        return request;
+    }
+
+    private AiExperimentDraft createExperimentDraftFallback() {
         return new AiExperimentDraft(
-            trimToLength("First small step toward " + transformationTitle, 180),
-            "A smaller, repeatable action will help me learn what actually moves this transformation forward.",
-            "Choose one action you can finish in under ten minutes and try it once today.",
-            "Once today",
-            "You notice one concrete sign that this transformation felt easier to practice.",
+            "Try one small step this week",
+            null,
+            "Spend five minutes today on the smallest version of this.",
+            null,
+            null,
+            "openai",
+            aiProperties.getOpenai().getModel(),
+            true
+        );
+    }
+
+    private OpenAiRequest buildReflectionChatRequest(String context) {
+        String systemPrompt = """
+            You are a warm, concise reflection coach helping someone process today's experiment.
+            Given the conversation so far, reply with exactly one short, natural follow-up question
+            that helps clarify what happened or what they noticed. If no further clarification seems
+            useful, reply with one short encouraging closing remark instead.
+            Keep your response to 1-2 sentences, no markdown, no preamble.
+            """;
+
+        OpenAiRequest request = new OpenAiRequest();
+        request.model = aiProperties.getOpenai().getModel();
+        request.temperature = aiProperties.getOpenai().getTemperature();
+        request.maxTokens = aiProperties.getOpenai().getMaxTokens();
+        request.messages = List.of(
+            new OpenAiRequest.Message("system", systemPrompt),
+            new OpenAiRequest.Message("user", context)
+        );
+        return request;
+    }
+
+    private AiSuggestion createReflectionChatFallback() {
+        return new AiSuggestion(
+            "What else stood out about today?",
             "openai",
             aiProperties.getOpenai().getModel(),
             "v1",
@@ -315,49 +466,71 @@ public class OpenAiAssistantAdapter implements AiAssistantPort {
         );
     }
 
-    private boolean hasText(String value) {
-        return value != null && !value.isBlank();
+    private OpenAiRequest buildReflectionStructureRequest(String context) {
+        String systemPrompt = """
+            You are helping structure a completed reflection chat for later user review before save.
+            Respond with EXACTLY these labeled lines, no markdown, no preamble:
+            CONTENT: <a first-person narrative summary of what happened, written as if the user said it>
+            ATTEMPTED: <yes or no>
+            NOTICED: <what they noticed internally, or omit if nothing useful>
+            EVIDENCE: <what evidence this gave them, or omit if nothing useful>
+            SURPRISE: <what surprised them, or omit if nothing useful>
+            """;
+
+        OpenAiRequest request = new OpenAiRequest();
+        request.model = aiProperties.getOpenai().getModel();
+        request.temperature = aiProperties.getOpenai().getTemperature();
+        request.maxTokens = aiProperties.getOpenai().getMaxTokens();
+        request.messages = List.of(
+            new OpenAiRequest.Message("system", systemPrompt),
+            new OpenAiRequest.Message("user", context)
+        );
+        return request;
     }
 
-    private String normalizeOptional(String value) {
-        return hasText(value) ? value.trim() : null;
+    private AiReflectionStructure createReflectionStructureFallback() {
+        return new AiReflectionStructure(
+            "I reflected on what happened today and noticed a few meaningful moments.",
+            null,
+            null,
+            null,
+            null,
+            "openai",
+            aiProperties.getOpenai().getModel(),
+            true
+        );
     }
 
-    private String defaultValue(String value) {
-        return hasText(value) ? value.trim() : "Not provided";
-    }
-
-    private String stripCodeFences(String value) {
-        if (value == null) {
-            return "";
+    /**
+     * Extract the value of a "LABEL: value" line from a model response. Returns null if the label
+     * isn't present. Only looks at the first matching line (responses are prompted to be single-line
+     * per label); a caller treating a missing required label as a parse failure is expected.
+     */
+    private static String extractLabeledLine(String text, String label) {
+        if (text == null) return null;
+        String prefix = label + ":";
+        for (String line : text.split("\\r?\\n")) {
+            String trimmed = line.trim();
+            if (trimmed.regionMatches(true, 0, prefix, 0, prefix.length())) {
+                return trimmed.substring(prefix.length()).trim();
+            }
         }
-        return value.replace("```json", "").replace("```", "").trim();
+        return null;
     }
 
-    private String trimToLength(String value, int maxLength) {
-        return value.length() <= maxLength ? value : value.substring(0, maxLength);
+    private static Boolean parseAttempted(String raw) {
+        if (raw == null) return null;
+        String normalized = raw.trim().toLowerCase();
+        return switch (normalized) {
+            case "yes", "true" -> true;
+            case "no", "false" -> false;
+            default -> null;
+        };
     }
 
     private void recordFailure() {
         isAvailable = false;
         lastFailureTime = System.currentTimeMillis();
-    }
-
-    static class ExperimentDraftPayload {
-        @JsonProperty("title")
-        String title;
-
-        @JsonProperty("hypothesis")
-        String hypothesis;
-
-        @JsonProperty("nextAction")
-        String nextAction;
-
-        @JsonProperty("cadence")
-        String cadence;
-
-        @JsonProperty("evidenceOfSuccess")
-        String evidenceOfSuccess;
     }
 
     // OpenAI API Request/Response models
