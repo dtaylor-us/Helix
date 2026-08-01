@@ -52,7 +52,7 @@ export function TransformationDetailPage() {
       setDraftStatusText(
         draft.source === 'AI'
           ? `Drafted by AI${draft.aiProvider ? ` (${draft.aiProvider})` : ''}. Review and edit before saving.`
-          : 'Drafted a starting point. Review and edit before saving.',
+          : `Fallback draft${draft.aiProvider ? ` — ${draft.aiProvider}` : ''}. Review and edit before saving.`,
       )
     },
     onError: () => {

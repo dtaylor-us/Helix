@@ -1,0 +1,119 @@
+{
+  "checks": [
+    {
+      "name": "blank transformation blocked",
+      "pass": true,
+      "detail": "Save button is disabled"
+    },
+    {
+      "name": "blank transformation has explanatory validation",
+      "pass": false,
+      "detail": "\n\nWhat’s a transformation?\nStart a transformation\nWhat would you love to become or experience?\nWhy does this matter to you right now?\nWho are you becoming through this? (optional)\nWhat currently gets in the way? (optional)\nSave transformation\nYour transformations\n\nNothing here yet — start one above."
+    },
+    {
+      "name": "transformation saved",
+      "pass": true,
+      "detail": "http://localhost:5173/transformations"
+    },
+    {
+      "name": "draft control exists",
+      "pass": false,
+      "detail": ""
+    }
+  ],
+  "events": [],
+  "inventories": {
+    "transformation-detail": {
+      "text": "Journey\n\nA transformation is not a task to check off — it’s a meaningful way you are choosing to grow. Each one holds the experiments you run and the evidence you gather along the way.\n\nWhat’s a transformation?\nStart a transformation\nWhat would you love to become or experience?\nWhy does this matter to you right now?\nWho are you becoming through this? (optional)\nWhat currently gets in the way? (optional)\nSave transformation\nYour transformations\nRespond to feedback with calm curiosity",
+      "controls": [
+        {
+          "tag": "INPUT",
+          "text": "",
+          "value": "",
+          "placeholder": "e.g. Become more peaceful in the face of criticism",
+          "disabled": false
+        },
+        {
+          "tag": "TEXTAREA",
+          "text": "",
+          "value": "",
+          "placeholder": "",
+          "disabled": false
+        },
+        {
+          "tag": "TEXTAREA",
+          "text": "",
+          "value": "",
+          "placeholder": "e.g. Someone who can hear feedback without spiraling",
+          "disabled": false
+        },
+        {
+          "tag": "TEXTAREA",
+          "text": "",
+          "value": "",
+          "placeholder": "e.g. I treat feedback as a verdict on who I am, not on what I did",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Save transformation",
+          "value": "",
+          "placeholder": "",
+          "disabled": true
+        },
+        {
+          "tag": "A",
+          "text": "Respond to feedback with calm curiosity",
+          "value": "",
+          "placeholder": ""
+        }
+      ]
+    },
+    "detail-before-manual-experiment": {
+      "text": "Journey\n\nA transformation is not a task to check off — it’s a meaningful way you are choosing to grow. Each one holds the experiments you run and the evidence you gather along the way.\n\nWhat’s a transformation?\nStart a transformation\nWhat would you love to become or experience?\nWhy does this matter to you right now?\nWho are you becoming through this? (optional)\nWhat currently gets in the way? (optional)\nSave transformation\nYour transformations\nRespond to feedback with calm curiosity",
+      "controls": [
+        {
+          "tag": "INPUT",
+          "text": "",
+          "value": "",
+          "placeholder": "e.g. Become more peaceful in the face of criticism",
+          "disabled": false
+        },
+        {
+          "tag": "TEXTAREA",
+          "text": "",
+          "value": "",
+          "placeholder": "",
+          "disabled": false
+        },
+        {
+          "tag": "TEXTAREA",
+          "text": "",
+          "value": "",
+          "placeholder": "e.g. Someone who can hear feedback without spiraling",
+          "disabled": false
+        },
+        {
+          "tag": "TEXTAREA",
+          "text": "",
+          "value": "",
+          "placeholder": "e.g. I treat feedback as a verdict on who I am, not on what I did",
+          "disabled": false
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Save transformation",
+          "value": "",
+          "placeholder": "",
+          "disabled": true
+        },
+        {
+          "tag": "A",
+          "text": "Respond to feedback with calm curiosity",
+          "value": "",
+          "placeholder": ""
+        }
+      ]
+    }
+  }
+}

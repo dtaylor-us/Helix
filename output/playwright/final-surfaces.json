@@ -1,0 +1,89 @@
+{
+  "checks": [
+    {
+      "name": "evidence timeline updated",
+      "pass": true,
+      "detail": "Beliefs\n\nTrack beliefs as hypotheses you can challenge, update, and ground in evidence.\n\nTransformation\nRespond to feedback with calm curiosity\nBelief statement\nBelief type\nLimiting\nEmpowering\nSave belief\nBelief list\nA short pause helps curiosity turn criticism into useful information\nempowering\nEvidence and revision trail\n\nCurrent belief: A short pause helps curiosity turn criticism into useful information\n\nType: empowering\n\nThis belief was last revised because 'The feedback conversation supplied concrete supporting evidence.'. It now has 1 supporting and 0 challenging evidence entries.\n\nRevise belief\nUpdated statement\nUpdated type\nLimiting\nEmpowering\nWhy did this belief change?\nSource evidence\nNone\nI asked a clarifying question and the conversation stayed calm.\nSave revision\nAdd evidence\nObservation\nInterpretation\nDirection\nSupports\nChallenges\nSource\nManual observation\nToday reflection\nProvenance note\nSave evidence\nEvidence timeline\n\nSupports: I asked a clarifying question and the conversation stayed calm.\n\nInterpretation: Pausing supported curiosity.\n\nProvenance: manual_entry via manual_entry - Manual QA observation\n\nRevision history\n\nempowering to empowering\n\nThe feedback conversation supplied concrete supporting evidence.\n\nCuriosity turns criticism into useful information -> A short pause helps curiosity turn criticism into useful information"
+    },
+    {
+      "name": "revision history updated",
+      "pass": true,
+      "detail": "Beliefs\n\nTrack beliefs as hypotheses you can challenge, update, and ground in evidence.\n\nTransformation\nRespond to feedback with calm curiosity\nBelief statement\nBelief type\nLimiting\nEmpowering\nSave belief\nBelief list\nA short pause helps curiosity turn criticism into useful information\nempowering\nEvidence and revision trail\n\nCurrent belief: A short pause helps curiosity turn criticism into useful information\n\nType: empowering\n\nThis belief was last revised because 'The feedback conversation supplied concrete supporting evidence.'. It now has 1 supporting and 0 challenging evidence entries.\n\nRevise belief\nUpdated statement\nUpdated type\nLimiting\nEmpowering\nWhy did this belief change?\nSource evidence\nNone\nI asked a clarifying question and the conversation stayed calm.\nSave revision\nAdd evidence\nObservation\nInterpretation\nDirection\nSupports\nChallenges\nSource\nManual observation\nToday reflection\nProvenance note\nSave evidence\nEvidence timeline\n\nSupports: I asked a clarifying question and the conversation stayed calm.\n\nInterpretation: Pausing supported curiosity.\n\nProvenance: manual_entry via manual_entry - Manual QA observation\n\nRevision history\n\nempowering to empowering\n\nThe feedback conversation supplied concrete supporting evidence.\n\nCuriosity turns criticism into useful information -> A short pause helps curiosity turn criticism into useful information"
+    },
+    {
+      "name": "memory proposed",
+      "pass": false,
+      "detail": "Memory governance\n\nAI-derived memory stays proposed until you review it. Every memory proposal keeps source provenance attached.\n\nAccepted memories remain editable, but edits return the item to proposed status for re-review.\n\nPropose memory\nMemory statement\nSource kind\nai derived\nreflection\nmanual entry\nSource record type\nreflection\nexperiment\nbelief\nevidence\nwisdom\nretrospective\nSource record id\nSource excerpt\nSave proposed memory\nProposed memories\n\nNo memory proposals yet."
+    },
+    {
+      "name": "memory transition immediate",
+      "pass": true,
+      "detail": "Memory governance\n\nAI-derived memory stays proposed until you review it. Every memory proposal keeps source provenance attached.\n\nAccepted memories remain editable, but edits return the item to proposed status for re-review.\n\nPropose memory\nMemory statement\nSource kind\nai derived\nreflection\nmanual entry\nSource record type\nreflection\nexperiment\nbelief\nevidence\nwisdom\nretrospective\nSource record id\nSource excerpt\nSave proposed memory\nProposed memories\n\nNo memory proposals yet."
+    },
+    {
+      "name": "search finds records",
+      "pass": true,
+      "detail": "Search records\n\nSearch across reflections, beliefs, evidence, retrospectives, and wisdom entries.\n\nKeyword\n\nHybrid keyword and semantic retrieval is active with source citations\n\nBELIEF (keyword, 1.00): A short pause helps curiosity turn criticism into useful information\nEVIDENCE (keyword, 1.00): I asked a clarifying question and the conversation stayed calm.\nREFLECTION (hybrid, 1.00): I paused before responding to feedback, and I asked what specific change would help. During that moment, I noticed my shoulders relax, which was interesting. I was surprised that when I approached the feedback with curiosity, it made the feedback feel more specific and less personal."
+    },
+    {
+      "name": "empty search sane",
+      "pass": true,
+      "detail": "Search records\n\nSearch across reflections, beliefs, evidence, retrospectives, and wisdom entries.\n\nKeyword\n\nHybrid keyword and semantic retrieval is active with source citations\n\nREFLECTION (semantic, 0.09): I paused before responding to feedback, and I asked what specific change would help. During that moment, I noticed my shoulders relax, which was interesting. I was surprised that when I approached the feedback with curiosity, it made the feedback feel more specific and less personal."
+    },
+    {
+      "name": "snapshot history visible",
+      "pass": true,
+      "detail": "Library\n\nWisdom: a lesson you have tested or recognized and want to carry forward. Your weekly retrospective and accepted wisdom live here, kept alongside the reflections and evidence they came from.\n\nWeekly retrospective\n\nThis week, you took a significant step by pausing to reflect on feedback, which not only helped you engage more thoughtfully but also allowed you to notice the physical release of tension. It's a wonderful reminder of the connection between our mental and physical states. (AI suggested — openai)\n\nNext week, continue to practice pausing in challenging conversations and perhaps jot down any physical sensations you notice during those moments.\n\nSave weekly snapshot\nReflection summaries\nI paused before responding to feedback, and I asked what specific change would help. During that moment, I noticed my shoulders relax, which was interesting. I ...\nAccepted wisdom\nWisdom statement\nSource type\nRecent reflection\nSaved retrospective\nSource note\nSave wisdom\nWisdom library\n\nNo wisdom saved yet.\n\nLooking for something specific?\n\nThese grow more useful as you accumulate reflections, beliefs, and wisdom over time.\n\nSearch all records\nExplore beliefs & evidence\nReview remembered facts"
+    },
+    {
+      "name": "wisdom saved",
+      "pass": true,
+      "detail": "Library\n\nWisdom: a lesson you have tested or recognized and want to carry forward. Your weekly retrospective and accepted wisdom live here, kept alongside the reflections and evidence they came from.\n\nWeekly retrospective\n\nThis week, you took a significant step by pausing to reflect on feedback, which not only helped you engage more thoughtfully but also allowed you to notice the physical release of tension. It's a wonderful reminder of the connection between our mental and physical states. (AI suggested — openai)\n\nNext week, continue to practice pausing in challenging conversations and perhaps jot down any physical sensations you notice during those moments.\n\nSave weekly snapshot\nReflection summaries\nI paused before responding to feedback, and I asked what specific change would help. During that moment, I noticed my shoulders relax, which was interesting. I ...\nAccepted wisdom\nWisdom statement\nSource type\nRecent reflection\nSaved retrospective\nSource note\nSave wisdom\nWisdom library\nCuriosity can make feedback feel more specific.\nSources\nreflection - 48075378-df0f-4c05-a1e7-d8eb3ec27aff (Synthetic QA reflection)\nRevise wisdom\nUpdated statement\nReason\nSave revision\nRevision history\n\nNo revisions yet.\n\nLooking for something specific?\n\nThese grow more useful as you accumulate reflections, beliefs, and wisdom over time.\n\nSearch all records\nExplore beliefs & evidence\nReview remembered facts"
+    },
+    {
+      "name": "skip first",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "skip target works",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "controls labeled",
+      "pass": true,
+      "detail": "0 unlabeled"
+    },
+    {
+      "name": "aria live present",
+      "pass": true,
+      "detail": "2 regions"
+    },
+    {
+      "name": "mobile no overflow",
+      "pass": true,
+      "detail": ""
+    }
+  ],
+  "events": [
+    {
+      "type": "http",
+      "status": 404,
+      "url": "http://localhost:8080/api/v1/memory/proposals"
+    },
+    {
+      "type": "console:error",
+      "text": "Failed to load resource: the server responded with a status of 404 ()"
+    }
+  ],
+  "states": {
+    "knowledge": "Beliefs\n\nTrack beliefs as hypotheses you can challenge, update, and ground in evidence.\n\nTransformation\nRespond to feedback with calm curiosity\nBelief statement\nBelief type\nLimiting\nEmpowering\nSave belief\nBelief list\nA short pause helps curiosity turn criticism into useful information\nempowering\nEvidence and revision trail\n\nCurrent belief: A short pause helps curiosity turn criticism into useful information\n\nType: empowering\n\nThis belief was last revised because 'The feedback conversation supplied concrete supporting evidence.'. It now has 1 supporting and 0 challenging evidence entries.\n\nRevise belief\nUpdated statement\nUpdated type\nLimiting\nEmpowering\nWhy did this belief change?\nSource evidence\nNone\nI asked a clarifying question and the conversation stayed calm.\nSave revision\nAdd evidence\nObservation\nInterpretation\nDirection\nSupports\nChallenges\nSource\nManual observation\nToday reflection\nProvenance note\nSave evidence\nEvidence timeline\n\nSupports: I asked a clarifying question and the conversation stayed calm.\n\nInterpretation: Pausing supported curiosity.\n\nProvenance: manual_entry via manual_entry - Manual QA observation\n\nRevision history\n\nempowering to empowering\n\nThe feedback conversation supplied concrete supporting evidence.\n\nCuriosity turns criticism into useful information -> A short pause helps curiosity turn criticism into useful information",
+    "memory-proposed": "Memory governance\n\nAI-derived memory stays proposed until you review it. Every memory proposal keeps source provenance attached.\n\nAccepted memories remain editable, but edits return the item to proposed status for re-review.\n\nPropose memory\nMemory statement\nSource kind\nai derived\nreflection\nmanual entry\nSource record type\nreflection\nexperiment\nbelief\nevidence\nwisdom\nretrospective\nSource record id\nSource excerpt\nSave proposed memory\nProposed memories\n\nNo memory proposals yet.",
+    "memory-accepted": "Memory governance\n\nAI-derived memory stays proposed until you review it. Every memory proposal keeps source provenance attached.\n\nAccepted memories remain editable, but edits return the item to proposed status for re-review.\n\nPropose memory\nMemory statement\nSource kind\nai derived\nreflection\nmanual entry\nSource record type\nreflection\nexperiment\nbelief\nevidence\nwisdom\nretrospective\nSource record id\nSource excerpt\nSave proposed memory\nProposed memories\n\nNo memory proposals yet.",
+    "search-match": "Search records\n\nSearch across reflections, beliefs, evidence, retrospectives, and wisdom entries.\n\nKeyword\n\nHybrid keyword and semantic retrieval is active with source citations\n\nBELIEF (keyword, 1.00): A short pause helps curiosity turn criticism into useful information\nEVIDENCE (keyword, 1.00): I asked a clarifying question and the conversation stayed calm.\nREFLECTION (hybrid, 1.00): I paused before responding to feedback, and I asked what specific change would help. During that moment, I noticed my shoulders relax, which was interesting. I was surprised that when I approached the feedback with curiosity, it made the feedback feel more specific and less personal.",
+    "search-empty": "Search records\n\nSearch across reflections, beliefs, evidence, retrospectives, and wisdom entries.\n\nKeyword\n\nHybrid keyword and semantic retrieval is active with source citations\n\nREFLECTION (semantic, 0.09): I paused before responding to feedback, and I asked what specific change would help. During that moment, I noticed my shoulders relax, which was interesting. I was surprised that when I approached the feedback with curiosity, it made the feedback feel more specific and less personal.",
+    "snapshot": "Library\n\nWisdom: a lesson you have tested or recognized and want to carry forward. Your weekly retrospective and accepted wisdom live here, kept alongside the reflections and evidence they came from.\n\nWeekly retrospective\n\nThis week, you took a significant step by pausing to reflect on feedback, which not only helped you engage more thoughtfully but also allowed you to notice the physical release of tension. It's a wonderful reminder of the connection between our mental and physical states. (AI suggested — openai)\n\nNext week, continue to practice pausing in challenging conversations and perhaps jot down any physical sensations you notice during those moments.\n\nSave weekly snapshot\nReflection summaries\nI paused before responding to feedback, and I asked what specific change would help. During that moment, I noticed my shoulders relax, which was interesting. I ...\nAccepted wisdom\nWisdom statement\nSource type\nRecent reflection\nSaved retrospective\nSource note\nSave wisdom\nWisdom library\n\nNo wisdom saved yet.\n\nLooking for something specific?\n\nThese grow more useful as you accumulate reflections, beliefs, and wisdom over time.\n\nSearch all records\nExplore beliefs & evidence\nReview remembered facts",
+    "wisdom": "Library\n\nWisdom: a lesson you have tested or recognized and want to carry forward. Your weekly retrospective and accepted wisdom live here, kept alongside the reflections and evidence they came from.\n\nWeekly retrospective\n\nThis week, you took a significant step by pausing to reflect on feedback, which not only helped you engage more thoughtfully but also allowed you to notice the physical release of tension. It's a wonderful reminder of the connection between our mental and physical states. (AI suggested — openai)\n\nNext week, continue to practice pausing in challenging conversations and perhaps jot down any physical sensations you notice during those moments.\n\nSave weekly snapshot\nReflection summaries\nI paused before responding to feedback, and I asked what specific change would help. During that moment, I noticed my shoulders relax, which was interesting. I ...\nAccepted wisdom\nWisdom statement\nSource type\nRecent reflection\nSaved retrospective\nSource note\nSave wisdom\nWisdom library\nCuriosity can make feedback feel more specific.\nSources\nreflection - 48075378-df0f-4c05-a1e7-d8eb3ec27aff (Synthetic QA reflection)\nRevise wisdom\nUpdated statement\nReason\nSave revision\nRevision history\n\nNo revisions yet.\n\nLooking for something specific?\n\nThese grow more useful as you accumulate reflections, beliefs, and wisdom over time.\n\nSearch all records\nExplore beliefs & evidence\nReview remembered facts"
+  }
+}

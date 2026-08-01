@@ -1,0 +1,451 @@
+{
+  "checks": [
+    {
+      "name": "draft exists",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "draft prefills fields",
+      "pass": false,
+      "detail": "[\"Try one small step this week\",\"\",\"Spend five minutes today on the smallest version of this.\",\"\",\"\",\"\"]"
+    },
+    {
+      "name": "fallback provenance visible",
+      "pass": false,
+      "detail": "Transformation\n\nRespond to feedback with calm curiosity\n\nI want criticism to become useful information instead of a verdict.\n\nWho you’re becoming: Someone who listens, pauses, and chooses a thoughtful response.\n\nWhat gets in the way: I react quickly when feedback feels personal.\n\nAdd an experiment\n\nA small, time-bounded attempt that helps you learn what actually moves this transformation forward.\n\nWhat’s an experiment?\nDraft this for me\n\nDrafted a starting point. Review and edit before saving.\n\nExperimentWhat do you want to learn?Smallest next actionHow often will you try this? (optional)What would count as useful evidence? (optional)When will you review this? (optional)\nSave experiment"
+    },
+    {
+      "name": "abandoned draft not on Today",
+      "pass": true,
+      "detail": "Today\n\nNo active experiment yet. Choose a transformation and add one small experiment to it.\n\nAdd an experiment to “Respond to feedback with calm curiosity”\nSee all transformations"
+    },
+    {
+      "name": "save experiment enabled",
+      "pass": false,
+      "detail": "[\"Experiment\",\"What do you want to learn?\",\"Smallest next action\",\"How often will you try this? (optional)\",\"What would count as useful evidence? (optional)\",\"When will you review this? (optional)\"]"
+    },
+    {
+      "name": "active experiment on Today",
+      "pass": false,
+      "detail": "Today\n\nNo active experiment yet. Choose a transformation and add one small experiment to it.\n\nAdd an experiment to “Respond to feedback with calm curiosity”\nSee all transformations"
+    }
+  ],
+  "events": [],
+  "states": {
+    "detail": {
+      "text": "Transformation\n\nRespond to feedback with calm curiosity\n\nI want criticism to become useful information instead of a verdict.\n\nWho you’re becoming: Someone who listens, pauses, and chooses a thoughtful response.\n\nWhat gets in the way: I react quickly when feedback feels personal.\n\nAdd an experiment\n\nA small, time-bounded attempt that helps you learn what actually moves this transformation forward.\n\nWhat’s an experiment?\nDraft this for me\nExperimentWhat do you want to learn?Smallest next actionHow often will you try this? (optional)What would count as useful evidence? (optional)When will you review this? (optional)\nSave experiment",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "text": "Draft this for me",
+          "value": "",
+          "type": "button",
+          "placeholder": "",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "value": "",
+          "type": "text",
+          "placeholder": "",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "TEXTAREA",
+          "text": "",
+          "value": "",
+          "type": "textarea",
+          "placeholder": "",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "value": "",
+          "type": "text",
+          "placeholder": "",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "value": "",
+          "type": "text",
+          "placeholder": "e.g. Whenever I feel criticized",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "TEXTAREA",
+          "text": "",
+          "value": "",
+          "type": "textarea",
+          "placeholder": "e.g. Fewer moments of regretting how I responded",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "value": "",
+          "type": "date",
+          "placeholder": "",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Save experiment",
+          "value": "",
+          "type": "submit",
+          "placeholder": "",
+          "disabled": true,
+          "href": ""
+        }
+      ]
+    },
+    "drafted": {
+      "text": "Transformation\n\nRespond to feedback with calm curiosity\n\nI want criticism to become useful information instead of a verdict.\n\nWho you’re becoming: Someone who listens, pauses, and chooses a thoughtful response.\n\nWhat gets in the way: I react quickly when feedback feels personal.\n\nAdd an experiment\n\nA small, time-bounded attempt that helps you learn what actually moves this transformation forward.\n\nWhat’s an experiment?\nDraft this for me\n\nDrafted a starting point. Review and edit before saving.\n\nExperimentWhat do you want to learn?Smallest next actionHow often will you try this? (optional)What would count as useful evidence? (optional)When will you review this? (optional)\nSave experiment",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "text": "Draft this for me",
+          "value": "",
+          "type": "button",
+          "placeholder": "",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "value": "Try one small step this week",
+          "type": "text",
+          "placeholder": "",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "TEXTAREA",
+          "text": "",
+          "value": "",
+          "type": "textarea",
+          "placeholder": "",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "value": "Spend five minutes today on the smallest version of this.",
+          "type": "text",
+          "placeholder": "",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "value": "",
+          "type": "text",
+          "placeholder": "e.g. Whenever I feel criticized",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "TEXTAREA",
+          "text": "",
+          "value": "",
+          "type": "textarea",
+          "placeholder": "e.g. Fewer moments of regretting how I responded",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "value": "",
+          "type": "date",
+          "placeholder": "",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Save experiment",
+          "value": "",
+          "type": "submit",
+          "placeholder": "",
+          "disabled": false,
+          "href": ""
+        }
+      ]
+    },
+    "manual-form": {
+      "text": "Transformation\n\nRespond to feedback with calm curiosity\n\nI want criticism to become useful information instead of a verdict.\n\nWho you’re becoming: Someone who listens, pauses, and chooses a thoughtful response.\n\nWhat gets in the way: I react quickly when feedback feels personal.\n\nAdd an experiment\n\nA small, time-bounded attempt that helps you learn what actually moves this transformation forward.\n\nWhat’s an experiment?\nDraft this for me\nExperimentWhat do you want to learn?Smallest next actionHow often will you try this? (optional)What would count as useful evidence? (optional)When will you review this? (optional)\nSave experiment",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "text": "Draft this for me",
+          "value": "",
+          "type": "button",
+          "placeholder": "",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "value": "",
+          "type": "text",
+          "placeholder": "",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "TEXTAREA",
+          "text": "",
+          "value": "",
+          "type": "textarea",
+          "placeholder": "",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "value": "",
+          "type": "text",
+          "placeholder": "",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "value": "",
+          "type": "text",
+          "placeholder": "e.g. Whenever I feel criticized",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "TEXTAREA",
+          "text": "",
+          "value": "",
+          "type": "textarea",
+          "placeholder": "e.g. Fewer moments of regretting how I responded",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "value": "",
+          "type": "date",
+          "placeholder": "",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Save experiment",
+          "value": "",
+          "type": "submit",
+          "placeholder": "",
+          "disabled": true,
+          "href": ""
+        }
+      ]
+    },
+    "labels": [
+      "Experiment",
+      "What do you want to learn?",
+      "Smallest next action",
+      "How often will you try this? (optional)",
+      "What would count as useful evidence? (optional)",
+      "When will you review this? (optional)"
+    ],
+    "manual-filled": {
+      "text": "Transformation\n\nRespond to feedback with calm curiosity\n\nI want criticism to become useful information instead of a verdict.\n\nWho you’re becoming: Someone who listens, pauses, and chooses a thoughtful response.\n\nWhat gets in the way: I react quickly when feedback feels personal.\n\nAdd an experiment\n\nA small, time-bounded attempt that helps you learn what actually moves this transformation forward.\n\nWhat’s an experiment?\nDraft this for me\nExperimentWhat do you want to learn?Smallest next actionHow often will you try this? (optional)What would count as useful evidence? (optional)When will you review this? (optional)\nSave experiment",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "text": "Draft this for me",
+          "value": "",
+          "type": "button",
+          "placeholder": "",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "value": "",
+          "type": "text",
+          "placeholder": "",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "TEXTAREA",
+          "text": "",
+          "value": "",
+          "type": "textarea",
+          "placeholder": "",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "value": "Ask one clarifying question before defending myself.",
+          "type": "text",
+          "placeholder": "",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "value": "",
+          "type": "text",
+          "placeholder": "e.g. Whenever I feel criticized",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "TEXTAREA",
+          "text": "",
+          "value": "",
+          "type": "textarea",
+          "placeholder": "e.g. Fewer moments of regretting how I responded",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "value": "",
+          "type": "date",
+          "placeholder": "",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Save experiment",
+          "value": "",
+          "type": "submit",
+          "placeholder": "",
+          "disabled": true,
+          "href": ""
+        }
+      ]
+    },
+    "after-save": {
+      "text": "Transformation\n\nRespond to feedback with calm curiosity\n\nI want criticism to become useful information instead of a verdict.\n\nWho you’re becoming: Someone who listens, pauses, and chooses a thoughtful response.\n\nWhat gets in the way: I react quickly when feedback feels personal.\n\nAdd an experiment\n\nA small, time-bounded attempt that helps you learn what actually moves this transformation forward.\n\nWhat’s an experiment?\nDraft this for me\nExperimentWhat do you want to learn?Smallest next actionHow often will you try this? (optional)What would count as useful evidence? (optional)When will you review this? (optional)\nSave experiment",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "text": "Draft this for me",
+          "value": "",
+          "type": "button",
+          "placeholder": "",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "value": "",
+          "type": "text",
+          "placeholder": "",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "TEXTAREA",
+          "text": "",
+          "value": "",
+          "type": "textarea",
+          "placeholder": "",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "value": "Ask one clarifying question before defending myself.",
+          "type": "text",
+          "placeholder": "",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "value": "",
+          "type": "text",
+          "placeholder": "e.g. Whenever I feel criticized",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "TEXTAREA",
+          "text": "",
+          "value": "",
+          "type": "textarea",
+          "placeholder": "e.g. Fewer moments of regretting how I responded",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "value": "",
+          "type": "date",
+          "placeholder": "",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Save experiment",
+          "value": "",
+          "type": "submit",
+          "placeholder": "",
+          "disabled": true,
+          "href": ""
+        }
+      ]
+    },
+    "today-active": {
+      "text": "Today\n\nNo active experiment yet. Choose a transformation and add one small experiment to it.\n\nAdd an experiment to “Respond to feedback with calm curiosity”\nSee all transformations",
+      "controls": [
+        {
+          "tag": "A",
+          "text": "Add an experiment to “Respond to feedback with calm curiosity”",
+          "value": "",
+          "type": "",
+          "placeholder": "",
+          "href": "/transformations/ff2c6652-4a42-421d-9fa0-c3ed7c2e1709"
+        },
+        {
+          "tag": "A",
+          "text": "See all transformations",
+          "value": "",
+          "type": "",
+          "placeholder": "",
+          "href": "/transformations"
+        }
+      ]
+    }
+  }
+}

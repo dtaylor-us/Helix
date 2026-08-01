@@ -96,6 +96,7 @@ export function MemoryPage() {
 
   const canCreate = Boolean(statement.trim() && sourceRecordId.trim())
   const selectedDetail = memoryDetailQuery.data
+  const createMemoryError = createMemoryProposal.error instanceof Error ? createMemoryProposal.error.message : null
 
   return (
     <div className="stack">
@@ -146,6 +147,7 @@ export function MemoryPage() {
         <button disabled={!canCreate || createMemoryProposal.isPending} onClick={() => createMemoryProposal.mutate()}>
           Save proposed memory
         </button>
+        {createMemoryError ? <p role="alert">{createMemoryError}</p> : null}
       </section>
 
       <section className="card stack">

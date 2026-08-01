@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import type { WisdomSourceLinkRequest } from '../../../../packages/contracts/src'
+import type { WeeklyRetrospective, WisdomSourceLinkRequest } from '../../../../packages/contracts/src'
 import { api } from '../api/http'
 
 type SourceMode = 'REFLECTION' | 'RETROSPECTIVE'
@@ -13,6 +13,7 @@ export function WisdomPage() {
   const [selectedWisdomId, setSelectedWisdomId] = useState('')
   const [revisionStatement, setRevisionStatement] = useState('')
   const [revisionReason, setRevisionReason] = useState('')
+  const [retrospectiveStatusText, setRetrospectiveStatusText] = useState('')
 
   const draftQuery = useQuery({
     queryKey: ['weekly-retrospective-draft'],
@@ -39,7 +40,12 @@ export function WisdomPage() {
 
   const saveRetrospective = useMutation({
     mutationFn: api.saveWeeklyRetrospective,
-    onSuccess: () => {
+    onSuccess: (savedRetrospective) => {
+      setRetrospectiveStatusText('Weekly snapshot saved to history.')
+      queryClient.setQueryData<WeeklyRetrospective[]>(['retrospectives'], (current) => {
+        const existing = current ?? []
+        return [savedRetrospective, ...existing.filter((entry) => entry.id !== savedRetrospective.id)]
+      })
       queryClient.invalidateQueries({ queryKey: ['retrospectives'] })
     },
   })
@@ -121,6 +127,9 @@ export function WisdomPage() {
         <button onClick={() => saveRetrospective.mutate()} disabled={saveRetrospective.isPending}>
           Save weekly snapshot
         </button>
+        <p role="status" aria-live="polite" className="muted">
+          {retrospectiveStatusText}
+        </p>
         <h3>Reflection summaries</h3>
         {draftQuery.data.reflectionSummaries.length > 0 ? (
           <ul>
@@ -130,6 +139,21 @@ export function WisdomPage() {
           </ul>
         ) : (
           <p>No reflections recorded in the past week yet.</p>
+        )}
+        <h3>Saved snapshots</h3>
+        {retrospectivesQuery.data.length > 0 ? (
+          <ul>
+            {retrospectivesQuery.data.map((retrospective) => (
+              <li key={retrospective.id}>
+                <strong>
+                  {retrospective.periodStart} to {retrospective.periodEnd}
+                </strong>
+                : {retrospective.summary}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No snapshots saved yet.</p>
         )}
       </section>
 

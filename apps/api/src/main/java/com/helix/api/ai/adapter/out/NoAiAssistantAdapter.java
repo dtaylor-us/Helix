@@ -41,16 +41,32 @@ public class NoAiAssistantAdapter implements AiAssistantPort {
 
     @Override
     public AiExperimentDraft proposeExperiment(String context) {
+        String transformationTitle = extractTransformationTitle(context);
         return new AiExperimentDraft(
-            "Try one small step this week",
-            null,
-            "Spend five minutes today on the smallest version of this.",
-            null,
-            null,
+            trimToLength("First small step toward " + transformationTitle, 180),
+            "A smaller, repeatable action will help me learn what actually moves this transformation forward.",
+            "Choose one action you can finish in under ten minutes and try it once today.",
+            "Once today",
+            "You notice one concrete sign that this transformation felt easier to practice.",
             "none",
             "deterministic",
             true
         );
+    }
+
+    private String extractTransformationTitle(String context) {
+        if (context != null) {
+            for (String line : context.lines().toList()) {
+                if (line.startsWith("Transformation: ") && !line.substring(16).isBlank()) {
+                    return line.substring(16).trim();
+                }
+            }
+        }
+        return "this transformation";
+    }
+
+    private String trimToLength(String value, int maxLength) {
+        return value.length() <= maxLength ? value : value.substring(0, maxLength);
     }
 
     @Override

@@ -1,10 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { TermHint } from '../components/TermHint'
 import { api } from '../api/http'
 
 const CHAT_DRAFT_KEY_PREFIX = 'helix:reflection-chat-draft:'
+const WISDOM_DRAFT_KEY = 'helix:wisdom-draft'
+
+type WisdomDraft = { experimentId: string; reflectionId: string; statement: string }
 
 type ReflectionChatMessage = {
   role: 'user' | 'assistant'
@@ -30,7 +33,14 @@ export function TodayPage() {
   const [chatTranscript, setChatTranscript] = useState<ReflectionChatMessage[]>([])
   const [chatDraft, setChatDraft] = useState('')
   const [reflectionReview, setReflectionReview] = useState<ReflectionReviewDraft | null>(null)
-  const [wisdomDraft, setWisdomDraft] = useState<{ reflectionId: string; statement: string } | null>(null)
+  const [wisdomDraft, setWisdomDraft] = useState<WisdomDraft | null>(() => {
+    try {
+      const stored = globalThis.localStorage?.getItem(WISDOM_DRAFT_KEY)
+      return stored ? (JSON.parse(stored) as WisdomDraft) : null
+    } catch {
+      return null
+    }
+  })
   const [wisdomStatusText, setWisdomStatusText] = useState<string | null>(null)
 
   const todayQuery = useQuery({ queryKey: ['today'], queryFn: api.getToday })
@@ -47,17 +57,24 @@ export function TodayPage() {
   const activeExperimentId = todayQuery.data?.activeExperiment?.id
   const chatDraftKey = activeExperimentId ? `${CHAT_DRAFT_KEY_PREFIX}${activeExperimentId}` : null
 
+  useEffect(() => {
+    if (wisdomDraft) globalThis.localStorage?.setItem(WISDOM_DRAFT_KEY, JSON.stringify(wisdomDraft))
+    else globalThis.localStorage?.removeItem(WISDOM_DRAFT_KEY)
+  }, [wisdomDraft])
+
   // Chat input drafts are namespaced per experiment so switching experiments never shows text
   // typed for a different one. Sent transcript turns are intentionally not persisted locally;
   // finishing and structuring a reflection requires network connectivity (ADR-017).
   const [draftExperimentId, setDraftExperimentId] = useState<string | undefined>(undefined)
   if (activeExperimentId !== draftExperimentId) {
     setDraftExperimentId(activeExperimentId)
-    setChatDraft(chatDraftKey ? localStorage.getItem(chatDraftKey) ?? '' : '')
+    setChatDraft(chatDraftKey ? globalThis.localStorage?.getItem(chatDraftKey) ?? '' : '')
     setChatTranscript([])
     setReflectionReview(null)
-    setWisdomDraft(null)
-    setWisdomStatusText(null)
+    if (!wisdomDraft || wisdomDraft.experimentId !== activeExperimentId) {
+      setWisdomDraft(null)
+      setWisdomStatusText(null)
+    }
   }
 
   const reflectMutation = useMutation({
@@ -77,7 +94,7 @@ export function TodayPage() {
         surprise: payload.surprise,
       }),
     onSuccess: (result, variables) => {
-      if (chatDraftKey) localStorage.removeItem(chatDraftKey)
+      if (chatDraftKey) globalThis.localStorage?.removeItem(chatDraftKey)
       setChatDraft('')
       setChatTranscript([])
       setReflectionReview(null)
@@ -89,7 +106,11 @@ export function TodayPage() {
       const proposedStatement = (
         variables.evidenceNoted || variables.noticed || variables.surprise || variables.content
       ).trim().slice(0, 500)
-      setWisdomDraft(proposedStatement ? { reflectionId: result.reflection.id, statement: proposedStatement } : null)
+      setWisdomDraft(proposedStatement ? {
+        experimentId: variables.experimentId,
+        reflectionId: result.reflection.id,
+        statement: proposedStatement,
+      } : null)
       setWisdomStatusText(null)
       queryClient.invalidateQueries({ queryKey: ['today'] })
     },
@@ -325,7 +346,7 @@ export function TodayPage() {
               onChange={(e) => {
                 setChatDraft(e.target.value)
                 setStatusText(null)
-                if (chatDraftKey) localStorage.setItem(chatDraftKey, e.target.value)
+                if (chatDraftKey) globalThis.localStorage?.setItem(chatDraftKey, e.target.value)
               }}
               rows={4}
             />
@@ -338,7 +359,7 @@ export function TodayPage() {
                   const nextTranscript = [...chatTranscript, { role: 'user' as const, text: message }]
                   setChatTranscript(nextTranscript)
                   setChatDraft('')
-                  if (chatDraftKey) localStorage.removeItem(chatDraftKey)
+                  if (chatDraftKey) globalThis.localStorage?.removeItem(chatDraftKey)
                   setStatusText(null)
                   setErrorText(null)
                   continueReflectionChatMutation.mutate({

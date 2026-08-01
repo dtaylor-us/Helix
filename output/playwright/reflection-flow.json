@@ -1,0 +1,123 @@
+{
+  "checks": [
+    {
+      "name": "manual form enabled",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "experiment listed",
+      "pass": false,
+      "detail": "Transformation\n\nRespond to feedback with calm curiosity\n\nI want criticism to become useful information instead of a verdict.\n\nWho you’re becoming: Someone who listens, pauses, and chooses a thoughtful response.\n\nWhat gets in the way: I react quickly when feedback feels personal.\n\nAdd an experiment\n\nA small, time-bounded attempt that helps you learn what actually moves this transformation forward.\n\nWhat’s an experiment?\nDraft this for me\nExperimentWhat do you want to learn?Smallest next actionHow often will you try this? (optional)What would count as useful evidence? (optional)When will you review this? (optional)\nSave experiment"
+    },
+    {
+      "name": "active experiment on Today",
+      "pass": true,
+      "detail": "Current Direction\n\nActive experiment: Pause before responding to feedback\n\nHypothesis: Whether one breath creates room for curiosity.\n\nHow often: Once during the next feedback conversation\n\nEvidence to watch for: I ask a question and regret less afterward.\n\nWhat’s an experiment?\nSuggested Small Action\n\nNo suggestion yet. Save a reflection below and Helix will offer one small next step.\n\nEvening review\n\nWhat happened when you tried it today?\n\nStart by sharing what happened. Helix will ask follow-up questions conversationally.\n\nYour message\nSend\nI'm done — review my reflection\nUnsent text is saved on this device while you type.\n\nWhat’s a reflection?\nHistory\nRecent reflections\n\nNothing recorded yet."
+    },
+    {
+      "name": "reflection draft survives reload",
+      "pass": true,
+      "detail": "I paused and asked what specific change would help."
+    }
+  ],
+  "events": [],
+  "states": {
+    "today": {
+      "text": "Current Direction\n\nActive experiment: Pause before responding to feedback\n\nHypothesis: Whether one breath creates room for curiosity.\n\nHow often: Once during the next feedback conversation\n\nEvidence to watch for: I ask a question and regret less afterward.\n\nWhat’s an experiment?\nSuggested Small Action\n\nNo suggestion yet. Save a reflection below and Helix will offer one small next step.\n\nEvening review\n\nWhat happened when you tried it today?\n\nStart by sharing what happened. Helix will ask follow-up questions conversationally.\n\nYour message\nSend\nI'm done — review my reflection\nUnsent text is saved on this device while you type.\n\nWhat’s a reflection?\nHistory\nRecent reflections\n\nNothing recorded yet.",
+      "labels": [
+        "Your message"
+      ],
+      "controls": [
+        {
+          "tag": "TEXTAREA",
+          "text": "",
+          "value": "",
+          "type": "textarea",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Send",
+          "value": "",
+          "type": "button",
+          "disabled": true,
+          "href": ""
+        },
+        {
+          "tag": "BUTTON",
+          "text": "I'm done — review my reflection",
+          "value": "",
+          "type": "button",
+          "disabled": true,
+          "href": ""
+        }
+      ]
+    },
+    "after-main": {
+      "text": "Current Direction\n\nActive experiment: Pause before responding to feedback\n\nHypothesis: Whether one breath creates room for curiosity.\n\nHow often: Once during the next feedback conversation\n\nEvidence to watch for: I ask a question and regret less afterward.\n\nWhat’s an experiment?\nSuggested Small Action\n\nNo suggestion yet. Save a reflection below and Helix will offer one small next step.\n\nEvening review\n\nWhat happened when you tried it today?\n\nStart by sharing what happened. Helix will ask follow-up questions conversationally.\n\nYour message\nSend\nI'm done — review my reflection\nUnsent text is saved on this device while you type.\n\nWhat’s a reflection?\nHistory\nRecent reflections\n\nNothing recorded yet.",
+      "labels": [
+        "Your message"
+      ],
+      "controls": [
+        {
+          "tag": "TEXTAREA",
+          "text": "",
+          "value": "I paused and asked what specific change would help.",
+          "type": "textarea",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Send",
+          "value": "",
+          "type": "button",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "BUTTON",
+          "text": "I'm done — review my reflection",
+          "value": "",
+          "type": "button",
+          "disabled": true,
+          "href": ""
+        }
+      ]
+    },
+    "after-reload": {
+      "text": "Current Direction\n\nActive experiment: Pause before responding to feedback\n\nHypothesis: Whether one breath creates room for curiosity.\n\nHow often: Once during the next feedback conversation\n\nEvidence to watch for: I ask a question and regret less afterward.\n\nWhat’s an experiment?\nSuggested Small Action\n\nNo suggestion yet. Save a reflection below and Helix will offer one small next step.\n\nEvening review\n\nWhat happened when you tried it today?\n\nStart by sharing what happened. Helix will ask follow-up questions conversationally.\n\nYour message\nSend\nI'm done — review my reflection\nUnsent text is saved on this device while you type.\n\nWhat’s a reflection?\nHistory\nRecent reflections\n\nNothing recorded yet.",
+      "labels": [
+        "Your message"
+      ],
+      "controls": [
+        {
+          "tag": "TEXTAREA",
+          "text": "",
+          "value": "I paused and asked what specific change would help.",
+          "type": "textarea",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Send",
+          "value": "",
+          "type": "button",
+          "disabled": false,
+          "href": ""
+        },
+        {
+          "tag": "BUTTON",
+          "text": "I'm done — review my reflection",
+          "value": "",
+          "type": "button",
+          "disabled": true,
+          "href": ""
+        }
+      ]
+    }
+  }
+}
