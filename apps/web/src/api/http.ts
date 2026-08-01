@@ -8,6 +8,7 @@ import type {
   CreateMemoryProposalRequest,
   CreateReflectionRequest,
   CreateReflectionResponse,
+  ExperimentDraft,
   CreateTransformationRequest,
   Evidence,
   Experiment,
@@ -65,6 +66,8 @@ export const api = {
     }),
   listTransformations: () => request<Transformation[]>('/api/v1/transformations'),
   getTransformation: (id: string) => request<Transformation>(`/api/v1/transformations/${id}`),
+  proposeExperimentDraft: (transformationId: string) =>
+    request<ExperimentDraft>(`/api/v1/transformations/${transformationId}/experiments/draft`),
   createExperiment: (transformationId: string, payload: CreateExperimentRequest) =>
     request<Experiment>(`/api/v1/transformations/${transformationId}/experiments`, {
       method: 'POST',

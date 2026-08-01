@@ -13,8 +13,30 @@ export function TransformationDetailPage() {
   const [cadence, setCadence] = useState('')
   const [evidenceOfSuccess, setEvidenceOfSuccess] = useState('')
   const [reviewAt, setReviewAt] = useState('')
+  const [draftStatusText, setDraftStatusText] = useState<string | null>(null)
+  const [draftErrorText, setDraftErrorText] = useState<string | null>(null)
+  const [draftMeta, setDraftMeta] = useState<{ source: 'AI' | 'DETERMINISTIC'; aiProvider?: string; aiModel?: string } | null>(null)
 
   const transformation = useQuery({ queryKey: ['transformation', id], queryFn: () => api.getTransformation(id) })
+
+  const draftExperiment = useMutation({
+    mutationFn: () => api.proposeExperimentDraft(id),
+    onSuccess: (draft) => {
+      setTitle(draft.title)
+      setHypothesis(draft.hypothesis)
+      setNextAction(draft.nextAction)
+      setCadence(draft.cadence ?? '')
+      setEvidenceOfSuccess(draft.evidenceOfSuccess ?? '')
+      setDraftErrorText(null)
+      setDraftStatusText('Drafted a starting point. Review and edit before saving.')
+      setDraftMeta({ source: draft.source, aiProvider: draft.aiProvider, aiModel: draft.aiModel })
+    },
+    onError: () => {
+      setDraftStatusText(null)
+      setDraftMeta(null)
+      setDraftErrorText('Could not draft an experiment right now. You can still write one manually.')
+    },
+  })
 
   const createExperiment = useMutation({
     mutationFn: () =>
@@ -33,9 +55,18 @@ export function TransformationDetailPage() {
       setCadence('')
       setEvidenceOfSuccess('')
       setReviewAt('')
+      setDraftStatusText(null)
+      setDraftErrorText(null)
+      setDraftMeta(null)
       queryClient.invalidateQueries({ queryKey: ['today'] })
     },
   })
+
+  const draftProvenanceLabel = draftMeta
+    ? draftMeta.source === 'AI'
+      ? `AI drafted${draftMeta.aiProvider ? ` — ${draftMeta.aiProvider}` : ''}`
+      : `Fallback draft${draftMeta.aiProvider ? ` — ${draftMeta.aiProvider}` : ''}`
+    : null
 
   return (
     <div className="stack">
@@ -56,6 +87,20 @@ export function TransformationDetailPage() {
           A small, time-bounded attempt that helps you learn what actually moves this transformation forward.
         </p>
         <TermHint term="Experiment" />
+        <div className="row">
+          <button type="button" className="secondary-button" disabled={draftExperiment.isPending} onClick={() => draftExperiment.mutate()}>
+            Draft this for me
+          </button>
+        </div>
+        {draftStatusText && (
+          <p className="muted" role="status">
+            {draftStatusText}{' '}
+            {draftProvenanceLabel && (
+              <span title={draftMeta?.aiModel ? `Model: ${draftMeta.aiModel}` : undefined}>({draftProvenanceLabel})</span>
+            )}
+          </p>
+        )}
+        {draftErrorText && <p role="alert">{draftErrorText}</p>}
         <label htmlFor="exp-title">Experiment</label>
         <input id="exp-title" value={title} onChange={(e) => setTitle(e.target.value)} />
         <label htmlFor="exp-hypothesis">What do you want to learn?</label>
