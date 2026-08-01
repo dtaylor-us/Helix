@@ -60,7 +60,9 @@ public class WeeklyRetrospectiveService {
     private String buildWeeklyContext(List<ReflectionSummary> summaries) {
         var context = new StringBuilder();
         context.append("Reflections from the past 7 days (").append(summaries.size()).append(" total):\n");
+        int included = 0;
         for (var item : summaries) {
+            if (included++ >= 50) break;
             context.append("- ").append(item.summary()).append("\n");
         }
         return context.toString();
