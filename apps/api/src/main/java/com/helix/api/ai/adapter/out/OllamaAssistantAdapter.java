@@ -114,6 +114,92 @@ public class OllamaAssistantAdapter implements AiAssistantPort {
         }
     }
 
+    @Override
+    public AiWeeklySummary summarizeWeek(String context) {
+        if (!isAvailable && System.currentTimeMillis() - lastFailureTime < AVAILABILITY_RESET_MS) {
+            return createWeeklySummaryFallback();
+        }
+
+        try {
+            OllamaRequest request = buildWeeklySummaryRequest(context);
+            OllamaResponse response = restClient.post()
+                .uri("/api/generate")
+                .body(request)
+                .retrieve()
+                .onStatus(status -> !status.is2xxSuccessful(),
+                    (httpRequest, httpResponse) -> {
+                        throw new OllamaException("Ollama API error: " + httpResponse.getStatusCode());
+                    })
+                .toEntity(OllamaResponse.class)
+                .getBody();
+
+            if (response == null || response.response == null || response.response.isEmpty()) {
+                recordFailure();
+                return createWeeklySummaryFallback();
+            }
+
+            String summary = extractLabeledLine(response.response, "SUMMARY");
+            String assistance = extractLabeledLine(response.response, "NEXT");
+            if (summary == null || summary.isBlank() || assistance == null || assistance.isBlank()) {
+                recordFailure();
+                return createWeeklySummaryFallback();
+            }
+
+            isAvailable = true;
+            return new AiWeeklySummary(summary, assistance, "ollama", aiProperties.getOllama().getModel(), false);
+        } catch (RestClientException | OllamaException e) {
+            recordFailure();
+            return createWeeklySummaryFallback();
+        }
+    }
+
+    @Override
+    public AiExperimentDraft proposeExperiment(String context) {
+        if (!isAvailable && System.currentTimeMillis() - lastFailureTime < AVAILABILITY_RESET_MS) {
+            return createExperimentDraftFallback();
+        }
+
+        try {
+            OllamaRequest request = buildExperimentDraftRequest(context);
+            OllamaResponse response = restClient.post()
+                .uri("/api/generate")
+                .body(request)
+                .retrieve()
+                .onStatus(status -> !status.is2xxSuccessful(),
+                    (httpRequest, httpResponse) -> {
+                        throw new OllamaException("Ollama API error: " + httpResponse.getStatusCode());
+                    })
+                .toEntity(OllamaResponse.class)
+                .getBody();
+
+            if (response == null || response.response == null || response.response.isEmpty()) {
+                recordFailure();
+                return createExperimentDraftFallback();
+            }
+
+            String title = extractLabeledLine(response.response, "TITLE");
+            if (title == null || title.isBlank()) {
+                recordFailure();
+                return createExperimentDraftFallback();
+            }
+
+            isAvailable = true;
+            return new AiExperimentDraft(
+                title,
+                extractLabeledLine(response.response, "HYPOTHESIS"),
+                extractLabeledLine(response.response, "NEXT_ACTION"),
+                extractLabeledLine(response.response, "CADENCE"),
+                extractLabeledLine(response.response, "EVIDENCE"),
+                "ollama",
+                aiProperties.getOllama().getModel(),
+                false
+            );
+        } catch (RestClientException | OllamaException e) {
+            recordFailure();
+            return createExperimentDraftFallback();
+        }
+    }
+
     /**
      * Check if this adapter is currently available.
      * Implements circuit-breaker pattern to prevent cascading failures.
@@ -183,6 +269,85 @@ public class OllamaAssistantAdapter implements AiAssistantPort {
             "v1",
             true
         );
+    }
+
+    private OllamaRequest buildWeeklySummaryRequest(String context) {
+        String prompt = """
+            You are a thoughtful personal-growth coach writing a short weekly retrospective from a
+            list of the user's reflection excerpts. Respond with EXACTLY two lines, no preamble, no
+            markdown, in this format:
+            SUMMARY: <one short paragraph (2-3 sentences) narrating the week in a warm, honest, non-judgmental tone>
+            NEXT: <one specific, concrete sentence suggesting what to try or focus on next week>
+
+            Context: %s""".formatted(context);
+
+        OllamaRequest request = new OllamaRequest();
+        request.model = aiProperties.getOllama().getModel();
+        request.prompt = prompt;
+        request.stream = false;
+        request.temperature = aiProperties.getOllama().getTemperature();
+        return request;
+    }
+
+    private AiWeeklySummary createWeeklySummaryFallback() {
+        return new AiWeeklySummary(
+            "This week's reflections are recorded below.",
+            "Choose one recurring pattern and run a smaller experiment next week.",
+            "ollama",
+            aiProperties.getOllama().getModel(),
+            true
+        );
+    }
+
+    private OllamaRequest buildExperimentDraftRequest(String context) {
+        String prompt = """
+            You are a behavior-change coach helping someone design one small experiment for a
+            personal transformation they've described. Respond with EXACTLY these labeled lines, no
+            preamble, no markdown, omitting a line only if you have nothing useful to add for it:
+            TITLE: <short experiment title, at most 20 words>
+            HYPOTHESIS: <one sentence: if I do X, then Y>
+            NEXT_ACTION: <one small, concrete, immediately actionable step>
+            CADENCE: <how often, e.g. "daily" or "3x this week">
+            EVIDENCE: <one sentence describing what would count as useful evidence of progress>
+
+            Context: %s""".formatted(context);
+
+        OllamaRequest request = new OllamaRequest();
+        request.model = aiProperties.getOllama().getModel();
+        request.prompt = prompt;
+        request.stream = false;
+        request.temperature = aiProperties.getOllama().getTemperature();
+        return request;
+    }
+
+    private AiExperimentDraft createExperimentDraftFallback() {
+        return new AiExperimentDraft(
+            "Try one small step this week",
+            null,
+            "Spend five minutes today on the smallest version of this.",
+            null,
+            null,
+            "ollama",
+            aiProperties.getOllama().getModel(),
+            true
+        );
+    }
+
+    /**
+     * Extract the value of a "LABEL: value" line from a model response. Returns null if the label
+     * isn't present. Only looks at the first matching line (responses are prompted to be single-line
+     * per label); a caller treating a missing required label as a parse failure is expected.
+     */
+    private static String extractLabeledLine(String text, String label) {
+        if (text == null) return null;
+        String prefix = label + ":";
+        for (String line : text.split("\\r?\\n")) {
+            String trimmed = line.trim();
+            if (trimmed.regionMatches(true, 0, prefix, 0, prefix.length())) {
+                return trimmed.substring(prefix.length()).trim();
+            }
+        }
+        return null;
     }
 
     private void recordFailure() {

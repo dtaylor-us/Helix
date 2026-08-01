@@ -3,6 +3,7 @@ import type {
   BeliefDetail,
   BeliefRevision,
   CreateExperimentRequest,
+  ExperimentDraft,
   CreateBeliefRequest,
   CreateEvidenceRequest,
   CreateMemoryProposalRequest,
@@ -71,6 +72,8 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   getExperiment: (id: string) => request<Experiment>(`/api/v1/experiments/${id}`),
+  proposeExperimentDraft: (transformationId: string) =>
+    request<ExperimentDraft>(`/api/v1/transformations/${transformationId}/experiments/draft`, { method: 'POST' }),
   createReflection: (experimentId: string, payload: CreateReflectionRequest) =>
     request<CreateReflectionResponse>(`/api/v1/experiments/${experimentId}/reflections`, {
       method: 'POST',

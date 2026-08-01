@@ -24,6 +24,7 @@ const EMPTY_RETROSPECTIVE_DRAFT = {
   reflectionSummaries: [],
   summary: '',
   assistance: '',
+  source: 'DETERMINISTIC' as const,
 }
 
 function renderTodayPage() {
@@ -337,11 +338,15 @@ describe('TodayPage', () => {
       reflectionSummaries: [{ reflectionId: 'r-1', createdAt: '2026-01-01T00:00:00Z', summary: 'Paused before responding.' }],
       summary: 'You practiced pausing three times this week.',
       assistance: 'Notice how often the pause changed the outcome.',
+      source: 'AI',
+      aiProvider: 'openai',
+      aiModel: 'gpt-4o-mini',
     })
 
     renderTodayPage()
 
     expect(await screen.findByText(/You practiced pausing three times this week\./i)).toBeInTheDocument()
+    expect(screen.getByText(/AI suggested — openai/i)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /See full weekly retrospective/i })).toHaveAttribute('href', '/library')
   })
 })

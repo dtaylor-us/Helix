@@ -27,4 +27,29 @@ public class NoAiAssistantAdapter implements AiAssistantPort {
             true
         );
     }
+
+    @Override
+    public AiWeeklySummary summarizeWeek(String context) {
+        return new AiWeeklySummary(
+            "This week's reflections are recorded below.",
+            "Choose one recurring pattern and run a smaller experiment next week.",
+            "none",
+            "deterministic",
+            true
+        );
+    }
+
+    @Override
+    public AiExperimentDraft proposeExperiment(String context) {
+        return new AiExperimentDraft(
+            "Try one small step this week",
+            null,
+            "Spend five minutes today on the smallest version of this.",
+            null,
+            null,
+            "none",
+            "deterministic",
+            true
+        );
+    }
 }

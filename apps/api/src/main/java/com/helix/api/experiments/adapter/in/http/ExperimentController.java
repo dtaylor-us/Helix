@@ -40,6 +40,20 @@ public class ExperimentController {
         return toDto(service.get(id));
     }
 
+    /**
+     * Propose an AI-drafted experiment for a transformation. Nothing is persisted — the response is
+     * meant to prefill the normal experiment-creation form for the user to review, edit, and submit
+     * via {@link #create}, per ADR-008's explicit-review requirement for AI-derived content.
+     */
+    @PostMapping("/api/v1/transformations/{transformationId}/experiments/draft")
+    public ExperimentDraftDto proposeDraft(@PathVariable UUID transformationId) {
+        var draft = service.proposeDraft(transformationId);
+        return new ExperimentDraftDto(
+            draft.title(), draft.hypothesis(), draft.nextAction(), draft.cadence(), draft.evidenceOfSuccess(),
+            draft.source(), draft.aiProvider(), draft.aiModel()
+        );
+    }
+
     private ExperimentDto toDto(ExperimentEntity entity) {
         return new ExperimentDto(
             entity.getId(),
@@ -75,5 +89,16 @@ public class ExperimentController {
         String reviewAt,
         String status,
         String createdAt
+    ) {}
+
+    public record ExperimentDraftDto(
+        String title,
+        String hypothesis,
+        String nextAction,
+        String cadence,
+        String evidenceOfSuccess,
+        String source,
+        String aiProvider,
+        String aiModel
     ) {}
 }
