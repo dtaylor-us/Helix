@@ -16,9 +16,9 @@
 | HELIX-FR-013 | POST /api/v1/wisdom/weekly-retrospective and GET /api/v1/wisdom/retrospectives snapshot history | WeeklyRetrospectiveService test | ADR-004, ADR-010 |
 | HELIX-FR-014 | POST /api/v1/wisdom, GET /api/v1/wisdom, GET detail, POST revision + Wisdom page; contextual "this reflection may contain a lesson worth keeping" prompt on Today (editable, deterministically prefilled, reflection-sourced) as the primary capture path, manual entry on the Wisdom page remains available | WisdomService test, web wisdom page test, TodayPage.test.tsx (contextual wisdom prompt) | ADR-001, ADR-009, ADR-010 |
 | HELIX-FR-015 | Wisdom source links persisted with typed references (reflection, evidence, retrospective) | WisdomService test | ADR-009, ADR-010 |
-| HELIX-FR-016 | GET /api/v1/search returns structured keyword results across modules, merged with semantic matches where available | StructuredSearchService test, web search page test | ADR-010 |
+| HELIX-FR-016 | GET /api/v1/search returns structured keyword results across modules, merged with sufficiently relevant semantic matches where available | StructuredSearchService test, SemanticRetrievalServiceTest, web search page test | ADR-010 |
 | HELIX-FR-017 | POST /api/v1/memory/proposals and review actions with provenance and lifecycle history | MemoryProposalServiceTest, web memory page test | ADR-008, ADR-010 |
-| HELIX-FR-018 | Semantic index rebuild workflow and deterministic local embedding adapter with source-cited hybrid retrieval | SemanticIndexingServiceTest, LocalHashEmbeddingAdapterTest, StructuredSearchServiceTest | ADR-004, ADR-006, ADR-010 |
+| HELIX-FR-018 | Semantic index rebuild workflow and deterministic local embedding adapter with source-cited hybrid retrieval, excluding low-confidence semantic noise | SemanticIndexingServiceTest, LocalHashEmbeddingAdapterTest, SemanticRetrievalServiceTest, StructuredSearchServiceTest | ADR-004, ADR-006, ADR-010 |
 | HELIX-NFR-001 | Browser uses API client; no DB adapters in web | Architecture boundary tests | ADR-005 |
 | HELIX-NFR-002 | Persistence via PostgreSQL with Flyway migrations | Database integration tests | ADR-004 |
 | HELIX-NFR-003 | Modular monolith with explicit domain boundaries | Architecture boundary tests (ArchUnit) | ADR-001 |
