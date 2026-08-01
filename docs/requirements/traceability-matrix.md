@@ -2,7 +2,7 @@
 
 | Requirement ID | Current Implementation | Tests | ADRs |
 |---|---|---|---|
-| HELIX-FR-001 | POST /api/v1/transformations (title, purpose, optional desiredIdentity/obstacle), GET list/detail, guided Journey page | TransformationServiceTest, TransformationsPage.test.tsx | ADR-001, ADR-003, ADR-004, ADR-010 |
+| HELIX-FR-001 | POST /api/v1/transformations (title, purpose, optional desiredIdentity/obstacle), GET list/detail, guided Journey page with inline title-required guidance | TransformationServiceTest, TransformationsPage.test.tsx | ADR-001, ADR-003, ADR-004, ADR-010 |
 | HELIX-FR-002 | POST /api/v1/transformations/{id}/experiments (title, hypothesis, nextAction, optional cadence/evidenceOfSuccess/reviewAt), guided experiment form on TransformationDetailPage | ExperimentServiceTest | ADR-001, ADR-003, ADR-004 |
 | HELIX-FR-003 | POST /api/v1/experiments/{id}/reflections (content, optional attempted/noticed/evidenceNoted/surprise), progressive reflection UI on Today with morning/evening framing | ReflectionServiceTest, TodayPage.test.tsx | ADR-004, ADR-010 |
 | HELIX-FR-004 | AI-generated suggestion after reflection via AiAssistantPort.suggestNextAction (OpenAI by default); suggestion records source (AI/DETERMINISTIC) and provider/model, surfaced as an "AI suggested" badge on Today; deterministic templating (SuggestionService.createDeterministic) remains as the underlying no-provider/outage fallback content, not a maintained parallel path | SuggestionEntityTest, ReflectionServiceTest, OpenAiAssistantAdapterTest/OllamaAssistantAdapterTest/NoAiAssistantAdapterTest (suggestNextAction), TodayPage.test.tsx (AI badge) | ADR-006, ADR-007, ADR-016 |
@@ -31,4 +31,4 @@
 | HELIX-BR-004 | Knowledge narrative is descriptive rather than scored | Web knowledge detail behavior | ADR-009 |
 | HELIX-BR-005 | Wisdom creation requires linked supporting sources | WisdomService test | ADR-009 |
 | HELIX-UX-001 | Calm and nonjudgmental language in suggestions and UI; first-use welcome/empty states replace inert or roadmap-facing copy | Manual review + deterministic suggestion phrasing; TodayPage.test.tsx (welcome state, no-roadmap-language assertion) | ADR-001 |
-| HELIX-UX-002 | Keyboard-navigable core forms and actions; skip link, visible focus states, active-route styling, disabled-while-pending actions, aria-live save status | Web vitest keyboard navigation tests; AppLayout.test.tsx | ADR-002 |
+| HELIX-UX-002 | Keyboard-navigable core forms and actions; skip link, visible focus states, active-route styling, disabled-while-pending actions, aria-live save status, inline required-field guidance on Journey transformation creation | Web vitest keyboard navigation tests; AppLayout.test.tsx, TransformationsPage.test.tsx | ADR-002 |
