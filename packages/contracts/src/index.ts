@@ -107,6 +107,10 @@ export interface WeeklyRetrospectiveDraft {
   reflectionSummaries: ReflectionSummary[];
   summary: string;
   assistance: string;
+  /** Whether summary/assistance came from a live AI call or a deterministic/fallback response (ADR-016). */
+  source: "AI" | "DETERMINISTIC";
+  aiProvider?: string;
+  aiModel?: string;
 }
 
 export interface WeeklyRetrospective {
@@ -116,6 +120,9 @@ export interface WeeklyRetrospective {
   summary: string;
   assistance: string;
   createdAt: string;
+  source: "AI" | "DETERMINISTIC";
+  aiProvider?: string;
+  aiModel?: string;
 }
 
 export interface WisdomEntry {
@@ -221,6 +228,18 @@ export interface CreateExperimentRequest {
   cadence?: string;
   evidenceOfSuccess?: string;
   reviewAt?: string;
+}
+
+export interface ExperimentDraft {
+  title?: string;
+  hypothesis?: string;
+  nextAction?: string;
+  cadence?: string;
+  evidenceOfSuccess?: string;
+  /** Whether this draft came from a live AI call or a deterministic/fallback response (ADR-016). Nothing here is persisted until the user reviews and saves it via CreateExperimentRequest. */
+  source: "AI" | "DETERMINISTIC";
+  aiProvider?: string;
+  aiModel?: string;
 }
 
 export interface CreateReflectionRequest {
