@@ -18,10 +18,12 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.time.OffsetDateTime;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -83,5 +85,41 @@ class MemoryProposalServiceTest {
         assertEquals("Smaller actions often protect consistency.", revision.getNewStatement());
         assertEquals(MemoryProposalStatus.CONFIRMED, proposal.getStatus());
         assertNotNull(approval.getCreatedAt());
+    }
+
+    @Test
+    void createRejectsUnknownSourceRecordsWithActionableMessage() {
+        var repository = Mockito.mock(MemoryProposalRepository.class);
+        var revisionRepository = Mockito.mock(MemoryProposalRevisionRepository.class);
+        var experimentService = Mockito.mock(ExperimentService.class);
+        var beliefService = Mockito.mock(BeliefService.class);
+        var reflectionService = Mockito.mock(ReflectionService.class);
+        var evidenceService = Mockito.mock(EvidenceService.class);
+        var wisdomService = Mockito.mock(WisdomService.class);
+        var retrospectiveService = Mockito.mock(WeeklyRetrospectiveService.class);
+        var missingReflectionId = UUID.randomUUID();
+
+        when(reflectionService.get(missingReflectionId)).thenThrow(new NoSuchElementException("Reflection not found"));
+
+        var service = new MemoryProposalService(
+            repository,
+            revisionRepository,
+            experimentService,
+            beliefService,
+            reflectionService,
+            evidenceService,
+            wisdomService,
+            retrospectiveService
+        );
+
+        var error = assertThrows(IllegalArgumentException.class, () -> service.create(
+            "Smaller actions protect consistency.",
+            MemorySourceKind.AI_DERIVED,
+            MemorySourceRecordType.REFLECTION,
+            missingReflectionId,
+            "This line came from the reflection note."
+        ));
+
+        assertEquals("That source record couldn't be found — check the ID/type and try again.", error.getMessage());
     }
 }
