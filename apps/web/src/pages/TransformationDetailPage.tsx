@@ -93,7 +93,7 @@ export function TransformationDetailPage() {
           </button>
         </div>
         {draftStatusText && (
-          <p role="status" aria-live="polite" className="muted">
+          <p role="status" aria-live="polite" className="ai-provenance-status">
             {draftStatusText}
           </p>
         )}

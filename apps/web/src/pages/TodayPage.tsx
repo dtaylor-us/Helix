@@ -270,7 +270,7 @@ export function TodayPage() {
             <p>
               {displayedSuggestionText}{' '}
               {latestSuggestion.source === 'AI' && (
-                <span className="muted" title={latestSuggestion.aiModel ? `Model: ${latestSuggestion.aiModel}` : undefined}>
+                <span className="ai-badge" title={latestSuggestion.aiModel ? `Model: ${latestSuggestion.aiModel}` : undefined}>
                   (AI suggested{latestSuggestion.aiProvider ? ` — ${latestSuggestion.aiProvider}` : ''})
                 </span>
               )}
@@ -397,7 +397,7 @@ export function TodayPage() {
           <div className="stack">
             <h3>Review before saving</h3>
             {reflectionReview.source === 'AI' && (
-              <p className="muted">
+              <p className="ai-badge">
                 (AI suggested{reflectionReview.aiProvider ? ` — ${reflectionReview.aiProvider}` : ''})
               </p>
             )}
@@ -515,7 +515,7 @@ export function TodayPage() {
           <p>
             {retrospectiveDraftQuery.data.summary}{' '}
             {retrospectiveDraftQuery.data.source === 'AI' && (
-              <span className="muted">
+              <span className="ai-badge">
                 (AI suggested{retrospectiveDraftQuery.data.aiProvider ? ` — ${retrospectiveDraftQuery.data.aiProvider}` : ''})
               </span>
             )}

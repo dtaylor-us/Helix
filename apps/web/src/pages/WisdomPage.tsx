@@ -118,7 +118,7 @@ export function WisdomPage() {
         <p>
           {draftQuery.data.summary}{' '}
           {draftQuery.data.source === 'AI' && (
-            <span className="muted">
+            <span className="ai-badge">
               (AI suggested{draftQuery.data.aiProvider ? ` — ${draftQuery.data.aiProvider}` : ''})
             </span>
           )}
