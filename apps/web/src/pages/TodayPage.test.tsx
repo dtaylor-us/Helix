@@ -132,7 +132,16 @@ describe('TodayPage', () => {
       },
       reflectionHistory: [],
       suggestionHistory: [
-        { id: 's-1', experimentId: 'e-1', text: 'Take one breath before replying', status: 'PROPOSED', createdAt: '2026-01-01T00:00:00Z' },
+        {
+          id: 's-1',
+          experimentId: 'e-1',
+          text: 'Take one breath before replying',
+          status: 'PROPOSED',
+          createdAt: '2026-01-01T00:00:00Z',
+          source: 'AI',
+          aiProvider: 'openai',
+          aiModel: 'gpt-4o-mini',
+        },
       ],
     })
     vi.mocked(api.listTransformations).mockResolvedValue([
@@ -149,6 +158,8 @@ describe('TodayPage', () => {
     const reflectIndex = headings.findIndex((h) => h === 'Morning check-in' || h === 'Evening review')
     expect(suggestionIndex).toBeGreaterThanOrEqual(0)
     expect(reflectIndex).toBeGreaterThan(suggestionIndex)
+
+    expect(screen.getByText(/AI suggested — openai/i)).toBeInTheDocument()
 
     expect(screen.queryByText(/coming in a later increment/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/^Placeholders$/i)).not.toBeInTheDocument()
@@ -185,6 +196,9 @@ describe('TodayPage', () => {
         text: 'Optional next step: keep going',
         status: 'PROPOSED',
         createdAt: '2026-01-01T00:00:00Z',
+        source: 'AI',
+        aiProvider: 'openai',
+        aiModel: 'gpt-4o-mini',
       },
     })
 
@@ -255,6 +269,9 @@ describe('TodayPage', () => {
         text: 'Optional next step: keep going',
         status: 'PROPOSED',
         createdAt: '2026-01-01T00:00:00Z',
+        source: 'AI',
+        aiProvider: 'openai',
+        aiModel: 'gpt-4o-mini',
       },
     })
     vi.mocked(api.createWisdom).mockResolvedValue({
