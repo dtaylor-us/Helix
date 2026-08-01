@@ -44,8 +44,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   })
 
   if (!response.ok) {
-    const message = await response.text()
-    throw new Error(message || `Request failed: ${response.status}`)
+    const body = await response.text()
+    const message = extractErrorMessage(body) || `Request failed: ${response.status}`
+    throw new Error(message)
   }
 
   const body = await response.text()
@@ -54,6 +55,37 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return JSON.parse(body) as T
+}
+
+function extractErrorMessage(body: string): string | null {
+  if (!body) {
+    return null
+  }
+
+  try {
+    const parsed = JSON.parse(body) as unknown
+    if (typeof parsed === 'string') {
+      return parsed
+    }
+
+    if (parsed && typeof parsed === 'object') {
+      if ('detail' in parsed && typeof parsed.detail === 'string') {
+        return parsed.detail
+      }
+
+      if ('message' in parsed && typeof parsed.message === 'string') {
+        return parsed.message
+      }
+
+      if ('title' in parsed && typeof parsed.title === 'string') {
+        return parsed.title
+      }
+    }
+  } catch {
+    return body
+  }
+
+  return body
 }
 
 export const api = {
