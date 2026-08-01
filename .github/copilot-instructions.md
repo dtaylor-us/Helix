@@ -5,7 +5,7 @@ Deliver the smallest coherent change that improves Helix while preserving privac
 
 ## Non-Negotiable Constraints
 - Preserve modular monolith boundaries in `apps/api`.
-- Keep all persistence access behind REST APIs; no browser database access.
+- No direct browser-to-database access; keep all persistence behind REST APIs.
 - Keep AI optional; core flows must work with deterministic fallback.
 - Do not log reflective content, prompts, secrets, or sensitive personal text.
 - Avoid speculative infrastructure (no Kubernetes for MVP scope).
