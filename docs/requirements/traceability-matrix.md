@@ -22,7 +22,7 @@
 | HELIX-NFR-001 | Browser uses API client; no DB adapters in web | Architecture boundary tests | ADR-005 |
 | HELIX-NFR-002 | Persistence via PostgreSQL with Flyway migrations | Database integration tests | ADR-004 |
 | HELIX-NFR-003 | Modular monolith with explicit domain boundaries | Architecture boundary tests (ArchUnit) | ADR-001 |
-| HELIX-SEC-001 | Logging policy docs and no explicit content logging | CI policy checks + review | ADR-014 |
+| HELIX-SEC-001 | Logging policy docs, no explicit content logging, and API startup excludes Spring Security generated dev credentials | HelixApiApplicationTests + CI policy checks + review | ADR-013, ADR-014 |
 | HELIX-SEC-002 | AI provider requires explicit configuration; consent via provider selection | Configuration docs (ai-provider-setup.md) and AiProperties | ADR-006, ADR-008 |
 | HELIX-AI-001 | AiAssistantPort interface, factory pattern for provider selection, OpenAI/Ollama/NoOp adapters | AiProviderFactoryTest, OpenAiAssistantAdapterTest, OllamaAssistantAdapterTest | ADR-006, ADR-007, ADR-008 |
 | HELIX-AI-002 | NoAiAssistantAdapter returns deterministic fallback; all providers gracefully degrade to NoOp on failure | NoAiAssistantAdapterTest, circuit breaker health checks, chaos tests | ADR-006, ADR-007 |
