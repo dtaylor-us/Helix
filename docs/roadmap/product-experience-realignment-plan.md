@@ -1,6 +1,6 @@
 # Product Experience Realignment Plan
 
-Status: Phase 1 shipped; Phase 2 slice A (guided transformation + experiment creation) shipped; Phase 3 slice A (progressive reflection questions + morning/evening framing) shipped; Phase 4 slice A (contextual wisdom-capture prompt + weekly retrospective teaser on Today) shipped; CurrentFocus projection, server-persisted onboarding state, and full evidence-extraction UX still open
+Status: Phase 1 shipped; Phase 2 slice A (guided transformation + experiment creation) shipped; Phase 3 slice A (progressive reflection questions + morning/evening framing) shipped; Phase 4 slice A (contextual wisdom-capture prompt + weekly retrospective teaser on Today) shipped; Phase 5 slice A (AI-generated "Suggested Small Action") shipped, Phase 5 slices B-D (AI weekly retrospective, AI experiment drafting, conversational reflection) scoped but not yet built; CurrentFocus projection, server-persisted onboarding state, and full evidence-extraction UX still open
 Owner: Agent-assisted delivery session, 2026-07-27
 Source: External architecture/UX review of the `main` branch (2026-07-27), reconciled against the actual repository state in this document.
 
@@ -166,3 +166,70 @@ Verification for this slice:
 - `./scripts/check-docs` passed.
 - No backend changes were made in this slice, so the usual JDK 21 verification gap does not apply here.
 - While verifying this slice, an unrelated pre-existing gap was found and fixed: `@testing-library/react`'s automatic per-test DOM cleanup was never actually running, because it only self-registers when Vitest's `test.globals` option is enabled (this project doesn't enable it), so `afterEach`/`cleanup` was never wired up. Every test's rendered DOM was silently piling up in the document instead of being unmounted between tests. This had gone unnoticed because no earlier test asserted the *absence* of something using `queryByText(...).not.toBeInTheDocument()` in a way that leftover DOM from a prior test could break — the two new Phase 4 tests were the first to do so, and both failed only when run as part of the full suite (not in isolation), which is what surfaced it. Fixed by adding `afterEach(cleanup)` to `src/test/setup.ts`, which now protects every test file, not just this one.
+
+## Phase 5 — Real AI in suggestions, retrospectives, experiment drafting, and reflection (scoped 2026-08-01)
+
+Scope change, requested directly by the user rather than derived from the external review: replace
+deterministic string-templated "intelligence" with real AI reasoning in the places that were only
+pretending to be smart, and move the reflection UX away from structured form-filling toward
+selection/prompting. The user explicitly chose the broadest first-slice scope (AI suggestions + AI
+retrospectives + AI-drafted experiments + a conversational reflection flow), explicitly chose to
+**drop** the previously-mandatory deterministic no-AI fallback requirement (see ADR-016, which
+narrows ADR-006 for these features only), and chose **OpenAI** as the provider.
+
+Given the size of that combined scope, this is sequenced into four slices, each independently
+shippable, mirroring the delivery discipline used in Phases 1-4:
+
+- **Slice A — AI-generated "Suggested Small Action" (this session, shipped).** `AiAssistantPort`
+  gains `suggestNextAction(String context)`, implemented in all three adapters (OpenAI, Ollama,
+  NoOp) alongside the existing `suggestReflectiveQuestion`. `ReflectionService.create(...)` now
+  calls the AI port (built from the experiment's title/hypothesis/nextAction plus the reflection's
+  content/noticed/evidenceNoted/surprise and the prior-attempt count) instead of
+  `SuggestionService.createDeterministic`. `SuggestionEntity` gained `source`
+  (`AI`/`DETERMINISTIC`), `ai_provider`, and `ai_model` columns (migration `V8`) so provenance is
+  recorded and visible; Today shows an "(AI suggested — openai)" badge next to the suggestion text
+  when it came from a live model call. `SuggestionService.createDeterministic` and the
+  `NoAiAssistantAdapter`/circuit-breaker fallback paths are unchanged and still exist — they're now
+  what a user sees during a provider outage or with `HELIX_AI_PROVIDER=none`, not a maintained
+  parallel experience (see ADR-016).
+- **Slice B — AI-authored weekly retrospective (not yet built).** Replace
+  `WeeklyRetrospectiveService.draft()`'s count/length-based templating with an AI call over the
+  week's reflection summaries, producing a genuine narrative summary and a specific
+  "what to try next" suggestion. Needs a new `AiAssistantPort` method (e.g.
+  `summarizeWeek(String context)`) and a decision on context size (the existing 160-char excerpt
+  truncation may need revisiting for retrospective quality).
+- **Slice C — AI-drafted experiment proposals (not yet built).** Given a transformation's
+  title/purpose/desiredIdentity/obstacle, propose a draft `title`/`hypothesis`/`nextAction`/
+  `cadence`/`evidenceOfSuccess` the user can review, edit, and accept before it's created via the
+  existing `POST /api/v1/transformations/{id}/experiments` endpoint — per ADR-008, nothing AI-drafted
+  should be persisted as a real experiment without that explicit review step. Needs a new
+  `AiAssistantPort` method and a new "propose experiment" UI entry point on the transformation
+  detail page (additive, not a replacement for manual experiment creation).
+- **Slice D — Conversational reflection flow (not yet built, largest UX change).** Replace or
+  supplement the structured reflection form (main answer + up to three progressive follow-up
+  questions) with a chat-style exchange: the user describes what happened in their own words, and
+  the AI asks clarifying follow-ups conversationally instead of from a fixed question bank
+  (`REFLECTION_FOLLOW_UP_QUESTIONS`). This is the biggest open design question — needs decisions on
+  how a multi-turn exchange maps onto the existing single `content`/`noticed`/`evidenceNoted`/
+  `surprise` reflection fields (mapped automatically? left as free-form transcript?), how many AI
+  turns before it must resolve to a save, and how it behaves offline (ADR-012 currently guarantees
+  local reflection drafting works with no network; a chat flow needs its own offline story). Likely
+  needs its own scoping pass before implementation, given how much larger this is than slices A-C.
+
+Deliberately **not** touched by Slice A:
+- `AiProperties.timeoutSeconds` / `retryMaxAttempts` / `retryDelayMs` remain unused by any adapter
+  (pre-existing gap, not introduced by this slice) — a slow OpenAI response will block the reflection
+  save request rather than timing out into the circuit breaker. Flagged in ADR-016 as follow-up work.
+- No changes to `suggestReflectiveQuestion` or its (currently uncalled) usage — it remains dormant,
+  same as before this slice.
+- `AiOrchestrationService`'s health polling still bypasses the port abstraction and isn't wired into
+  any live request path; left as pre-existing behavior, not in scope for Slice A.
+
+Verification for Slice A:
+- Backend changes could not be compiled or run in this sandbox (no JDK 21 available, per the
+  constraint noted in every earlier phase) — hand-reviewed only. `./scripts/test-backend` and
+  `./scripts/verify-architecture` (which includes the ArchUnit layering test) need to be run by the
+  user or CI before merging.
+- Frontend (`packages/contracts`, `TodayPage.tsx`, `TodayPage.test.tsx`) verified via
+  `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build` against a scratch clone.
+- `./scripts/check-docs` run against the doc changes in this slice.
