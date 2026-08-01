@@ -31,4 +31,4 @@
 | HELIX-BR-004 | Knowledge narrative is descriptive rather than scored | Web knowledge detail behavior | ADR-009 |
 | HELIX-BR-005 | Wisdom creation requires linked supporting sources | WisdomService test | ADR-009 |
 | HELIX-UX-001 | Calm and nonjudgmental language in suggestions and UI; first-use welcome/empty states replace inert or roadmap-facing copy | Manual review + deterministic suggestion phrasing; TodayPage.test.tsx (welcome state, no-roadmap-language assertion) | ADR-001 |
-| HELIX-UX-002 | Keyboard-navigable core forms and actions; skip link, visible focus states, active-route styling, disabled-while-pending actions, aria-live save status | Web vitest keyboard navigation tests; AppLayout.test.tsx | ADR-002 |
+| HELIX-UX-002 | Keyboard-navigable core forms and actions; skip link, visible focus states, active-route styling, disabled-while-pending actions, aria-live save status, inline required-field guidance on Journey transformation creation | Web vitest keyboard navigation tests; AppLayout.test.tsx, TransformationsPage.test.tsx | ADR-002 |
