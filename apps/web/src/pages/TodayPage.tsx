@@ -113,6 +113,7 @@ export function TodayPage() {
       } : null)
       setWisdomStatusText(null)
       queryClient.invalidateQueries({ queryKey: ['today'] })
+      queryClient.invalidateQueries({ queryKey: ['weekly-retrospective-draft'] })
     },
     onError: () => {
       setStatusText(null)
@@ -240,6 +241,7 @@ export function TodayPage() {
   }
 
   const latestSuggestion = data.suggestionHistory[0]
+  const displayedSuggestionText = latestSuggestion?.replacementText?.trim() || latestSuggestion?.text
   const hour = new Date().getHours()
   const isMorning = hour < 12
 
@@ -266,7 +268,7 @@ export function TodayPage() {
         {latestSuggestion ? (
           <>
             <p>
-              {latestSuggestion.text}{' '}
+              {displayedSuggestionText}{' '}
               {latestSuggestion.source === 'AI' && (
                 <span className="muted" title={latestSuggestion.aiModel ? `Model: ${latestSuggestion.aiModel}` : undefined}>
                   (AI suggested{latestSuggestion.aiProvider ? ` — ${latestSuggestion.aiProvider}` : ''})
