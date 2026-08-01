@@ -202,7 +202,14 @@ export function TodayPage() {
         <h2>Suggested Small Action</h2>
         {latestSuggestion ? (
           <>
-            <p>{latestSuggestion.text}</p>
+            <p>
+              {latestSuggestion.text}{' '}
+              {latestSuggestion.source === 'AI' && (
+                <span className="muted" title={latestSuggestion.aiModel ? `Model: ${latestSuggestion.aiModel}` : undefined}>
+                  (AI suggested{latestSuggestion.aiProvider ? ` — ${latestSuggestion.aiProvider}` : ''})
+                </span>
+              )}
+            </p>
             <p className="muted">
               Why this: part of your active experiment, &ldquo;{data.activeExperiment.title}&rdquo;. Status:{' '}
               {latestSuggestion.status}.

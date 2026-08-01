@@ -43,11 +43,15 @@ public class SuggestionController {
             entity.getStatus().name(),
             entity.getReplacementText(),
             entity.getCreatedAt().toString(),
-            entity.getRespondedAt() != null ? entity.getRespondedAt().toString() : null
+            entity.getRespondedAt() != null ? entity.getRespondedAt().toString() : null,
+            entity.getSource().name(),
+            entity.getAiProvider(),
+            entity.getAiModel()
         );
     }
 
     public record ReplaceSuggestionRequest(@NotBlank @Size(max = 500) String replacementText) {}
     public record SuggestionDto(UUID id, UUID experimentId, UUID reflectionId, String text, String status,
-                                String replacementText, String createdAt, String respondedAt) {}
+                                String replacementText, String createdAt, String respondedAt,
+                                String source, String aiProvider, String aiModel) {}
 }

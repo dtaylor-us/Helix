@@ -2,6 +2,7 @@ package com.helix.api.suggestions.application;
 
 import com.helix.api.suggestions.adapter.out.persistence.SuggestionRepository;
 import com.helix.api.suggestions.domain.SuggestionEntity;
+import com.helix.api.suggestions.domain.SuggestionSource;
 import com.helix.api.suggestions.domain.SuggestionStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +39,31 @@ public class SuggestionService {
             null,
             OffsetDateTime.now(),
             null
+        );
+        return repository.save(suggestion);
+    }
+
+    /**
+     * Create a suggestion from an AI-generated proposal (see ADR-016). {@code deterministicFallback}
+     * is true when the AI adapter itself fell back to a canned response (provider outage, no
+     * provider configured); in that case the suggestion is recorded as DETERMINISTIC even though it
+     * came from the AI call path, so provenance accurately reflects what the user actually saw.
+     */
+    public SuggestionEntity createFromAi(
+        UUID experimentId, UUID reflectionId, String text, String provider, String model, boolean deterministicFallback
+    ) {
+        var suggestion = new SuggestionEntity(
+            UUID.randomUUID(),
+            experimentId,
+            reflectionId,
+            text,
+            SuggestionStatus.PROPOSED,
+            null,
+            OffsetDateTime.now(),
+            null,
+            deterministicFallback ? SuggestionSource.DETERMINISTIC : SuggestionSource.AI,
+            provider,
+            model
         );
         return repository.save(suggestion);
     }

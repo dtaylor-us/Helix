@@ -5,7 +5,7 @@
 | HELIX-FR-001 | POST /api/v1/transformations (title, purpose, optional desiredIdentity/obstacle), GET list/detail, guided Journey page | TransformationServiceTest, TransformationsPage.test.tsx | ADR-001, ADR-003, ADR-004, ADR-010 |
 | HELIX-FR-002 | POST /api/v1/transformations/{id}/experiments (title, hypothesis, nextAction, optional cadence/evidenceOfSuccess/reviewAt), guided experiment form on TransformationDetailPage | ExperimentServiceTest | ADR-001, ADR-003, ADR-004 |
 | HELIX-FR-003 | POST /api/v1/experiments/{id}/reflections (content, optional attempted/noticed/evidenceNoted/surprise), progressive reflection UI on Today with morning/evening framing | ReflectionServiceTest, TodayPage.test.tsx | ADR-004, ADR-010 |
-| HELIX-FR-004 | Deterministic suggestion generation after reflection | SuggestionEntity + ReflectionService tests | ADR-006, ADR-007 |
+| HELIX-FR-004 | AI-generated suggestion after reflection via AiAssistantPort.suggestNextAction (OpenAI by default); suggestion records source (AI/DETERMINISTIC) and provider/model, surfaced as an "AI suggested" badge on Today; deterministic templating (SuggestionService.createDeterministic) remains as the underlying no-provider/outage fallback content, not a maintained parallel path | SuggestionEntityTest, ReflectionServiceTest, OpenAiAssistantAdapterTest/OllamaAssistantAdapterTest/NoAiAssistantAdapterTest (suggestNextAction), TodayPage.test.tsx (AI badge) | ADR-006, ADR-007, ADR-016 |
 | HELIX-FR-005 | Suggestion accept/dismiss/replace endpoints | Suggestion domain test | ADR-006 |
 | HELIX-FR-006 | Today history payload and UI section | Web Today view behavior | ADR-010, ADR-012 |
 | HELIX-FR-008 | POST /api/v1/beliefs, GET /api/v1/beliefs, Knowledge belief form and list | BeliefService test, web knowledge page test | ADR-001, ADR-003, ADR-010 |
@@ -26,7 +26,7 @@
 | HELIX-SEC-002 | AI provider requires explicit configuration; consent via provider selection | Configuration docs (ai-provider-setup.md) and AiProperties | ADR-006, ADR-008 |
 | HELIX-AI-001 | AiAssistantPort interface, factory pattern for provider selection, OpenAI/Ollama/NoOp adapters | AiProviderFactoryTest, OpenAiAssistantAdapterTest, OllamaAssistantAdapterTest | ADR-006, ADR-007, ADR-008 |
 | HELIX-AI-002 | NoAiAssistantAdapter returns deterministic fallback; all providers gracefully degrade to NoOp on failure | NoAiAssistantAdapterTest, circuit breaker health checks, chaos tests | ADR-006, ADR-007 |
-| HELIX-BR-001 | All workflows tested and functional without AI enabled (provider=none) | Core flow integration tests with HELIX_AI_PROVIDER=none | ADR-006 |
+| HELIX-BR-001 | All workflows tested and functional without AI enabled (provider=none), **except** post-reflection suggestion generation (HELIX-FR-004), which requires AI per ADR-016 and only degrades to fallback text when provider=none or a provider call fails | Core flow integration tests with HELIX_AI_PROVIDER=none | ADR-006, ADR-016 |
 | HELIX-BR-002 | Evidence provenance payload and detail rendering | EvidenceService test | ADR-009 |
 | HELIX-BR-004 | Knowledge narrative is descriptive rather than scored | Web knowledge detail behavior | ADR-009 |
 | HELIX-BR-005 | Wisdom creation requires linked supporting sources | WisdomService test | ADR-009 |

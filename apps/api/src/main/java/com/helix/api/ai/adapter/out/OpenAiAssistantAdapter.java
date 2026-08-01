@@ -84,6 +84,46 @@ public class OpenAiAssistantAdapter implements AiAssistantPort {
         }
     }
 
+    @Override
+    public AiSuggestion suggestNextAction(String context) {
+        if (!isAvailable && System.currentTimeMillis() - lastFailureTime < AVAILABILITY_RESET_MS) {
+            return createNextActionFallback();
+        }
+
+        try {
+            OpenAiRequest request = buildNextActionRequest(context);
+            OpenAiResponse response = restClient.post()
+                .uri("/v1/chat/completions")
+                .body(request)
+                .retrieve()
+                .onStatus(status -> !status.is2xxSuccessful(),
+                    (httpRequest, httpResponse) -> {
+                        throw new OpenAiException("OpenAI API error: " + httpResponse.getStatusCode());
+                    })
+                .toEntity(OpenAiResponse.class)
+                .getBody();
+
+            if (response == null || response.choices == null || response.choices.isEmpty()) {
+                recordFailure();
+                return createNextActionFallback();
+            }
+
+            String text = response.choices.get(0).message.content;
+            isAvailable = true;
+
+            return new AiSuggestion(
+                text == null ? null : text.trim(),
+                "openai",
+                aiProperties.getOpenai().getModel(),
+                "v1",
+                false
+            );
+        } catch (RestClientException | OpenAiException e) {
+            recordFailure();
+            return createNextActionFallback();
+        }
+    }
+
     /**
      * Check if this adapter is currently available.
      * Implements circuit-breaker pattern to prevent cascading failures.
@@ -117,6 +157,37 @@ public class OpenAiAssistantAdapter implements AiAssistantPort {
     private AiSuggestion createFallbackSuggestion(String context) {
         return new AiSuggestion(
             "What felt lighter or heavier after today's experiment?",
+            "openai",
+            aiProperties.getOpenai().getModel(),
+            "v1",
+            true
+        );
+    }
+
+    private OpenAiRequest buildNextActionRequest(String context) {
+        String systemPrompt = """
+            You are a behavior-change coach helping someone follow through on a small experiment
+            tied to a personal transformation. Based on their experiment and latest reflection,
+            propose exactly ONE small, concrete next action they could try next.
+            Keep it to a single imperative sentence, at most 40 words, specific enough to act on
+            today or tomorrow. Respond with ONLY the action text: no preamble, no quotation marks,
+            no numbering.
+            """;
+
+        OpenAiRequest request = new OpenAiRequest();
+        request.model = aiProperties.getOpenai().getModel();
+        request.temperature = aiProperties.getOpenai().getTemperature();
+        request.maxTokens = aiProperties.getOpenai().getMaxTokens();
+        request.messages = List.of(
+            new OpenAiRequest.Message("system", systemPrompt),
+            new OpenAiRequest.Message("user", context)
+        );
+        return request;
+    }
+
+    private AiSuggestion createNextActionFallback() {
+        return new AiSuggestion(
+            "Try repeating today's experiment on a smaller scale tomorrow.",
             "openai",
             aiProperties.getOpenai().getModel(),
             "v1",

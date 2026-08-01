@@ -34,10 +34,31 @@ public class SuggestionEntity {
     @Column(name = "responded_at")
     private OffsetDateTime respondedAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private SuggestionSource source;
+
+    @Column(name = "ai_provider", length = 50)
+    private String aiProvider;
+
+    @Column(name = "ai_model", length = 100)
+    private String aiModel;
+
     protected SuggestionEntity() {}
 
+    /**
+     * Legacy constructor, preserved for existing callers/tests. Defaults {@code source} to
+     * DETERMINISTIC with no provider/model, matching the pre-ADR-016 behavior of this constructor.
+     */
     public SuggestionEntity(UUID id, UUID experimentId, UUID reflectionId, String text, SuggestionStatus status,
                             String replacementText, OffsetDateTime createdAt, OffsetDateTime respondedAt) {
+        this(id, experimentId, reflectionId, text, status, replacementText, createdAt, respondedAt,
+            SuggestionSource.DETERMINISTIC, null, null);
+    }
+
+    public SuggestionEntity(UUID id, UUID experimentId, UUID reflectionId, String text, SuggestionStatus status,
+                            String replacementText, OffsetDateTime createdAt, OffsetDateTime respondedAt,
+                            SuggestionSource source, String aiProvider, String aiModel) {
         this.id = id;
         this.experimentId = experimentId;
         this.reflectionId = reflectionId;
@@ -46,6 +67,9 @@ public class SuggestionEntity {
         this.replacementText = replacementText;
         this.createdAt = createdAt;
         this.respondedAt = respondedAt;
+        this.source = source;
+        this.aiProvider = aiProvider;
+        this.aiModel = aiModel;
     }
 
     public UUID getId() { return id; }
@@ -56,6 +80,9 @@ public class SuggestionEntity {
     public String getReplacementText() { return replacementText; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public OffsetDateTime getRespondedAt() { return respondedAt; }
+    public SuggestionSource getSource() { return source; }
+    public String getAiProvider() { return aiProvider; }
+    public String getAiModel() { return aiModel; }
 
     public void accept() {
         this.status = SuggestionStatus.ACCEPTED;

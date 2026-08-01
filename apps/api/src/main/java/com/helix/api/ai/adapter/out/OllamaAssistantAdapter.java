@@ -76,6 +76,44 @@ public class OllamaAssistantAdapter implements AiAssistantPort {
         }
     }
 
+    @Override
+    public AiSuggestion suggestNextAction(String context) {
+        if (!isAvailable && System.currentTimeMillis() - lastFailureTime < AVAILABILITY_RESET_MS) {
+            return createNextActionFallback();
+        }
+
+        try {
+            OllamaRequest request = buildNextActionRequest(context);
+            OllamaResponse response = restClient.post()
+                .uri("/api/generate")
+                .body(request)
+                .retrieve()
+                .onStatus(status -> !status.is2xxSuccessful(),
+                    (httpRequest, httpResponse) -> {
+                        throw new OllamaException("Ollama API error: " + httpResponse.getStatusCode());
+                    })
+                .toEntity(OllamaResponse.class)
+                .getBody();
+
+            if (response == null || response.response == null || response.response.isEmpty()) {
+                recordFailure();
+                return createNextActionFallback();
+            }
+
+            isAvailable = true;
+            return new AiSuggestion(
+                response.response.trim(),
+                "ollama",
+                aiProperties.getOllama().getModel(),
+                "v1",
+                false
+            );
+        } catch (RestClientException | OllamaException e) {
+            recordFailure();
+            return createNextActionFallback();
+        }
+    }
+
     /**
      * Check if this adapter is currently available.
      * Implements circuit-breaker pattern to prevent cascading failures.
@@ -109,6 +147,37 @@ public class OllamaAssistantAdapter implements AiAssistantPort {
     private AiSuggestion createFallbackSuggestion() {
         return new AiSuggestion(
             "What felt lighter or heavier after today's experiment?",
+            "ollama",
+            aiProperties.getOllama().getModel(),
+            "v1",
+            true
+        );
+    }
+
+    private OllamaRequest buildNextActionRequest(String context) {
+        String prompt = """
+            You are a behavior-change coach helping someone follow through on a small experiment
+            tied to a personal transformation. Based on their experiment and latest reflection,
+            propose exactly ONE small, concrete next action they could try next.
+            Keep it to a single imperative sentence, at most 40 words, specific enough to act on
+            today or tomorrow. Respond with ONLY the action text: no preamble, no quotation marks,
+            no numbering.
+
+            Context: %s
+
+            Next action:""".formatted(context);
+
+        OllamaRequest request = new OllamaRequest();
+        request.model = aiProperties.getOllama().getModel();
+        request.prompt = prompt;
+        request.stream = false;
+        request.temperature = aiProperties.getOllama().getTemperature();
+        return request;
+    }
+
+    private AiSuggestion createNextActionFallback() {
+        return new AiSuggestion(
+            "Try repeating today's experiment on a smaller scale tomorrow.",
             "ollama",
             aiProperties.getOllama().getModel(),
             "v1",

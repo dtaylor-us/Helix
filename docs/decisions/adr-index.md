@@ -15,3 +15,4 @@
 - ADR-013 Authentication strategy deferred behind port
 - ADR-014 Sensitive-content logging prohibition
 - ADR-015 Data export and deletion as foundational capabilities
+- ADR-016 AI required for generative suggestion content (amends ADR-006)

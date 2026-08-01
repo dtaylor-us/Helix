@@ -16,4 +16,15 @@ public class NoAiAssistantAdapter implements AiAssistantPort {
             true
         );
     }
+
+    @Override
+    public AiSuggestion suggestNextAction(String context) {
+        return new AiSuggestion(
+            "Try repeating today's experiment on a smaller scale tomorrow.",
+            "none",
+            "deterministic",
+            "v1",
+            true
+        );
+    }
 }
