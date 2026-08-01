@@ -102,4 +102,26 @@ class OllamaAssistantAdapterTest {
         assertThat(suggestion.text()).isNotEmpty();
         assertThat(suggestion.deterministicFallback()).isTrue();
     }
+
+    @Test
+    @DisplayName("continueReflectionChat should return fallback when Ollama unavailable")
+    void testContinueReflectionChatFallbackWhenUnavailable() {
+        AiAssistantPort.AiSuggestion suggestion = adapter.continueReflectionChat("User: I paused once.");
+
+        assertThat(suggestion).isNotNull();
+        assertThat(suggestion.provider()).isEqualTo("ollama");
+        assertThat(suggestion.text()).isNotEmpty();
+        assertThat(suggestion.deterministicFallback()).isTrue();
+    }
+
+    @Test
+    @DisplayName("structureReflection should return deterministic structure when Ollama unavailable")
+    void testStructureReflectionFallbackWhenUnavailable() {
+        AiAssistantPort.AiReflectionStructure structure = adapter.structureReflection("User: I paused once.");
+
+        assertThat(structure).isNotNull();
+        assertThat(structure.provider()).isEqualTo("ollama");
+        assertThat(structure.content()).isNotBlank();
+        assertThat(structure.deterministicFallback()).isTrue();
+    }
 }

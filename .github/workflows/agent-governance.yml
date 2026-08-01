@@ -35,7 +35,7 @@ jobs:
         run: |
           grep -q 'No direct browser-to-database' .github/copilot-instructions.md
           grep -q 'AI optional' .github/copilot-instructions.md
-          grep -q 'no sensitive reflective content' .github/agents/_shared-agent-contract.md
+          grep -q 'No sensitive reflective content' .github/agents/_shared-agent-contract.md
 
       - name: Confirm AGENTS and traceability docs exist
         run: |
