@@ -81,4 +81,19 @@ class NoAiAssistantAdapterTest {
         assertThat(action.deterministicFallback()).isTrue();
         assertThat(action.text()).isNotEqualTo(question.text());
     }
+
+    @Test
+    @DisplayName("proposeExperiment should populate title, hypothesis, and next action for deterministic fallback")
+    void testProposeExperimentFallback() {
+        AiAssistantPort.AiExperimentDraft draft = adapter.proposeExperiment(
+            new AiAssistantPort.ExperimentDraftRequest("Become more peaceful", "Practice steadiness", null, null)
+        );
+
+        assertThat(draft).isNotNull();
+        assertThat(draft.title()).isNotBlank();
+        assertThat(draft.hypothesis()).isNotBlank();
+        assertThat(draft.nextAction()).isNotBlank();
+        assertThat(draft.provider()).isEqualTo("none");
+        assertThat(draft.deterministicFallback()).isTrue();
+    }
 }

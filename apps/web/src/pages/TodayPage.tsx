@@ -1,11 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { TermHint } from '../components/TermHint'
 import { REFLECTION_FOLLOW_UP_QUESTIONS } from '../content/reflectionQuestions'
 import { api } from '../api/http'
 
 const DRAFT_KEY_PREFIX = 'helix:reflection-draft:'
+const WISDOM_DRAFT_KEY = 'helix:wisdom-draft'
+
+type WisdomDraft = { experimentId: string; reflectionId: string; statement: string }
 
 export function TodayPage() {
   const queryClient = useQueryClient()
@@ -15,7 +18,14 @@ export function TodayPage() {
   const [attempted, setAttempted] = useState<boolean | undefined>(undefined)
   const [followUps, setFollowUps] = useState<Record<string, string | undefined>>({})
   const [revealedFollowUps, setRevealedFollowUps] = useState(0)
-  const [wisdomDraft, setWisdomDraft] = useState<{ reflectionId: string; statement: string } | null>(null)
+  const [wisdomDraft, setWisdomDraft] = useState<WisdomDraft | null>(() => {
+    try {
+      const stored = localStorage.getItem(WISDOM_DRAFT_KEY)
+      return stored ? (JSON.parse(stored) as WisdomDraft) : null
+    } catch {
+      return null
+    }
+  })
   const [wisdomStatusText, setWisdomStatusText] = useState<string | null>(null)
 
   const todayQuery = useQuery({ queryKey: ['today'], queryFn: api.getToday })
@@ -32,6 +42,15 @@ export function TodayPage() {
   const activeExperimentId = todayQuery.data?.activeExperiment?.id
   const draftKey = activeExperimentId ? `${DRAFT_KEY_PREFIX}${activeExperimentId}` : null
 
+  // Sync wisdom draft to localStorage so it survives page reloads.
+  useEffect(() => {
+    if (wisdomDraft) {
+      localStorage.setItem(WISDOM_DRAFT_KEY, JSON.stringify(wisdomDraft))
+    } else {
+      localStorage.removeItem(WISDOM_DRAFT_KEY)
+    }
+  }, [wisdomDraft])
+
   // Reflection drafts are namespaced per experiment so switching experiments never shows a
   // draft written for a different one. When the active experiment changes, load whatever was
   // saved locally for it (or start blank), and reset the progressive follow-up questions too.
@@ -47,8 +66,13 @@ export function TodayPage() {
     setAttempted(undefined)
     setFollowUps({})
     setRevealedFollowUps(0)
-    setWisdomDraft(null)
-    setWisdomStatusText(null)
+    // Only clear the wisdom draft if it belongs to a different experiment. When the same
+    // experiment is still active (e.g. after a query re-fetch following reflection save),
+    // preserving the draft lets the capture card remain visible as intended.
+    if (!wisdomDraft || wisdomDraft.experimentId !== activeExperimentId) {
+      setWisdomDraft(null)
+      setWisdomStatusText(null)
+    }
   }
 
   const reflectMutation = useMutation({
@@ -81,7 +105,7 @@ export function TodayPage() {
       const proposedStatement = (
         variables.evidenceNoted || variables.noticed || variables.surprise || variables.content
       ).trim().slice(0, 500)
-      setWisdomDraft(proposedStatement ? { reflectionId: result.reflection.id, statement: proposedStatement } : null)
+      setWisdomDraft(proposedStatement ? { experimentId: variables.experimentId, reflectionId: result.reflection.id, statement: proposedStatement } : null)
       setWisdomStatusText(null)
       queryClient.invalidateQueries({ queryKey: ['today'] })
     },
