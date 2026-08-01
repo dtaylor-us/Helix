@@ -58,7 +58,7 @@ public class ReflectionService {
             normalizedSurprise,
             OffsetDateTime.now()
         ));
-        int previousAttempts = repository.findByExperimentIdOrderByCreatedAtDesc(experimentId).size();
+        int previousAttempts = Math.max(0, repository.findByExperimentIdOrderByCreatedAtDesc(experimentId).size() - 1);
 
         // AI is the required content source for post-reflection suggestions (ADR-016); the
         // AiAssistantPort adapter itself handles provider selection and outage fallback, and
