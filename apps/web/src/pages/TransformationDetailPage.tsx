@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { useState } from 'react'
+import type { Experiment } from '../../../../packages/contracts/src/index'
 import { TermHint } from '../components/TermHint'
 import { api } from '../api/http'
 
@@ -13,6 +14,8 @@ export function TransformationDetailPage() {
   const [cadence, setCadence] = useState('')
   const [evidenceOfSuccess, setEvidenceOfSuccess] = useState('')
   const [reviewAt, setReviewAt] = useState('')
+  const [saveStatusText, setSaveStatusText] = useState<string | null>(null)
+  const [savedExperiment, setSavedExperiment] = useState<Experiment | null>(null)
 
   const transformation = useQuery({ queryKey: ['transformation', id], queryFn: () => api.getTransformation(id) })
 
@@ -26,14 +29,19 @@ export function TransformationDetailPage() {
         evidenceOfSuccess,
         reviewAt: reviewAt || undefined,
       }),
-    onSuccess: () => {
+    onSuccess: (experiment) => {
       setTitle('')
       setHypothesis('')
       setNextAction('')
       setCadence('')
       setEvidenceOfSuccess('')
       setReviewAt('')
+      setSavedExperiment(experiment)
+      setSaveStatusText(`Saved "${experiment.title}" as your current active experiment.`)
       queryClient.invalidateQueries({ queryKey: ['today'] })
+    },
+    onError: () => {
+      setSaveStatusText('Could not save the experiment. Please try again.')
     },
   })
 
@@ -84,6 +92,17 @@ export function TransformationDetailPage() {
             Save experiment
           </button>
         </div>
+        <p role="status" aria-live="polite" className="muted">
+          {saveStatusText}
+        </p>
+        {savedExperiment && (
+          <div>
+            <h3>Current active experiment</h3>
+            <p>{savedExperiment.title}</p>
+            {savedExperiment.hypothesis && <p className="muted">{savedExperiment.hypothesis}</p>}
+            {savedExperiment.nextAction && <p className="muted">Next action: {savedExperiment.nextAction}</p>}
+          </div>
+        )}
       </section>
     </div>
   )
