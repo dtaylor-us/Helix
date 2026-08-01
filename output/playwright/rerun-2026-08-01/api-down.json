@@ -1,0 +1,108 @@
+{
+  "early": "Loading your active context...",
+  "final": "Unable to load today view right now.",
+  "visibleLoading": true,
+  "clearError": true,
+  "events": [
+    {
+      "type": "console:debug",
+      "text": "[vite] connecting..."
+    },
+    {
+      "type": "console:debug",
+      "text": "[vite] connected."
+    },
+    {
+      "type": "console:info",
+      "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+    },
+    {
+      "type": "requestfailed",
+      "url": "http://localhost:8080/api/v1/today",
+      "failure": {
+        "errorText": "net::ERR_CONNECTION_REFUSED"
+      }
+    },
+    {
+      "type": "console:error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "type": "requestfailed",
+      "url": "http://localhost:8080/api/v1/transformations",
+      "failure": {
+        "errorText": "net::ERR_CONNECTION_REFUSED"
+      }
+    },
+    {
+      "type": "console:error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "type": "requestfailed",
+      "url": "http://localhost:8080/api/v1/today",
+      "failure": {
+        "errorText": "net::ERR_CONNECTION_REFUSED"
+      }
+    },
+    {
+      "type": "console:error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "type": "requestfailed",
+      "url": "http://localhost:8080/api/v1/transformations",
+      "failure": {
+        "errorText": "net::ERR_CONNECTION_REFUSED"
+      }
+    },
+    {
+      "type": "console:error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "type": "requestfailed",
+      "url": "http://localhost:8080/api/v1/today",
+      "failure": {
+        "errorText": "net::ERR_CONNECTION_REFUSED"
+      }
+    },
+    {
+      "type": "console:error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "type": "requestfailed",
+      "url": "http://localhost:8080/api/v1/transformations",
+      "failure": {
+        "errorText": "net::ERR_CONNECTION_REFUSED"
+      }
+    },
+    {
+      "type": "console:error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "type": "requestfailed",
+      "url": "http://localhost:8080/api/v1/today",
+      "failure": {
+        "errorText": "net::ERR_CONNECTION_REFUSED"
+      }
+    },
+    {
+      "type": "console:error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "type": "requestfailed",
+      "url": "http://localhost:8080/api/v1/transformations",
+      "failure": {
+        "errorText": "net::ERR_CONNECTION_REFUSED"
+      }
+    },
+    {
+      "type": "console:error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    }
+  ]
+}

@@ -223,6 +223,45 @@ describe('TodayPage', () => {
     expect(screen.getByText(/Status: REPLACED/i)).toBeInTheDocument()
   })
 
+  it.each([
+    ['I’ll try this', 'acceptSuggestion', 'ACCEPTED', /this is your next small action/i],
+    ['Not this one', 'dismissSuggestion', 'DISMISSED', /Passed on this action/i],
+  ] as const)('immediately reflects the %s suggestion choice', async (buttonName, apiMethod, status, confirmation) => {
+    const suggestion = {
+      id: 's-1',
+      experimentId: 'e-1',
+      text: 'Take one breath before replying',
+      status: 'PROPOSED' as const,
+      createdAt: '2026-01-01T00:00:00Z',
+      source: 'DETERMINISTIC' as const,
+    }
+    vi.mocked(api.getToday).mockResolvedValue({
+      hasActiveExperiment: true,
+      activeExperiment: {
+        id: 'e-1', transformationId: 't-1', title: 'Pause before responding',
+        hypothesis: 'Pausing helps me respond calmly', status: 'ACTIVE', createdAt: '2026-01-01T00:00:00Z',
+      },
+      reflectionHistory: [],
+      suggestionHistory: [suggestion],
+    })
+    vi.mocked(api.listTransformations).mockResolvedValue([
+      { id: 't-1', title: 'Become more peaceful', createdAt: '2026-01-01T00:00:00Z' },
+    ])
+    vi.mocked(api.getWeeklyRetrospectiveDraft).mockResolvedValue(EMPTY_RETROSPECTIVE_DRAFT)
+    vi.mocked(api[apiMethod]).mockResolvedValue({
+      ...suggestion,
+      status,
+      respondedAt: '2026-01-01T00:05:00Z',
+    })
+
+    renderTodayPage()
+    fireEvent.click(await screen.findByRole('button', { name: buttonName }))
+
+    expect(await screen.findByText(confirmation)).toBeInTheDocument()
+    expect(screen.getByText(new RegExp(`Status: ${status}`, 'i'))).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: buttonName })).not.toBeInTheDocument()
+  })
+
   it('captures reflection via chat, allows review edits, and saves the edited structured payload', async () => {
     vi.mocked(api.getToday).mockResolvedValue({
       hasActiveExperiment: true,

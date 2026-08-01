@@ -1,0 +1,76 @@
+{
+  "checks": [
+    {
+      "name": "welcome state",
+      "pass": true,
+      "detail": "Welcome to Helix\n\nHelix helps you turn who you want to become into small actions, reflection, and evidence of growth — one transformation at a time.\n\nStart a transformation\nRun one small experiment\nReflect on what happened\nNotice the evidence it leaves behind\nKeep what turns into wisdom\nBegin my first transformation"
+    },
+    {
+      "name": "primary nav exact",
+      "pass": true,
+      "detail": "Today\nJourney\nLibrary\nMore"
+    },
+    {
+      "name": "More destinations",
+      "pass": true,
+      "detail": "Helix\n\nA private place to turn who you want to become into small, tested steps.\n\nToday\nJourney\nLibrary\nMore\nSearch\nKnowledge graph\nMemories\nSettings"
+    },
+    {
+      "name": "skip link first focus",
+      "pass": false,
+      "detail": "<a href=\"/search\" class=\"nav-link\">Search</a>"
+    },
+    {
+      "name": "skip link target",
+      "pass": false,
+      "detail": "<a href=\"/search\" class=\"nav-link nav-link nav-link-active\" aria-current=\"page\" data-status=\"active\">Search</a>"
+    },
+    {
+      "name": "blank transformation blocked",
+      "pass": true,
+      "detail": "disabled=true"
+    },
+    {
+      "name": "blank validation explained",
+      "pass": true,
+      "detail": "Journey\n\nA transformation is not a task to check off — it’s a meaningful way you are choosing to grow. Each one holds the experiments you run and the evidence you gather along the way.\n\nWhat’s a transformation?\nStart a transformation\nWhat would you love to become or experience?\n\nAdd a title to save your transformation.\n\nWhy does this matter to you right now?\nWho are you becoming through this? (optional)\nWhat currently gets in the way? (optional)\nSave transformation\nYour transformations\n\nNothing here yet — start one above."
+    },
+    {
+      "name": "transformation saved",
+      "pass": true,
+      "detail": "Journey\n\nA transformation is not a task to check off — it’s a meaningful way you are choosing to grow. Each one holds the experiments you run and the evidence you gather along the way.\n\nWhat’s a transformation?\nStart a transformation\nWhat would you love to become or experience?\n\nAdd a title to save your transformation.\n\nWhy does this matter to you right now?\nWho are you becoming through this? (optional)\nWhat currently gets in the way? (optional)\nSave transformation\nYour transformations\nRespond to feedback with calm curiosity"
+    },
+    {
+      "name": "fallback draft fills required fields",
+      "pass": true,
+      "detail": "[\"First small step toward Respond to feedback with calm curiosity. Purpose: I want criticism to become useful information instead of a verdict.. Who they're becoming: Someone who lis\",\"A smaller, repeatable action will help me learn what actually moves this transformation forward.\",\"Choose one action you can finish in under ten minutes and try it once today.\",\"Once today\",\"You notice one concrete sign that this transformation felt easier to practice.\",\"\"]"
+    },
+    {
+      "name": "fallback provenance visible",
+      "pass": true,
+      "detail": "Transformation\n\nRespond to feedback with calm curiosity\n\nI want criticism to become useful information instead of a verdict.\n\nWho you’re becoming: Someone who listens, pauses, and chooses a thoughtful response.\n\nWhat gets in the way: I react quickly when feedback feels personal.\n\nAdd an experiment\n\nA small, time-bounded attempt that helps you learn what actually moves this transformation forward.\n\nWhat’s an experiment?\nDraft this for me\n\nFallback draft — none. Review and edit before saving.\n\nExperimentWhat do you want to learn?Smallest next actionHow often will you try this? (optional)What would count as useful evidence? (optional)When will you review this? (optional)\nSave experiment"
+    },
+    {
+      "name": "draft navigation does not persist",
+      "pass": true,
+      "detail": "Today\n\nNo active experiment yet. Choose a transformation and add one small experiment to it.\n\nAdd an experiment to “Respond to feedback with calm curiosity”\nSee all transformations"
+    },
+    {
+      "name": "saved experiment confirmed on detail",
+      "pass": true,
+      "detail": "Transformation\n\nRespond to feedback with calm curiosity\n\nI want criticism to become useful information instead of a verdict.\n\nWho you’re becoming: Someone who listens, pauses, and chooses a thoughtful response.\n\nWhat gets in the way: I react quickly when feedback feels personal.\n\nAdd an experiment\n\nA small, time-bounded attempt that helps you learn what actually moves this transformation forward.\n\nWhat’s an experiment?\nDraft this for me\nExperimentWhat do you want to learn?Smallest next actionHow often will you try this? (optional)What would count as useful evidence? (optional)When will you review this? (optional)\nSave experiment\n\nSaved \"Pause before responding to feedback\" as your current active experiment.\n\nCurrent active experiment\n\nPause before responding to feedback\n\nWhether one breath creates room for curiosity.\n\nNext action: Take one breath, then ask one clarifying question."
+    },
+    {
+      "name": "active experiment on Today",
+      "pass": true,
+      "detail": "Current Direction\n\nActive experiment: Pause before responding to feedback\n\nHypothesis: Whether one breath creates room for curiosity.\n\nHow often: Once during the next feedback conversation\n\nEvidence to watch for: I ask a question and regret less afterward.\n\nWhat’s an experiment?\nSuggested Small Action\n\nNo suggestion yet. Save a reflection below and Helix will offer one small next step.\n\nEvening review\n\nWhat happened when you tried it today?\n\nStart by sharing what happened. Helix will ask follow-up questions conversationally.\n\nYour message\nSend\nI'm done — review my reflection\nUnsent text is saved on this device while you type.\n\nWhat’s a reflection?\nHistory\nRecent reflections\n\nNothing recorded yet."
+    },
+    {
+      "name": "mobile has no horizontal overflow",
+      "pass": true,
+      "detail": "scrollWidth=390, clientWidth=390"
+    }
+  ],
+  "events": [],
+  "states": {}
+}

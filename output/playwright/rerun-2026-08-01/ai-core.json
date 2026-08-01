@@ -1,0 +1,101 @@
+{
+  "checks": [
+    {
+      "name": "draft survives reload",
+      "pass": true,
+      "detail": "I paused, asked what specific change would help, and noticed my shoulders relax."
+    },
+    {
+      "name": "AI follow-up 1",
+      "pass": true,
+      "detail": "Current Direction\n\nActive experiment: Pause before responding to feedback\n\nHypothesis: Whether one breath creates room for curiosity.\n\nHow often: Once during the next feedback conversation\n\nEvidence to watch for: I ask a question and regret less afterward.\n\nWhat’s an experiment?\nSuggested Small Action\n\nNo suggestion yet. Save a reflection below and Helix will offer one small next step.\n\nEvening review\n\nWhat happened when you tried it today?\n\nYou: I paused, asked what specific change would help, and noticed my shoulders relax.\n\nHelix: That's great to hear! How did the other person respond to your question?\n\nYour message\nSend\nI'm done — review my reflection\nUnsent text is saved on this device while you type.\n\nWhat’s a reflection?\nHistory\nRecent reflections\n\nNothing recorded yet."
+    },
+    {
+      "name": "progressive second follow-up",
+      "pass": true,
+      "detail": "Current Direction\n\nActive experiment: Pause before responding to feedback\n\nHypothesis: Whether one breath creates room for curiosity.\n\nHow often: Once during the next feedback conversation\n\nEvidence to watch for: I ask a question and regret less afterward.\n\nWhat’s an experiment?\nSuggested Small Action\n\nNo suggestion yet. Save a reflection below and Helix will offer one small next step.\n\nEvening review\n\nWhat happened when you tried it today?\n\nYou: I paused, asked what specific change would help, and noticed my shoulders relax.\n\nHelix: That's great to hear! How did the other person respond to your question?\n\nYou: I was surprised that curiosity made the feedback feel specific rather than personal.\n\nHelix: That's an insightful realization! How do you think this approach will affect your future conversations?\n\nYour message\nSend\nI'm done — review my reflection\nUnsent text is saved on this device while you type.\n\nWhat’s a reflection?\nHistory\nRecent reflections\n\nNothing recorded yet."
+    },
+    {
+      "name": "editable structured review",
+      "pass": true,
+      "detail": "Current Direction\n\nActive experiment: Pause before responding to feedback\n\nHypothesis: Whether one breath creates room for curiosity.\n\nHow often: Once during the next feedback conversation\n\nEvidence to watch for: I ask a question and regret less afterward.\n\nWhat’s an experiment?\nSuggested Small Action\n\nNo suggestion yet. Save a reflection below and Helix will offer one small next step.\n\nEvening review\n\nWhat happened when you tried it today?\n\nYou: I paused, asked what specific change would help, and noticed my shoulders relax.\n\nHelix: That's great to hear! How did the other person respond to your question?\n\nYou: I was surprised that curiosity made the feedback feel specific rather than personal.\n\nHelix: That's an insightful realization! How do you think this approach will affect your future conversations?\n\nReview before saving\n\n(AI suggested — openai)\n\nWhat happened\nDid you try it?\nNot specified\nYes\nNot yet\nWhat did you notice internally?\nWhat evidence did this give you?\nWhat surprised you?\nSave reflection\n\nWhat’s a reflection?\nHistory\nRecent reflections\n\nNothing recorded yet."
+    },
+    {
+      "name": "suggestion shown with provider",
+      "pass": true,
+      "detail": "Current Direction\n\nActive experiment: Pause before responding to feedback\n\nHypothesis: Whether one breath creates room for curiosity.\n\nHow often: Once during the next feedback conversation\n\nEvidence to watch for: I ask a question and regret less afterward.\n\nWhat’s an experiment?\nSuggested Small Action\n\nPractice taking one breath before responding to feedback in your next conversation, and ask one clarifying question to deepen your understanding. (AI suggested — openai)\n\nWhy this: part of your active experiment, “Pause before responding to feedback”. Status: PROPOSED.\n\nI’ll try this\nNot this one\nUse this instead\nWhat’s a suggested small action?\nEvening review\n\nWhat happened when you tried it today?\n\nStart by sharing what happened. Helix will ask follow-up questions conversationally.\n\nYour message\nSend\nI'm done — review my reflection\nUnsent text is saved on this device while you type.\n\nReflection saved. This might be useful evidence — add it in Knowledge.\n\nWhat’s a reflection?\nThis reflection may contain a lesson worth keeping\n\nEdit it, or save it as-is. You can always refine or revise it later in Library.\n\nProposed wisdom statement\nSave as wisdom\nNot now\nWhat’s a wisdom?\nHistory\nRecent reflections\nI paused before responding to feedback and asked what specific change would help. I noticed my shoulders relax during this process. I was surprised that by being curious, the feedback felt more specific rather than personal.\n\nNoticed: I noticed my shoulders relax.\n\nEvidence: This showed me that taking a moment to breathe can help ease tension and open up the conversation.\n\nSurprise: I was surprised that curiosity made the feedback feel specific rather than personal."
+    },
+    {
+      "name": "wisdom capture appears",
+      "pass": true,
+      "detail": "Current Direction\n\nActive experiment: Pause before responding to feedback\n\nHypothesis: Whether one breath creates room for curiosity.\n\nHow often: Once during the next feedback conversation\n\nEvidence to watch for: I ask a question and regret less afterward.\n\nWhat’s an experiment?\nSuggested Small Action\n\nPractice taking one breath before responding to feedback in your next conversation, and ask one clarifying question to deepen your understanding. (AI suggested — openai)\n\nWhy this: part of your active experiment, “Pause before responding to feedback”. Status: PROPOSED.\n\nI’ll try this\nNot this one\nUse this instead\nWhat’s a suggested small action?\nEvening review\n\nWhat happened when you tried it today?\n\nStart by sharing what happened. Helix will ask follow-up questions conversationally.\n\nYour message\nSend\nI'm done — review my reflection\nUnsent text is saved on this device while you type.\n\nReflection saved. This might be useful evidence — add it in Knowledge.\n\nWhat’s a reflection?\nThis reflection may contain a lesson worth keeping\n\nEdit it, or save it as-is. You can always refine or revise it later in Library.\n\nProposed wisdom statement\nSave as wisdom\nNot now\nWhat’s a wisdom?\nHistory\nRecent reflections\nI paused before responding to feedback and asked what specific change would help. I noticed my shoulders relax during this process. I was surprised that by being curious, the feedback felt more specific rather than personal.\n\nNoticed: I noticed my shoulders relax.\n\nEvidence: This showed me that taking a moment to breathe can help ease tension and open up the conversation.\n\nSurprise: I was surprised that curiosity made the feedback feel specific rather than personal."
+    },
+    {
+      "name": "wisdom prefilled evidence-first",
+      "pass": true,
+      "detail": "This showed me that taking a moment to breathe can help ease tension and open up the conversation."
+    },
+    {
+      "name": "context wisdom saved",
+      "pass": true,
+      "detail": "Current Direction\n\nActive experiment: Pause before responding to feedback\n\nHypothesis: Whether one breath creates room for curiosity.\n\nHow often: Once during the next feedback conversation\n\nEvidence to watch for: I ask a question and regret less afterward.\n\nWhat’s an experiment?\nSuggested Small Action\n\nPractice taking one breath before responding to feedback in your next conversation, and ask one clarifying question to deepen your understanding. (AI suggested — openai)\n\nWhy this: part of your active experiment, “Pause before responding to feedback”. Status: PROPOSED.\n\nI’ll try this\nNot this one\nUse this instead\nWhat’s a suggested small action?\nEvening review\n\nWhat happened when you tried it today?\n\nStart by sharing what happened. Helix will ask follow-up questions conversationally.\n\nYour message\nSend\nI'm done — review my reflection\nUnsent text is saved on this device while you type.\n\nReflection saved. This might be useful evidence — add it in Knowledge.\n\nWhat’s a reflection?\n\nWisdom saved to your Library.\n\nHistory\nRecent reflections\nI paused before responding to feedback and asked what specific change would help. I noticed my shoulders relax during this process. I was surprised that by being curious, the feedback felt more specific rather than personal.\n\nNoticed: I noticed my shoulders relax.\n\nEvidence: This showed me that taking a moment to breathe can help ease tension and open up the conversation.\n\nSurprise: I was surprised that curiosity made the feedback feel specific rather than personal."
+    },
+    {
+      "name": "weekly teaser",
+      "pass": false,
+      "detail": "Current Direction\n\nActive experiment: Pause before responding to feedback\n\nHypothesis: Whether one breath creates room for curiosity.\n\nHow often: Once during the next feedback conversation\n\nEvidence to watch for: I ask a question and regret less afterward.\n\nWhat’s an experiment?\nSuggested Small Action\n\nPractice taking one breath before responding to feedback in your next conversation, and ask one clarifying question to deepen your understanding. (AI suggested — openai)\n\nWhy this: part of your active experiment, “Pause before responding to feedback”. Status: PROPOSED.\n\nI’ll try this\nNot this one\nUse this instead\nWhat’s a suggested small action?\nEvening review\n\nWhat happened when you tried it today?\n\nStart by sharing what happened. Helix will ask follow-up questions conversationally.\n\nYour message\nSend\nI'm done — review my reflection\nUnsent text is saved on this device while you type.\n\nReflection saved. This might be useful evidence — add it in Knowledge.\n\nWhat’s a reflection?\n\nWisdom saved to your Library.\n\nHistory\nRecent reflections\nI paused before responding to feedback and asked what specific change would help. I noticed my shoulders relax during this process. I was surprised that by being curious, the feedback felt more specific rather than personal.\n\nNoticed: I noticed my shoulders relax.\n\nEvidence: This showed me that taking a moment to breathe can help ease tension and open up the conversation.\n\nSurprise: I was surprised that curiosity made the feedback feel specific rather than personal."
+    }
+  ],
+  "events": [],
+  "states": {
+    "followup1": "Current Direction\n\nActive experiment: Pause before responding to feedback\n\nHypothesis: Whether one breath creates room for curiosity.\n\nHow often: Once during the next feedback conversation\n\nEvidence to watch for: I ask a question and regret less afterward.\n\nWhat’s an experiment?\nSuggested Small Action\n\nNo suggestion yet. Save a reflection below and Helix will offer one small next step.\n\nEvening review\n\nWhat happened when you tried it today?\n\nYou: I paused, asked what specific change would help, and noticed my shoulders relax.\n\nHelix: That's great to hear! How did the other person respond to your question?\n\nYour message\nSend\nI'm done — review my reflection\nUnsent text is saved on this device while you type.\n\nWhat’s a reflection?\nHistory\nRecent reflections\n\nNothing recorded yet.",
+    "followup2": "Current Direction\n\nActive experiment: Pause before responding to feedback\n\nHypothesis: Whether one breath creates room for curiosity.\n\nHow often: Once during the next feedback conversation\n\nEvidence to watch for: I ask a question and regret less afterward.\n\nWhat’s an experiment?\nSuggested Small Action\n\nNo suggestion yet. Save a reflection below and Helix will offer one small next step.\n\nEvening review\n\nWhat happened when you tried it today?\n\nYou: I paused, asked what specific change would help, and noticed my shoulders relax.\n\nHelix: That's great to hear! How did the other person respond to your question?\n\nYou: I was surprised that curiosity made the feedback feel specific rather than personal.\n\nHelix: That's an insightful realization! How do you think this approach will affect your future conversations?\n\nYour message\nSend\nI'm done — review my reflection\nUnsent text is saved on this device while you type.\n\nWhat’s a reflection?\nHistory\nRecent reflections\n\nNothing recorded yet.",
+    "review": "Current Direction\n\nActive experiment: Pause before responding to feedback\n\nHypothesis: Whether one breath creates room for curiosity.\n\nHow often: Once during the next feedback conversation\n\nEvidence to watch for: I ask a question and regret less afterward.\n\nWhat’s an experiment?\nSuggested Small Action\n\nNo suggestion yet. Save a reflection below and Helix will offer one small next step.\n\nEvening review\n\nWhat happened when you tried it today?\n\nYou: I paused, asked what specific change would help, and noticed my shoulders relax.\n\nHelix: That's great to hear! How did the other person respond to your question?\n\nYou: I was surprised that curiosity made the feedback feel specific rather than personal.\n\nHelix: That's an insightful realization! How do you think this approach will affect your future conversations?\n\nReview before saving\n\n(AI suggested — openai)\n\nWhat happened\nDid you try it?\nNot specified\nYes\nNot yet\nWhat did you notice internally?\nWhat evidence did this give you?\nWhat surprised you?\nSave reflection\n\nWhat’s a reflection?\nHistory\nRecent reflections\n\nNothing recorded yet.",
+    "saved": "Current Direction\n\nActive experiment: Pause before responding to feedback\n\nHypothesis: Whether one breath creates room for curiosity.\n\nHow often: Once during the next feedback conversation\n\nEvidence to watch for: I ask a question and regret less afterward.\n\nWhat’s an experiment?\nSuggested Small Action\n\nPractice taking one breath before responding to feedback in your next conversation, and ask one clarifying question to deepen your understanding. (AI suggested — openai)\n\nWhy this: part of your active experiment, “Pause before responding to feedback”. Status: PROPOSED.\n\nI’ll try this\nNot this one\nUse this instead\nWhat’s a suggested small action?\nEvening review\n\nWhat happened when you tried it today?\n\nStart by sharing what happened. Helix will ask follow-up questions conversationally.\n\nYour message\nSend\nI'm done — review my reflection\nUnsent text is saved on this device while you type.\n\nReflection saved. This might be useful evidence — add it in Knowledge.\n\nWhat’s a reflection?\nThis reflection may contain a lesson worth keeping\n\nEdit it, or save it as-is. You can always refine or revise it later in Library.\n\nProposed wisdom statement\nSave as wisdom\nNot now\nWhat’s a wisdom?\nHistory\nRecent reflections\nI paused before responding to feedback and asked what specific change would help. I noticed my shoulders relax during this process. I was surprised that by being curious, the feedback felt more specific rather than personal.\n\nNoticed: I noticed my shoulders relax.\n\nEvidence: This showed me that taking a moment to breathe can help ease tension and open up the conversation.\n\nSurprise: I was surprised that curiosity made the feedback feel specific rather than personal.",
+    "wisdom-saved": "Current Direction\n\nActive experiment: Pause before responding to feedback\n\nHypothesis: Whether one breath creates room for curiosity.\n\nHow often: Once during the next feedback conversation\n\nEvidence to watch for: I ask a question and regret less afterward.\n\nWhat’s an experiment?\nSuggested Small Action\n\nPractice taking one breath before responding to feedback in your next conversation, and ask one clarifying question to deepen your understanding. (AI suggested — openai)\n\nWhy this: part of your active experiment, “Pause before responding to feedback”. Status: PROPOSED.\n\nI’ll try this\nNot this one\nUse this instead\nWhat’s a suggested small action?\nEvening review\n\nWhat happened when you tried it today?\n\nStart by sharing what happened. Helix will ask follow-up questions conversationally.\n\nYour message\nSend\nI'm done — review my reflection\nUnsent text is saved on this device while you type.\n\nReflection saved. This might be useful evidence — add it in Knowledge.\n\nWhat’s a reflection?\n\nWisdom saved to your Library.\n\nHistory\nRecent reflections\nI paused before responding to feedback and asked what specific change would help. I noticed my shoulders relax during this process. I was surprised that by being curious, the feedback felt more specific rather than personal.\n\nNoticed: I noticed my shoulders relax.\n\nEvidence: This showed me that taking a moment to breathe can help ease tension and open up the conversation.\n\nSurprise: I was surprised that curiosity made the feedback feel specific rather than personal."
+  },
+  "api": {
+    "today": {
+      "hasActiveExperiment": true,
+      "activeExperiment": {
+        "id": "8a066839-0954-42c7-86a7-a812d91d1e42",
+        "transformationId": "cdf6926f-42de-4c75-a3b9-28a8944acdb7",
+        "title": "Pause before responding to feedback",
+        "hypothesis": "Whether one breath creates room for curiosity.",
+        "nextAction": "Take one breath, then ask one clarifying question.",
+        "cadence": "Once during the next feedback conversation",
+        "evidenceOfSuccess": "I ask a question and regret less afterward.",
+        "reviewAt": null,
+        "status": "ACTIVE",
+        "createdAt": "2026-08-01T21:35:39.001315Z"
+      },
+      "reflectionHistory": [
+        {
+          "id": "f4afd8e3-fe89-4e90-b06f-134baecb2744",
+          "experimentId": "8a066839-0954-42c7-86a7-a812d91d1e42",
+          "content": "I paused before responding to feedback and asked what specific change would help. I noticed my shoulders relax during this process. I was surprised that by being curious, the feedback felt more specific rather than personal.",
+          "attempted": true,
+          "noticed": "I noticed my shoulders relax.",
+          "evidenceNoted": "This showed me that taking a moment to breathe can help ease tension and open up the conversation.",
+          "surprise": "I was surprised that curiosity made the feedback feel specific rather than personal.",
+          "createdAt": "2026-08-01T21:37:20.076351Z"
+        }
+      ],
+      "suggestionHistory": [
+        {
+          "id": "154a4895-5853-4294-98ef-2592a5eee6ba",
+          "experimentId": "8a066839-0954-42c7-86a7-a812d91d1e42",
+          "reflectionId": "f4afd8e3-fe89-4e90-b06f-134baecb2744",
+          "text": "Practice taking one breath before responding to feedback in your next conversation, and ask one clarifying question to deepen your understanding.",
+          "status": "PROPOSED",
+          "replacementText": null,
+          "createdAt": "2026-08-01T21:37:22.664600Z",
+          "respondedAt": null,
+          "source": "AI",
+          "aiProvider": "openai",
+          "aiModel": "gpt-4o-mini"
+        }
+      ]
+    }
+  }
+}

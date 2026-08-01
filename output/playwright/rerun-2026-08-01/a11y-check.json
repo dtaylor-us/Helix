@@ -1,0 +1,26 @@
+{
+  "first": {
+    "text": "Skip to content",
+    "href": "#main-content",
+    "outline": "rgb(29, 78, 216) solid 3px",
+    "boxShadow": "none"
+  },
+  "target": {
+    "id": "main-content",
+    "tag": "MAIN",
+    "text": "Current DirectionActive experiment: Pause before responding to feedbackHypothesi"
+  },
+  "active": "page",
+  "unlabeled": [],
+  "live": [
+    {
+      "live": "polite",
+      "text": "Start by sharing what happened. Helix will ask follow-up questions conversationally."
+    },
+    {
+      "live": "polite",
+      "text": ""
+    }
+  ],
+  "events": []
+}

@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { TermHint } from '../components/TermHint'
 import { api } from '../api/http'
+import type { Suggestion, TodayResponse } from '../../../../packages/contracts/src'
 
 const CHAT_DRAFT_KEY_PREFIX = 'helix:reflection-chat-draft:'
 const WISDOM_DRAFT_KEY = 'helix:wisdom-draft'
@@ -30,6 +31,7 @@ export function TodayPage() {
   const [errorText, setErrorText] = useState<string | null>(null)
   const [statusText, setStatusText] = useState<string | null>(null)
   const [replacementText, setReplacementText] = useState('')
+  const [suggestionStatusText, setSuggestionStatusText] = useState<string | null>(null)
   const [chatTranscript, setChatTranscript] = useState<ReflectionChatMessage[]>([])
   const [chatDraft, setChatDraft] = useState('')
   const [reflectionReview, setReflectionReview] = useState<ReflectionReviewDraft | null>(null)
@@ -178,7 +180,23 @@ export function TodayPage() {
       if (params.action === 'dismiss') return api.dismissSuggestion(params.id)
       return api.replaceSuggestion(params.id, params.replacement ?? '')
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['today'] }),
+    onSuccess: (updatedSuggestion: Suggestion, variables) => {
+      queryClient.setQueryData<TodayResponse>(['today'], (current) => current ? {
+        ...current,
+        suggestionHistory: current.suggestionHistory.map((suggestion) =>
+          suggestion.id === updatedSuggestion.id ? updatedSuggestion : suggestion,
+        ),
+      } : current)
+      setSuggestionStatusText(
+        variables.action === 'accept'
+          ? 'Got it — this is your next small action.'
+          : variables.action === 'dismiss'
+            ? 'Passed on this action.'
+            : 'Your small action was updated.',
+      )
+      setReplacementText('')
+    },
+    onError: () => setSuggestionStatusText('Could not update this action. Please try again.'),
   })
 
   if (todayQuery.isLoading || transformationsQuery.isLoading) {
@@ -279,36 +297,43 @@ export function TodayPage() {
               Why this: part of your active experiment, &ldquo;{data.activeExperiment.title}&rdquo;. Status:{' '}
               {latestSuggestion.status}.
             </p>
-            <div className="row">
-              <button
-                onClick={() => suggestionAction.mutate({ action: 'accept', id: latestSuggestion.id })}
-                disabled={suggestionAction.isPending}
-              >
-                I&rsquo;ll try this
-              </button>
-              <button
-                onClick={() => suggestionAction.mutate({ action: 'dismiss', id: latestSuggestion.id })}
-                disabled={suggestionAction.isPending}
-              >
-                Not this one
-              </button>
-            </div>
-            <div className="row">
-              <input
-                aria-label="Replacement suggestion"
-                value={replacementText}
-                onChange={(e) => setReplacementText(e.target.value)}
-                placeholder="Or write your own smaller version"
-              />
-              <button
-                onClick={() =>
-                  suggestionAction.mutate({ action: 'replace', id: latestSuggestion.id, replacement: replacementText })
-                }
-                disabled={!replacementText.trim() || suggestionAction.isPending}
-              >
-                Use this instead
-              </button>
-            </div>
+            {latestSuggestion.status === 'PROPOSED' && (
+              <>
+                <div className="row">
+                  <button
+                    onClick={() => suggestionAction.mutate({ action: 'accept', id: latestSuggestion.id })}
+                    disabled={suggestionAction.isPending}
+                  >
+                    I&rsquo;ll try this
+                  </button>
+                  <button
+                    onClick={() => suggestionAction.mutate({ action: 'dismiss', id: latestSuggestion.id })}
+                    disabled={suggestionAction.isPending}
+                  >
+                    Not this one
+                  </button>
+                </div>
+                <div className="row">
+                  <input
+                    aria-label="Replacement suggestion"
+                    value={replacementText}
+                    onChange={(e) => setReplacementText(e.target.value)}
+                    placeholder="Or write your own smaller version"
+                  />
+                  <button
+                    onClick={() =>
+                      suggestionAction.mutate({ action: 'replace', id: latestSuggestion.id, replacement: replacementText })
+                    }
+                    disabled={!replacementText.trim() || suggestionAction.isPending}
+                  >
+                    Use this instead
+                  </button>
+                </div>
+              </>
+            )}
+            {suggestionStatusText && (
+              <p role={suggestionStatusText.startsWith('Could not') ? 'alert' : 'status'}>{suggestionStatusText}</p>
+            )}
             <TermHint term="Suggested Small Action" />
           </>
         ) : (
