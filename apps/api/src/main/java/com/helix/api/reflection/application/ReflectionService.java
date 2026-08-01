@@ -1,6 +1,8 @@
 package com.helix.api.reflection.application;
 
+import com.helix.api.ai.application.AiAssistantPort;
 import com.helix.api.experiments.application.ExperimentService;
+import com.helix.api.experiments.domain.ExperimentEntity;
 import com.helix.api.reflection.adapter.out.persistence.ReflectionRepository;
 import com.helix.api.reflection.domain.ReflectionEntity;
 import com.helix.api.suggestions.application.SuggestionService;
@@ -19,11 +21,16 @@ public class ReflectionService {
     private final ReflectionRepository repository;
     private final ExperimentService experimentService;
     private final SuggestionService suggestionService;
+    private final AiAssistantPort aiAssistantPort;
 
-    public ReflectionService(ReflectionRepository repository, ExperimentService experimentService, SuggestionService suggestionService) {
+    public ReflectionService(
+        ReflectionRepository repository, ExperimentService experimentService,
+        SuggestionService suggestionService, AiAssistantPort aiAssistantPort
+    ) {
         this.repository = repository;
         this.experimentService = experimentService;
         this.suggestionService = suggestionService;
+        this.aiAssistantPort = aiAssistantPort;
     }
 
     @Transactional
@@ -52,8 +59,40 @@ public class ReflectionService {
             OffsetDateTime.now()
         ));
         int previousAttempts = repository.findByExperimentIdOrderByCreatedAtDesc(experimentId).size();
-        var suggestion = suggestionService.createDeterministic(experimentId, reflection.getId(), experiment.getNextAction(), previousAttempts);
+
+        // AI is the required content source for post-reflection suggestions (ADR-016); the
+        // AiAssistantPort adapter itself handles provider selection and outage fallback, and
+        // reports whether the returned text is a live model answer or a fallback so we can record
+        // accurate provenance below.
+        var aiSuggestion = aiAssistantPort.suggestNextAction(buildSuggestionContext(experiment, reflection, previousAttempts));
+        var suggestion = suggestionService.createFromAi(
+            experimentId, reflection.getId(), aiSuggestion.text(), aiSuggestion.provider(), aiSuggestion.model(),
+            aiSuggestion.deterministicFallback()
+        );
         return new ReflectionWithSuggestion(reflection, suggestion);
+    }
+
+    private String buildSuggestionContext(ExperimentEntity experiment, ReflectionEntity reflection, int previousAttempts) {
+        var context = new StringBuilder();
+        context.append("Experiment: ").append(experiment.getTitle()).append(". ");
+        if (experiment.getHypothesis() != null && !experiment.getHypothesis().isBlank()) {
+            context.append("Hypothesis: ").append(experiment.getHypothesis()).append(". ");
+        }
+        if (experiment.getNextAction() != null && !experiment.getNextAction().isBlank()) {
+            context.append("Previously planned next action: ").append(experiment.getNextAction()).append(". ");
+        }
+        context.append("Latest reflection: ").append(reflection.getContent()).append(". ");
+        if (reflection.getNoticed() != null) {
+            context.append("Noticed: ").append(reflection.getNoticed()).append(". ");
+        }
+        if (reflection.getEvidenceNoted() != null) {
+            context.append("Evidence: ").append(reflection.getEvidenceNoted()).append(". ");
+        }
+        if (reflection.getSurprise() != null) {
+            context.append("Surprise: ").append(reflection.getSurprise()).append(". ");
+        }
+        context.append("Number of previous reflections on this experiment: ").append(previousAttempts).append(".");
+        return context.toString();
     }
 
     public ReflectionEntity get(UUID id) {

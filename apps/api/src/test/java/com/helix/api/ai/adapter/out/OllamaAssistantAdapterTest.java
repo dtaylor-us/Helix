@@ -78,10 +78,28 @@ class OllamaAssistantAdapterTest {
     @Test
     @DisplayName("should handle null context")
     void testNullContextHandling() {
-        AiAssistantPort.AiSuggestion suggestion = 
+        AiAssistantPort.AiSuggestion suggestion =
             adapter.suggestReflectiveQuestion(null);
-        
+
         assertThat(suggestion).isNotNull();
         assertThat(suggestion.text()).isNotEmpty();
+    }
+
+    @Test
+    @DisplayName("suggestNextAction should mark provider as ollama")
+    void testNextActionProviderIdentification() {
+        AiAssistantPort.AiSuggestion suggestion = adapter.suggestNextAction("Did some reflection today");
+
+        assertThat(suggestion.provider()).isEqualTo("ollama");
+    }
+
+    @Test
+    @DisplayName("suggestNextAction should return fallback when Ollama unavailable")
+    void testNextActionFallbackWhenUnavailable() {
+        AiAssistantPort.AiSuggestion suggestion = adapter.suggestNextAction("test context");
+
+        assertThat(suggestion).isNotNull();
+        assertThat(suggestion.text()).isNotEmpty();
+        assertThat(suggestion.deterministicFallback()).isTrue();
     }
 }

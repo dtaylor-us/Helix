@@ -42,6 +42,10 @@ export interface Suggestion {
   replacementText?: string;
   createdAt: string;
   respondedAt?: string;
+  /** Whether this suggestion's text came from a live AI call or a deterministic/fallback response (ADR-016). */
+  source: "AI" | "DETERMINISTIC";
+  aiProvider?: string;
+  aiModel?: string;
 }
 
 export interface Provenance {

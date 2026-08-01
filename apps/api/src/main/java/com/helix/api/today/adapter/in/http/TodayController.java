@@ -53,7 +53,8 @@ public class TodayController {
         return new SuggestionCard(
             entity.getId(), entity.getExperimentId(), entity.getReflectionId(), entity.getText(),
             entity.getStatus().name(), entity.getReplacementText(), entity.getCreatedAt().toString(),
-            entity.getRespondedAt() != null ? entity.getRespondedAt().toString() : null
+            entity.getRespondedAt() != null ? entity.getRespondedAt().toString() : null,
+            entity.getSource().name(), entity.getAiProvider(), entity.getAiModel()
         );
     }
 
@@ -65,5 +66,6 @@ public class TodayController {
     public record ReflectionCard(UUID id, UUID experimentId, String content, Boolean attempted,
                                  String noticed, String evidenceNoted, String surprise, String createdAt) {}
     public record SuggestionCard(UUID id, UUID experimentId, UUID reflectionId, String text,
-                                 String status, String replacementText, String createdAt, String respondedAt) {}
+                                 String status, String replacementText, String createdAt, String respondedAt,
+                                 String source, String aiProvider, String aiModel) {}
 }

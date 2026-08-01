@@ -86,10 +86,37 @@ class OpenAiAssistantAdapterTest {
     @Test
     @DisplayName("should handle empty context")
     void testEmptyContextHandling() {
-        AiAssistantPort.AiSuggestion suggestion = 
+        AiAssistantPort.AiSuggestion suggestion =
             adapter.suggestReflectiveQuestion("");
-        
+
         assertThat(suggestion).isNotNull();
         assertThat(suggestion.text()).isNotEmpty();
+    }
+
+    @Test
+    @DisplayName("suggestNextAction should mark provider as openai")
+    void testNextActionProviderIdentification() {
+        AiAssistantPort.AiSuggestion suggestion = adapter.suggestNextAction("Tried journaling today");
+
+        assertThat(suggestion.provider()).isEqualTo("openai");
+    }
+
+    @Test
+    @DisplayName("suggestNextAction should fall back gracefully without a reachable provider")
+    void testNextActionFallback() {
+        AiAssistantPort.AiSuggestion suggestion = adapter.suggestNextAction("Tried journaling today");
+
+        assertThat(suggestion).isNotNull();
+        assertThat(suggestion.text()).isNotEmpty();
+        assertThat(suggestion.deterministicFallback()).isTrue();
+    }
+
+    @Test
+    @DisplayName("suggestNextAction and suggestReflectiveQuestion fallbacks are distinct")
+    void testNextActionFallbackDiffersFromQuestionFallback() {
+        AiAssistantPort.AiSuggestion question = adapter.suggestReflectiveQuestion("context");
+        AiAssistantPort.AiSuggestion action = adapter.suggestNextAction("context");
+
+        assertThat(action.text()).isNotEqualTo(question.text());
     }
 }

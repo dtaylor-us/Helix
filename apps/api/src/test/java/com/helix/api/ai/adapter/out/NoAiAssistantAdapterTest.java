@@ -63,9 +63,22 @@ class NoAiAssistantAdapterTest {
     @Test
     @DisplayName("should mark response as fallback")
     void testFallbackFlag() {
-        AiAssistantPort.AiSuggestion suggestion = 
+        AiAssistantPort.AiSuggestion suggestion =
             adapter.suggestReflectiveQuestion("any context");
-        
+
         assertThat(suggestion.deterministicFallback()).isTrue();
+    }
+
+    @Test
+    @DisplayName("suggestNextAction should return a deterministic fallback distinct from the reflective question")
+    void testSuggestNextActionFallback() {
+        AiAssistantPort.AiSuggestion question = adapter.suggestReflectiveQuestion("context");
+        AiAssistantPort.AiSuggestion action = adapter.suggestNextAction("context");
+
+        assertThat(action).isNotNull();
+        assertThat(action.text()).isNotEmpty();
+        assertThat(action.provider()).isEqualTo("none");
+        assertThat(action.deterministicFallback()).isTrue();
+        assertThat(action.text()).isNotEqualTo(question.text());
     }
 }

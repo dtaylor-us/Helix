@@ -57,7 +57,10 @@ public class ReflectionController {
             entity.getStatus().name(),
             entity.getReplacementText(),
             entity.getCreatedAt().toString(),
-            entity.getRespondedAt() != null ? entity.getRespondedAt().toString() : null
+            entity.getRespondedAt() != null ? entity.getRespondedAt().toString() : null,
+            entity.getSource().name(),
+            entity.getAiProvider(),
+            entity.getAiModel()
         );
     }
 
@@ -83,6 +86,9 @@ public class ReflectionController {
         String status,
         String replacementText,
         String createdAt,
-        String respondedAt
+        String respondedAt,
+        String source,
+        String aiProvider,
+        String aiModel
     ) {}
 }
