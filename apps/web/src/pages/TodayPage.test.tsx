@@ -77,6 +77,7 @@ describe('TodayPage', () => {
     vi.mocked(api.replaceSuggestion).mockReset()
     vi.mocked(api.getWeeklyRetrospectiveDraft).mockReset()
     vi.mocked(api.createWisdom).mockReset()
+    localStorage.clear()
   })
 
   it('shows loading state', async () => {
@@ -312,6 +313,88 @@ describe('TodayPage', () => {
     )
     expect(await screen.findByText(/Wisdom saved to your Library/i)).toBeInTheDocument()
     expect(screen.queryByText(/This reflection may contain a lesson worth keeping/i)).not.toBeInTheDocument()
+  })
+
+  it('wisdom-capture card reappears after a page reload when a draft was saved to localStorage', async () => {
+    // Seed localStorage as if the user had saved a reflection and not yet acted on the wisdom prompt.
+    localStorage.setItem(
+      'helix:wisdom-draft',
+      JSON.stringify({ experimentId: 'e-1', reflectionId: 'r-1', statement: 'The conversation stayed calmer.' }),
+    )
+
+    vi.mocked(api.getToday).mockResolvedValue({
+      hasActiveExperiment: true,
+      activeExperiment: {
+        id: 'e-1',
+        transformationId: 't-1',
+        title: 'Pause before responding',
+        hypothesis: 'Pausing helps me respond calmly',
+        status: 'ACTIVE',
+        createdAt: '2026-01-01T00:00:00Z',
+      },
+      reflectionHistory: [],
+      suggestionHistory: [],
+    })
+    vi.mocked(api.listTransformations).mockResolvedValue([
+      { id: 't-1', title: 'Become more peaceful', createdAt: '2026-01-01T00:00:00Z' },
+    ])
+    vi.mocked(api.getWeeklyRetrospectiveDraft).mockResolvedValue(EMPTY_RETROSPECTIVE_DRAFT)
+
+    renderTodayPage()
+
+    // The wisdom-capture card should appear without the user having to save another reflection,
+    // because the draft was restored from localStorage.
+    await screen.findByText(/This reflection may contain a lesson worth keeping/i)
+    expect(screen.getByLabelText('Proposed wisdom statement')).toHaveValue('The conversation stayed calmer.')
+  })
+
+  it('wisdom-capture card survives a today query re-fetch triggered by reflection save', async () => {
+    // Regression guard: the query invalidation that follows reflectMutation.onSuccess must not
+    // clear wisdomDraft when the same experiment remains active after the re-fetch.
+    let getTodayCallCount = 0
+    vi.mocked(api.getToday).mockImplementation(() => {
+      getTodayCallCount++
+      return Promise.resolve({
+        hasActiveExperiment: true,
+        activeExperiment: {
+          id: 'e-1',
+          transformationId: 't-1',
+          title: 'Pause before responding',
+          hypothesis: 'Pausing helps me respond calmly',
+          status: 'ACTIVE',
+          createdAt: '2026-01-01T00:00:00Z',
+        },
+        reflectionHistory:
+          getTodayCallCount > 1
+            ? [{ id: 'r-1', experimentId: 'e-1', content: 'I tried it.', createdAt: '2026-01-01T00:00:00Z' }]
+            : [],
+        suggestionHistory: [],
+      })
+    })
+    vi.mocked(api.listTransformations).mockResolvedValue([
+      { id: 't-1', title: 'Become more peaceful', createdAt: '2026-01-01T00:00:00Z' },
+    ])
+    vi.mocked(api.getWeeklyRetrospectiveDraft).mockResolvedValue(EMPTY_RETROSPECTIVE_DRAFT)
+    vi.mocked(api.createReflection).mockResolvedValue({
+      reflection: { id: 'r-1', experimentId: 'e-1', content: 'I tried it.', createdAt: '2026-01-01T00:00:00Z' },
+      suggestion: null,
+    })
+
+    renderTodayPage()
+    await screen.findByLabelText(/What happened/i)
+
+    fireEvent.change(screen.getByLabelText(/What happened/i), { target: { value: 'I tried it.' } })
+    fireEvent.click(screen.getByRole('button', { name: /\+ What did you notice internally\?/i }))
+    fireEvent.click(screen.getByRole('button', { name: /\+ What evidence did this give you\?/i }))
+    fireEvent.change(screen.getByLabelText('What evidence did this give you?'), {
+      target: { value: 'Things felt calmer.' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save reflection' }))
+
+    // The wisdom-capture card must still be visible after the today query re-fetches with new
+    // reflection history (simulating getTodayCallCount > 1 in the mock above).
+    await screen.findByText(/This reflection may contain a lesson worth keeping/i)
+    expect(screen.getByLabelText('Proposed wisdom statement')).toHaveValue('Things felt calmer.')
   })
 
   it('surfaces a weekly retrospective teaser on Today when there is one to show', async () => {

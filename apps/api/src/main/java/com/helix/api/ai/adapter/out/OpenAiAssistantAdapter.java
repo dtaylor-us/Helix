@@ -124,6 +124,54 @@ public class OpenAiAssistantAdapter implements AiAssistantPort {
         }
     }
 
+    @Override
+    public AiExperimentDraft proposeExperiment(ExperimentDraftRequest request) {
+        if (!isAvailable && System.currentTimeMillis() - lastFailureTime < AVAILABILITY_RESET_MS) {
+            return createExperimentFallback(request);
+        }
+
+        try {
+            OpenAiRequest aiRequest = buildExperimentDraftRequest(request);
+            OpenAiResponse response = restClient.post()
+                .uri("/v1/chat/completions")
+                .body(aiRequest)
+                .retrieve()
+                .onStatus(status -> !status.is2xxSuccessful(),
+                    (httpRequest, httpResponse) -> {
+                        throw new OpenAiException("OpenAI API error: " + httpResponse.getStatusCode());
+                    })
+                .toEntity(OpenAiResponse.class)
+                .getBody();
+
+            if (response == null || response.choices == null || response.choices.isEmpty()) {
+                recordFailure();
+                return createExperimentFallback(request);
+            }
+
+            AiExperimentDraft parsedDraft = parseExperimentDraft(response.choices.get(0).message.content);
+            if (parsedDraft == null || !hasText(parsedDraft.title()) || !hasText(parsedDraft.hypothesis()) || !hasText(parsedDraft.nextAction())) {
+                recordFailure();
+                return createExperimentFallback(request);
+            }
+
+            isAvailable = true;
+            return new AiExperimentDraft(
+                parsedDraft.title().trim(),
+                parsedDraft.hypothesis().trim(),
+                parsedDraft.nextAction().trim(),
+                normalizeOptional(parsedDraft.cadence()),
+                normalizeOptional(parsedDraft.evidenceOfSuccess()),
+                "openai",
+                aiProperties.getOpenai().getModel(),
+                "v1",
+                false
+            );
+        } catch (RestClientException | OpenAiException e) {
+            recordFailure();
+            return createExperimentFallback(request);
+        }
+    }
+
     /**
      * Check if this adapter is currently available.
      * Implements circuit-breaker pattern to prevent cascading failures.
@@ -185,6 +233,30 @@ public class OpenAiAssistantAdapter implements AiAssistantPort {
         return request;
     }
 
+    private OpenAiRequest buildExperimentDraftRequest(ExperimentDraftRequest request) {
+        String systemPrompt = """
+            You are a behavior-change coach helping someone define a small experiment for a personal transformation.
+            Return ONLY valid JSON with these keys: title, hypothesis, nextAction, cadence, evidenceOfSuccess.
+            Requirements:
+            - title: concise, under 180 characters
+            - hypothesis: 1-2 sentences about what the user wants to learn
+            - nextAction: one concrete first step
+            - cadence: a short phrase, or an empty string if unclear
+            - evidenceOfSuccess: one short observable sign, or an empty string if unclear
+            Do not include markdown, code fences, or extra commentary.
+            """;
+
+        OpenAiRequest aiRequest = new OpenAiRequest();
+        aiRequest.model = aiProperties.getOpenai().getModel();
+        aiRequest.temperature = aiProperties.getOpenai().getTemperature();
+        aiRequest.maxTokens = aiProperties.getOpenai().getMaxTokens();
+        aiRequest.messages = List.of(
+            new OpenAiRequest.Message("system", systemPrompt),
+            new OpenAiRequest.Message("user", buildExperimentContext(request))
+        );
+        return aiRequest;
+    }
+
     private AiSuggestion createNextActionFallback() {
         return new AiSuggestion(
             "Try repeating today's experiment on a smaller scale tomorrow.",
@@ -195,9 +267,97 @@ public class OpenAiAssistantAdapter implements AiAssistantPort {
         );
     }
 
+    private AiExperimentDraft parseExperimentDraft(String content) {
+        try {
+            ExperimentDraftPayload payload = objectMapper.readValue(stripCodeFences(content), ExperimentDraftPayload.class);
+            return new AiExperimentDraft(
+                payload.title,
+                payload.hypothesis,
+                payload.nextAction,
+                payload.cadence,
+                payload.evidenceOfSuccess,
+                "openai",
+                aiProperties.getOpenai().getModel(),
+                "v1",
+                false
+            );
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private String buildExperimentContext(ExperimentDraftRequest request) {
+        return """
+            Transformation title: %s
+            Purpose: %s
+            Desired identity: %s
+            Obstacle: %s
+            """.formatted(
+            defaultValue(request.transformationTitle()),
+            defaultValue(request.purpose()),
+            defaultValue(request.desiredIdentity()),
+            defaultValue(request.obstacle())
+        );
+    }
+
+    private AiExperimentDraft createExperimentFallback(ExperimentDraftRequest request) {
+        String transformationTitle = hasText(request.transformationTitle()) ? request.transformationTitle().trim() : "this transformation";
+        return new AiExperimentDraft(
+            trimToLength("First small step toward " + transformationTitle, 180),
+            "A smaller, repeatable action will help me learn what actually moves this transformation forward.",
+            "Choose one action you can finish in under ten minutes and try it once today.",
+            "Once today",
+            "You notice one concrete sign that this transformation felt easier to practice.",
+            "openai",
+            aiProperties.getOpenai().getModel(),
+            "v1",
+            true
+        );
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private String normalizeOptional(String value) {
+        return hasText(value) ? value.trim() : null;
+    }
+
+    private String defaultValue(String value) {
+        return hasText(value) ? value.trim() : "Not provided";
+    }
+
+    private String stripCodeFences(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace("```json", "").replace("```", "").trim();
+    }
+
+    private String trimToLength(String value, int maxLength) {
+        return value.length() <= maxLength ? value : value.substring(0, maxLength);
+    }
+
     private void recordFailure() {
         isAvailable = false;
         lastFailureTime = System.currentTimeMillis();
+    }
+
+    static class ExperimentDraftPayload {
+        @JsonProperty("title")
+        String title;
+
+        @JsonProperty("hypothesis")
+        String hypothesis;
+
+        @JsonProperty("nextAction")
+        String nextAction;
+
+        @JsonProperty("cadence")
+        String cadence;
+
+        @JsonProperty("evidenceOfSuccess")
+        String evidenceOfSuccess;
     }
 
     // OpenAI API Request/Response models

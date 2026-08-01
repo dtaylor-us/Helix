@@ -145,15 +145,19 @@ public class MemoryProposalService {
             throw new IllegalArgumentException("Source record id is required");
         }
 
-        switch (sourceRecordType) {
-            case REFLECTION -> reflectionService.get(sourceRecordId);
-            case EXPERIMENT -> experimentService.get(sourceRecordId);
-            case BELIEF -> beliefService.get(sourceRecordId);
-            case EVIDENCE -> evidenceService.get(sourceRecordId);
-            case WISDOM -> wisdomService.get(sourceRecordId);
-            case RETROSPECTIVE -> retrospectiveService.get(sourceRecordId);
-            case MANUAL_ENTRY -> {
+        try {
+            switch (sourceRecordType) {
+                case REFLECTION -> reflectionService.get(sourceRecordId);
+                case EXPERIMENT -> experimentService.get(sourceRecordId);
+                case BELIEF -> beliefService.get(sourceRecordId);
+                case EVIDENCE -> evidenceService.get(sourceRecordId);
+                case WISDOM -> wisdomService.get(sourceRecordId);
+                case RETROSPECTIVE -> retrospectiveService.get(sourceRecordId);
+                case MANUAL_ENTRY -> {
+                }
             }
+        } catch (NoSuchElementException ex) {
+            throw new IllegalArgumentException("That source record couldn't be found — check the ID/type and try again.");
         }
     }
 }

@@ -35,6 +35,21 @@ public class ExperimentController {
         ));
     }
 
+    @GetMapping("/api/v1/transformations/{transformationId}/experiments/draft")
+    public ExperimentDraftDto draft(@PathVariable UUID transformationId) {
+        var draft = service.proposeDraft(transformationId);
+        return new ExperimentDraftDto(
+            draft.title(),
+            draft.hypothesis(),
+            draft.nextAction(),
+            draft.cadence(),
+            draft.evidenceOfSuccess(),
+            draft.source(),
+            draft.aiProvider(),
+            draft.aiModel()
+        );
+    }
+
     @GetMapping("/api/v1/experiments/{id}")
     public ExperimentDto get(@PathVariable UUID id) {
         return toDto(service.get(id));
@@ -75,5 +90,16 @@ public class ExperimentController {
         String reviewAt,
         String status,
         String createdAt
+    ) {}
+
+    public record ExperimentDraftDto(
+        String title,
+        String hypothesis,
+        String nextAction,
+        String cadence,
+        String evidenceOfSuccess,
+        String source,
+        String aiProvider,
+        String aiModel
     ) {}
 }
