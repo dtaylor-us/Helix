@@ -377,7 +377,14 @@ export function TodayPage() {
       {retrospectiveDraftQuery.data && retrospectiveDraftQuery.data.reflectionSummaries.length > 0 && (
         <section className="card">
           <h2>This week</h2>
-          <p>{retrospectiveDraftQuery.data.summary}</p>
+          <p>
+            {retrospectiveDraftQuery.data.summary}{' '}
+            {retrospectiveDraftQuery.data.source === 'AI' && (
+              <span className="muted">
+                (AI suggested{retrospectiveDraftQuery.data.aiProvider ? ` — ${retrospectiveDraftQuery.data.aiProvider}` : ''})
+              </span>
+            )}
+          </p>
           <p className="muted">{retrospectiveDraftQuery.data.assistance}</p>
           <Link to="/library" className="secondary-button">
             See full weekly retrospective

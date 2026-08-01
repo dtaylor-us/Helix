@@ -109,7 +109,14 @@ export function WisdomPage() {
     <div className="stack">
       <section className="card stack">
         <h2>Weekly retrospective</h2>
-        <p>{draftQuery.data.summary}</p>
+        <p>
+          {draftQuery.data.summary}{' '}
+          {draftQuery.data.source === 'AI' && (
+            <span className="muted">
+              (AI suggested{draftQuery.data.aiProvider ? ` — ${draftQuery.data.aiProvider}` : ''})
+            </span>
+          )}
+        </p>
         <p className="muted">{draftQuery.data.assistance}</p>
         <button onClick={() => saveRetrospective.mutate()} disabled={saveRetrospective.isPending}>
           Save weekly snapshot
