@@ -250,6 +250,29 @@ export interface CreateReflectionRequest {
   surprise?: string;
 }
 
+export interface ReflectionChatMessage {
+  role: "user" | "assistant";
+  text: string;
+}
+
+export interface ReflectionChatTurnResponse {
+  text: string;
+  source: "AI" | "DETERMINISTIC";
+  aiProvider?: string;
+  aiModel?: string;
+}
+
+export interface ReflectionChatFinishResponse {
+  content?: string;
+  attempted?: boolean;
+  noticed?: string;
+  evidenceNoted?: string;
+  surprise?: string;
+  source: "AI" | "DETERMINISTIC";
+  aiProvider?: string;
+  aiModel?: string;
+}
+
 export interface CreateReflectionResponse {
   reflection: Reflection;
   suggestion: Suggestion;

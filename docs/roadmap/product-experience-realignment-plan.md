@@ -1,6 +1,6 @@
 # Product Experience Realignment Plan
 
-Status: Phase 1 shipped; Phase 2 slice A (guided transformation + experiment creation) shipped; Phase 3 slice A (progressive reflection questions + morning/evening framing) shipped; Phase 4 slice A (contextual wisdom-capture prompt + weekly retrospective teaser on Today) shipped; Phase 5 slices A-C (AI-generated suggestions, AI weekly retrospective, AI-drafted experiment proposals) shipped; Phase 5 slice D (conversational reflection flow) scoped but not yet built — largest remaining slice, needs its own design pass; CurrentFocus projection, server-persisted onboarding state, and full evidence-extraction UX still open
+Status: Phase 1 shipped; Phase 2 slice A (guided transformation + experiment creation) shipped; Phase 3 slice A (progressive reflection questions + morning/evening framing) shipped; Phase 4 slice A (contextual wisdom-capture prompt + weekly retrospective teaser on Today) shipped; Phase 5 slices A-D (AI-generated suggestions, AI weekly retrospective, AI-drafted experiment proposals, conversational reflection flow) shipped; CurrentFocus projection, server-persisted onboarding state, and full evidence-extraction UX still open
 Owner: Agent-assisted delivery session, 2026-07-27
 Source: External architecture/UX review of the `main` branch (2026-07-27), reconciled against the actual repository state in this document.
 
@@ -219,40 +219,22 @@ shippable, mirroring the delivery discipline used in Phases 1-4:
   unchanged "Save experiment" button — per ADR-008, nothing AI-drafted becomes a real experiment
   without that explicit, editable review step. Manual experiment creation is completely unchanged;
   the draft button is additive.
-- **Slice D — Conversational reflection flow (scoped 2026-08-01, not yet built).** Replace the
-  structured reflection form (main answer + up to three progressive follow-up questions) with a
-  chat-style exchange: the user describes what happened in their own words, and the AI asks
-  clarifying follow-ups conversationally instead of from a fixed question bank
-  (`REFLECTION_FOLLOW_UP_QUESTIONS`). Scoped directly with the user via `AskUserQuestion` (the
-  first attempt used developer-jargon phrasing the user flagged as unclear — "I don't understand
-  the question" — and was re-asked in plain language before these decisions were made):
-  - **Chat fully replaces the form**, rather than supplementing it. `TodayPage`'s "Morning
-    check-in"/"Evening review" section becomes a chat UI; the existing progressive-follow-up form
-    and `REFLECTION_FOLLOW_UP_QUESTIONS` are retired from that surface (the content module itself
-    can remain, unused, rather than being deleted outright).
-  - **The user decides when they're done**, via an explicit "I'm done" action — no fixed AI-turn
-    cap. The AI can ask as many or as few clarifying questions as it judges useful; nothing forces
-    the exchange to resolve after N turns.
-  - **The AI still sorts the conversation into the same 4 boxes** the app already stores per
-    reflection (the main "what happened" answer, plus the `noticed`/`evidenceNoted`/`surprise`
-    follow-ups) — the chat transcript is not saved as free-form text instead of those fields. A
-    second AI call, run once the user signals they're done, reads the full transcript and proposes
-    values for all four fields; the user reviews and edits this structured proposal (an ADR-008
-    propose-then-accept step) before the existing, unmodified `POST /api/v1/experiments/{id}/reflections`
-    endpoint is called to actually save it.
-  - **Reflection capture now requires network connectivity going forward.** ADR-012 currently
-    guarantees reflection drafting works fully offline; a live back-and-forth with a model cannot.
-    This needs a new ADR (ADR-017) that narrows ADR-012 specifically for reflection capture,
-    documenting that composing/typing a message can still be locally buffered, but sending a
-    message to the AI and finishing/structuring a reflection require a live connection.
-  - Not yet built: `AiAssistantPort` needs two new methods (a chat-turn method, likely reusing the
-    `AiSuggestion`-shaped record, and a transcript-to-structured-fields method returning a new
-    record shaped like the four reflection fields plus provenance), implemented across all three
-    adapters; a new stateless chat endpoint pair (turn / finish) that persists nothing itself; and
-    the `TodayPage` chat UI plus an editable review step before save. This remains the largest
-    single piece of Phase 5 and is sequenced after Slices A-C ship as reviewable PRs.
+- **Slice D — Conversational reflection flow (this session, shipped).** The structured reflection
+  form on Today was fully replaced with a chat-based capture flow. `AiAssistantPort` gained
+  `continueReflectionChat(String)` and `structureReflection(String)`, implemented in OpenAI/Ollama/NoAI
+  adapters using the same circuit-breaker/fallback and labeled-line parsing conventions as slices
+  B/C. A new stateless reflection-chat surface was added in the reflection module:
+  `POST /api/v1/experiments/{id}/reflection-chat/turn` returns the next assistant turn, and
+  `POST /api/v1/experiments/{id}/reflection-chat/finish` returns an AI-proposed structured draft
+  (`content`, `attempted`, `noticed`, `evidenceNoted`, `surprise`) plus provenance. Neither endpoint
+  persists anything; persistence still only happens through the unchanged
+  `POST /api/v1/experiments/{id}/reflections` flow after explicit user review/edit (ADR-008).
+  `TodayPage` now uses the chat transcript to drive this propose → review → save path, with an
+  explicit "I'm done — review my reflection" action and a clear connection-required error when turn
+  or finish calls fail. Local buffering was narrowed to unsent message text only
+  (`helix:reflection-chat-draft:<experimentId>`), formalized by ADR-017.
 
-Deliberately **not** touched by Slices A-C:
+Deliberately **not** touched by Slices A-D:
 - `AiProperties.timeoutSeconds` / `retryMaxAttempts` / `retryDelayMs` remain unused by any adapter
   (pre-existing gap, not introduced by these slices) — a slow OpenAI response will block the calling
   request rather than timing out into the circuit breaker. Flagged in ADR-016 as follow-up work,
@@ -260,6 +242,9 @@ Deliberately **not** touched by Slices A-C:
 - No changes to `suggestReflectiveQuestion` or its (currently uncalled) usage — it remains dormant.
 - `AiOrchestrationService`'s health polling still bypasses the port abstraction and isn't wired into
   any live request path; left as pre-existing behavior.
+- Slice D intentionally did **not** modify `ReflectionController`, `ReflectionService.create(...)`,
+  or the `reflections` persistence model/table; the chat endpoints are additive and stateless, and
+  final save still goes through the pre-existing reflection create path unchanged.
 - Slice C's AI-drafted proposal only covers the *first* experiment for a transformation's stated
   purpose/identity/obstacle — it doesn't look at prior experiments/reflections/evidence for that
   transformation the way a genuinely adaptive coach might. Acceptable for a first slice; flagged as
@@ -269,18 +254,10 @@ Deliberately **not** touched by Slices A-C:
   module owning its own domain vocabulary (ADR-001) rather than introducing a cross-module domain
   dependency for a two-value enum.
 
-Verification for Slices A-C:
-- Backend changes could not be compiled or run in this sandbox (no JDK 21 available, per the
-  constraint noted in every earlier phase) — hand-reviewed only, including a repo-wide grep for every
-  call site of the constructors/methods that changed shape (`new ExperimentService(`,
-  `new WeeklyRetrospectiveService(`, `new ReflectionService(`, `new SuggestionEntity(`,
-  `new WeeklyRetrospectiveEntity(`) to confirm nothing else broke. `./scripts/test-backend` and
-  `./scripts/verify-architecture` (ArchUnit layering test) need to be run by the user or CI before
-  merging.
-- Frontend (`packages/contracts`, `TodayPage.tsx`/`.test.tsx`, `WisdomPage.tsx`,
-  `TransformationDetailPage.tsx` + new `.test.tsx`) verified via `npm run typecheck`, `npm run lint`,
-  `npm run test` (15 tests / 8 files), and `npm run build` against a scratch clone.
-- `./scripts/check-docs` run against the doc changes in these slices.
-- No live call against a real OpenAI API key was possible in this sandbox (no network egress to
-  `api.openai.com`); the adapters' parsing logic for the new labeled-line response formats was
-  reviewed by hand but not exercised against an actual model response.
+Verification for Slices A-D:
+- Backend (`apps/api`): `./scripts/test-backend` and `./scripts/verify-architecture` both passed.
+- Frontend (`apps/web`): this environment has no Node/npm toolchain (`node`, `npm`, `npx` not found),
+  so `npm run typecheck`, `npm run lint`, `npx vitest run`, and `npm run build` could not be run here.
+- Docs: `./scripts/check-docs` passed.
+- No live call against a real OpenAI API key was possible in this sandbox; the new reflection-chat
+  prompts/parsing were validated through code review and deterministic-fallback tests.

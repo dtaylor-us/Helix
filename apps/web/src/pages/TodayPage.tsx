@@ -2,19 +2,34 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { TermHint } from '../components/TermHint'
-import { REFLECTION_FOLLOW_UP_QUESTIONS } from '../content/reflectionQuestions'
 import { api } from '../api/http'
 
-const DRAFT_KEY_PREFIX = 'helix:reflection-draft:'
+const CHAT_DRAFT_KEY_PREFIX = 'helix:reflection-chat-draft:'
+
+type ReflectionChatMessage = {
+  role: 'user' | 'assistant'
+  text: string
+}
+
+type ReflectionReviewDraft = {
+  content: string
+  attempted?: boolean
+  noticed?: string
+  evidenceNoted?: string
+  surprise?: string
+  source: 'AI' | 'DETERMINISTIC'
+  aiProvider?: string
+  aiModel?: string
+}
 
 export function TodayPage() {
   const queryClient = useQueryClient()
   const [errorText, setErrorText] = useState<string | null>(null)
   const [statusText, setStatusText] = useState<string | null>(null)
   const [replacementText, setReplacementText] = useState('')
-  const [attempted, setAttempted] = useState<boolean | undefined>(undefined)
-  const [followUps, setFollowUps] = useState<Record<string, string | undefined>>({})
-  const [revealedFollowUps, setRevealedFollowUps] = useState(0)
+  const [chatTranscript, setChatTranscript] = useState<ReflectionChatMessage[]>([])
+  const [chatDraft, setChatDraft] = useState('')
+  const [reflectionReview, setReflectionReview] = useState<ReflectionReviewDraft | null>(null)
   const [wisdomDraft, setWisdomDraft] = useState<{ reflectionId: string; statement: string } | null>(null)
   const [wisdomStatusText, setWisdomStatusText] = useState<string | null>(null)
 
@@ -30,23 +45,17 @@ export function TodayPage() {
   })
 
   const activeExperimentId = todayQuery.data?.activeExperiment?.id
-  const draftKey = activeExperimentId ? `${DRAFT_KEY_PREFIX}${activeExperimentId}` : null
+  const chatDraftKey = activeExperimentId ? `${CHAT_DRAFT_KEY_PREFIX}${activeExperimentId}` : null
 
-  // Reflection drafts are namespaced per experiment so switching experiments never shows a
-  // draft written for a different one. When the active experiment changes, load whatever was
-  // saved locally for it (or start blank), and reset the progressive follow-up questions too.
-  // This mirrors React's documented pattern for resetting state when a derived value changes,
-  // without a synchronous setState-in-effect. Only the main "what happened" content is
-  // persisted to localStorage; the optional follow-up answers are not (see known limitations
-  // in the development log).
+  // Chat input drafts are namespaced per experiment so switching experiments never shows text
+  // typed for a different one. Sent transcript turns are intentionally not persisted locally;
+  // finishing and structuring a reflection requires network connectivity (ADR-017).
   const [draftExperimentId, setDraftExperimentId] = useState<string | undefined>(undefined)
-  const [draft, setDraft] = useState('')
   if (activeExperimentId !== draftExperimentId) {
     setDraftExperimentId(activeExperimentId)
-    setDraft(draftKey ? localStorage.getItem(draftKey) ?? '' : '')
-    setAttempted(undefined)
-    setFollowUps({})
-    setRevealedFollowUps(0)
+    setChatDraft(chatDraftKey ? localStorage.getItem(chatDraftKey) ?? '' : '')
+    setChatTranscript([])
+    setReflectionReview(null)
     setWisdomDraft(null)
     setWisdomStatusText(null)
   }
@@ -68,11 +77,10 @@ export function TodayPage() {
         surprise: payload.surprise,
       }),
     onSuccess: (result, variables) => {
-      if (draftKey) localStorage.removeItem(draftKey)
-      setDraft('')
-      setAttempted(undefined)
-      setFollowUps({})
-      setRevealedFollowUps(0)
+      if (chatDraftKey) localStorage.removeItem(chatDraftKey)
+      setChatDraft('')
+      setChatTranscript([])
+      setReflectionReview(null)
       setErrorText(null)
       setStatusText('Reflection saved.')
       // Deterministically propose a wisdom statement from the most specific answer given,
@@ -88,6 +96,41 @@ export function TodayPage() {
     onError: () => {
       setStatusText(null)
       setErrorText('Reflection could not be saved. Your draft is kept on this device.')
+    },
+  })
+
+  const continueReflectionChatMutation = useMutation({
+    mutationFn: (payload: { experimentId: string; transcript: ReflectionChatMessage[] }) =>
+      api.continueReflectionChat(payload.experimentId, payload.transcript),
+    onSuccess: (response) => {
+      setChatTranscript((prev) => [...prev, { role: 'assistant', text: response.text }])
+      setErrorText(null)
+    },
+    onError: () => {
+      setStatusText(null)
+      setErrorText('You need a connection to continue this reflection.')
+    },
+  })
+
+  const finishReflectionChatMutation = useMutation({
+    mutationFn: (payload: { experimentId: string; transcript: ReflectionChatMessage[] }) =>
+      api.finishReflectionChat(payload.experimentId, payload.transcript),
+    onSuccess: (response) => {
+      setReflectionReview({
+        content: response.content ?? '',
+        attempted: response.attempted,
+        noticed: response.noticed ?? '',
+        evidenceNoted: response.evidenceNoted ?? '',
+        surprise: response.surprise ?? '',
+        source: response.source,
+        aiProvider: response.aiProvider,
+        aiModel: response.aiModel,
+      })
+      setErrorText(null)
+    },
+    onError: () => {
+      setStatusText(null)
+      setErrorText('You need a connection to continue this reflection.')
     },
   })
 
@@ -178,7 +221,6 @@ export function TodayPage() {
   const latestSuggestion = data.suggestionHistory[0]
   const hour = new Date().getHours()
   const isMorning = hour < 12
-  const nextFollowUp = REFLECTION_FOLLOW_UP_QUESTIONS[revealedFollowUps]
 
   return (
     <div className="stack">
@@ -258,78 +300,148 @@ export function TodayPage() {
             ? "Haven't tried today's action yet? That's alright — come back after you do, or jot down what's on your mind now."
             : 'What happened when you tried it today?'}
         </p>
-
-        <div className="row" role="group" aria-label="Did you try it?">
-          <span>Did you try it?</span>
-          <button
-            type="button"
-            className={attempted === true ? 'secondary-button active-item' : 'secondary-button'}
-            aria-pressed={attempted === true}
-            onClick={() => setAttempted(true)}
-          >
-            Yes
-          </button>
-          <button
-            type="button"
-            className={attempted === false ? 'secondary-button active-item' : 'secondary-button'}
-            aria-pressed={attempted === false}
-            onClick={() => setAttempted(false)}
-          >
-            Not yet
-          </button>
+        <div className="stack" role="log" aria-live="polite">
+          {chatTranscript.length === 0 ? (
+            <p className="muted">Start by sharing what happened. Helix will ask follow-up questions conversationally.</p>
+          ) : (
+            <ul>
+              {chatTranscript.map((message, index) => (
+                <li key={`${message.role}-${index}`}>
+                  <p className={message.role === 'assistant' ? 'muted' : undefined}>
+                    <strong>{message.role === 'assistant' ? 'Helix' : 'You'}:</strong> {message.text}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
-        <label htmlFor="reflection">What happened &mdash; or what&rsquo;s on your mind?</label>
-        <textarea
-          id="reflection"
-          value={draft}
-          onChange={(e) => {
-            setDraft(e.target.value)
-            setStatusText(null)
-            if (draftKey) localStorage.setItem(draftKey, e.target.value)
-          }}
-          rows={5}
-        />
-
-        {REFLECTION_FOLLOW_UP_QUESTIONS.slice(0, revealedFollowUps).map((question) => (
-          <div key={question.id} className="stack">
-            <label htmlFor={`reflection-${question.id}`}>{question.prompt}</label>
+        {!reflectionReview && (
+          <>
+            <label htmlFor="reflection-chat-draft">Your message</label>
             <textarea
-              id={`reflection-${question.id}`}
-              rows={2}
-              value={followUps[question.id] ?? ''}
-              onChange={(e) => setFollowUps((prev) => ({ ...prev, [question.id]: e.target.value }))}
-              placeholder={question.placeholder}
+              id="reflection-chat-draft"
+              value={chatDraft}
+              onChange={(e) => {
+                setChatDraft(e.target.value)
+                setStatusText(null)
+                if (chatDraftKey) localStorage.setItem(chatDraftKey, e.target.value)
+              }}
+              rows={4}
             />
-          </div>
-        ))}
-
-        {draft.trim().length > 0 && nextFollowUp && (
-          <div>
-            <button type="button" className="secondary-button" onClick={() => setRevealedFollowUps((n) => n + 1)}>
-              + {nextFollowUp.prompt}
-            </button>
-          </div>
+            <div className="row">
+              <button
+                type="button"
+                onClick={() => {
+                  const message = chatDraft.trim()
+                  if (!message) return
+                  const nextTranscript = [...chatTranscript, { role: 'user' as const, text: message }]
+                  setChatTranscript(nextTranscript)
+                  setChatDraft('')
+                  if (chatDraftKey) localStorage.removeItem(chatDraftKey)
+                  setStatusText(null)
+                  setErrorText(null)
+                  continueReflectionChatMutation.mutate({
+                    experimentId: data.activeExperiment!.id,
+                    transcript: nextTranscript,
+                  })
+                }}
+                disabled={!chatDraft.trim() || continueReflectionChatMutation.isPending || finishReflectionChatMutation.isPending}
+              >
+                {continueReflectionChatMutation.isPending ? 'Sending...' : 'Send'}
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() =>
+                  finishReflectionChatMutation.mutate({
+                    experimentId: data.activeExperiment!.id,
+                    transcript: chatTranscript,
+                  })
+                }
+                disabled={
+                  chatTranscript.length === 0 || continueReflectionChatMutation.isPending || finishReflectionChatMutation.isPending
+                }
+              >
+                {finishReflectionChatMutation.isPending ? 'Preparing review...' : "I'm done — review my reflection"}
+              </button>
+              <span className="muted">Unsent text is saved on this device while you type.</span>
+            </div>
+          </>
         )}
 
-        <div className="row">
-          <button
-            onClick={() =>
-              reflectMutation.mutate({
-                experimentId: data.activeExperiment!.id,
-                content: draft,
-                attempted,
-                noticed: followUps.noticed || undefined,
-                evidenceNoted: followUps.evidenceNoted || undefined,
-                surprise: followUps.surprise || undefined,
-              })
-            }
-            disabled={draft.trim().length === 0 || reflectMutation.isPending}
-          >
-            Save reflection
-          </button>
-          <span className="muted">Draft saved on this device while you type. Follow-up answers are not.</span>
-        </div>
+        {reflectionReview && (
+          <div className="stack">
+            <h3>Review before saving</h3>
+            {reflectionReview.source === 'AI' && (
+              <p className="muted">
+                (AI suggested{reflectionReview.aiProvider ? ` — ${reflectionReview.aiProvider}` : ''})
+              </p>
+            )}
+            <label htmlFor="reflection-review-content">What happened</label>
+            <textarea
+              id="reflection-review-content"
+              rows={4}
+              value={reflectionReview.content}
+              onChange={(e) => setReflectionReview({ ...reflectionReview, content: e.target.value })}
+            />
+            <label htmlFor="reflection-review-attempted">Did you try it?</label>
+            <select
+              id="reflection-review-attempted"
+              value={
+                reflectionReview.attempted === true ? 'yes' : reflectionReview.attempted === false ? 'no' : 'unknown'
+              }
+              onChange={(e) =>
+                setReflectionReview({
+                  ...reflectionReview,
+                  attempted: e.target.value === 'yes' ? true : e.target.value === 'no' ? false : undefined,
+                })
+              }
+            >
+              <option value="unknown">Not specified</option>
+              <option value="yes">Yes</option>
+              <option value="no">Not yet</option>
+            </select>
+            <label htmlFor="reflection-review-noticed">What did you notice internally?</label>
+            <textarea
+              id="reflection-review-noticed"
+              rows={2}
+              value={reflectionReview.noticed ?? ''}
+              onChange={(e) => setReflectionReview({ ...reflectionReview, noticed: e.target.value })}
+            />
+            <label htmlFor="reflection-review-evidence">What evidence did this give you?</label>
+            <textarea
+              id="reflection-review-evidence"
+              rows={2}
+              value={reflectionReview.evidenceNoted ?? ''}
+              onChange={(e) => setReflectionReview({ ...reflectionReview, evidenceNoted: e.target.value })}
+            />
+            <label htmlFor="reflection-review-surprise">What surprised you?</label>
+            <textarea
+              id="reflection-review-surprise"
+              rows={2}
+              value={reflectionReview.surprise ?? ''}
+              onChange={(e) => setReflectionReview({ ...reflectionReview, surprise: e.target.value })}
+            />
+            <div className="row">
+              <button
+                onClick={() =>
+                  reflectMutation.mutate({
+                    experimentId: data.activeExperiment!.id,
+                    content: reflectionReview.content,
+                    attempted: reflectionReview.attempted,
+                    noticed: reflectionReview.noticed?.trim() ? reflectionReview.noticed : undefined,
+                    evidenceNoted: reflectionReview.evidenceNoted?.trim() ? reflectionReview.evidenceNoted : undefined,
+                    surprise: reflectionReview.surprise?.trim() ? reflectionReview.surprise : undefined,
+                  })
+                }
+                disabled={!reflectionReview.content.trim() || reflectMutation.isPending}
+              >
+                Save reflection
+              </button>
+            </div>
+          </div>
+        )}
         <p role="status" aria-live="polite" className="muted">
           {statusText}{' '}
           {statusText === 'Reflection saved.' && (

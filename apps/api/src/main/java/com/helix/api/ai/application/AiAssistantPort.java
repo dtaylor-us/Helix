@@ -28,10 +28,36 @@ public interface AiAssistantPort {
      */
     AiExperimentDraft proposeExperiment(String context);
 
+    /**
+     * Continue a reflection chat: given the transcript so far, produce the AI's next message (a
+     * clarifying question or a closing remark). Stateless — the caller passes the full transcript
+     * each time; nothing is persisted by this call. See ADR-017 (Phase 5 slice D).
+     */
+    AiSuggestion continueReflectionChat(String context);
+
+    /**
+     * Structure a finished reflection chat transcript into the same four fields a reflection is
+     * normally persisted with. Nothing is persisted by this call alone — per ADR-008, the caller
+     * must route the result through the normal explicit-review/accept flow (the existing
+     * POST /api/v1/experiments/{id}/reflections endpoint) before anything is saved. See ADR-017.
+     */
+    AiReflectionStructure structureReflection(String context);
+
     record AiSuggestion(String text, String provider, String model, String promptVersion, boolean deterministicFallback) {}
 
     record AiWeeklySummary(String summary, String assistance, String provider, String model, boolean deterministicFallback) {}
 
     record AiExperimentDraft(String title, String hypothesis, String nextAction, String cadence,
                              String evidenceOfSuccess, String provider, String model, boolean deterministicFallback) {}
+
+    record AiReflectionStructure(
+        String content,
+        Boolean attempted,
+        String noticed,
+        String evidenceNoted,
+        String surprise,
+        String provider,
+        String model,
+        boolean deterministicFallback
+    ) {}
 }

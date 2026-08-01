@@ -200,6 +200,91 @@ public class OllamaAssistantAdapter implements AiAssistantPort {
         }
     }
 
+    @Override
+    public AiSuggestion continueReflectionChat(String context) {
+        if (!isAvailable && System.currentTimeMillis() - lastFailureTime < AVAILABILITY_RESET_MS) {
+            return createReflectionChatFallback();
+        }
+
+        try {
+            OllamaRequest request = buildReflectionChatRequest(context);
+            OllamaResponse response = restClient.post()
+                .uri("/api/generate")
+                .body(request)
+                .retrieve()
+                .onStatus(status -> !status.is2xxSuccessful(),
+                    (httpRequest, httpResponse) -> {
+                        throw new OllamaException("Ollama API error: " + httpResponse.getStatusCode());
+                    })
+                .toEntity(OllamaResponse.class)
+                .getBody();
+
+            if (response == null || response.response == null || response.response.isEmpty()) {
+                recordFailure();
+                return createReflectionChatFallback();
+            }
+
+            isAvailable = true;
+            return new AiSuggestion(
+                response.response.trim(),
+                "ollama",
+                aiProperties.getOllama().getModel(),
+                "v1",
+                false
+            );
+        } catch (RestClientException | OllamaException e) {
+            recordFailure();
+            return createReflectionChatFallback();
+        }
+    }
+
+    @Override
+    public AiReflectionStructure structureReflection(String context) {
+        if (!isAvailable && System.currentTimeMillis() - lastFailureTime < AVAILABILITY_RESET_MS) {
+            return createReflectionStructureFallback();
+        }
+
+        try {
+            OllamaRequest request = buildReflectionStructureRequest(context);
+            OllamaResponse response = restClient.post()
+                .uri("/api/generate")
+                .body(request)
+                .retrieve()
+                .onStatus(status -> !status.is2xxSuccessful(),
+                    (httpRequest, httpResponse) -> {
+                        throw new OllamaException("Ollama API error: " + httpResponse.getStatusCode());
+                    })
+                .toEntity(OllamaResponse.class)
+                .getBody();
+
+            if (response == null || response.response == null || response.response.isEmpty()) {
+                recordFailure();
+                return createReflectionStructureFallback();
+            }
+
+            String content = extractLabeledLine(response.response, "CONTENT");
+            if (content == null || content.isBlank()) {
+                recordFailure();
+                return createReflectionStructureFallback();
+            }
+
+            isAvailable = true;
+            return new AiReflectionStructure(
+                content,
+                parseAttempted(extractLabeledLine(response.response, "ATTEMPTED")),
+                extractLabeledLine(response.response, "NOTICED"),
+                extractLabeledLine(response.response, "EVIDENCE"),
+                extractLabeledLine(response.response, "SURPRISE"),
+                "ollama",
+                aiProperties.getOllama().getModel(),
+                false
+            );
+        } catch (RestClientException | OllamaException e) {
+            recordFailure();
+            return createReflectionStructureFallback();
+        }
+    }
+
     /**
      * Check if this adapter is currently available.
      * Implements circuit-breaker pattern to prevent cascading failures.
@@ -333,6 +418,69 @@ public class OllamaAssistantAdapter implements AiAssistantPort {
         );
     }
 
+    private OllamaRequest buildReflectionChatRequest(String context) {
+        String prompt = """
+            You are a warm, concise reflection coach helping someone process today's experiment.
+            Given the conversation so far, reply with exactly one short, natural follow-up question
+            that helps clarify what happened or what they noticed. If no further clarification seems
+            useful, reply with one short encouraging closing remark instead.
+            Keep your response to 1-2 sentences, no markdown, no preamble.
+
+            Conversation:
+            %s""".formatted(context);
+
+        OllamaRequest request = new OllamaRequest();
+        request.model = aiProperties.getOllama().getModel();
+        request.prompt = prompt;
+        request.stream = false;
+        request.temperature = aiProperties.getOllama().getTemperature();
+        return request;
+    }
+
+    private AiSuggestion createReflectionChatFallback() {
+        return new AiSuggestion(
+            "What else stood out about today?",
+            "ollama",
+            aiProperties.getOllama().getModel(),
+            "v1",
+            true
+        );
+    }
+
+    private OllamaRequest buildReflectionStructureRequest(String context) {
+        String prompt = """
+            You are helping structure a completed reflection chat for later user review before save.
+            Respond with EXACTLY these labeled lines, no markdown, no preamble:
+            CONTENT: <a first-person narrative summary of what happened, written as if the user said it>
+            ATTEMPTED: <yes or no>
+            NOTICED: <what they noticed internally, or omit if nothing useful>
+            EVIDENCE: <what evidence this gave them, or omit if nothing useful>
+            SURPRISE: <what surprised them, or omit if nothing useful>
+
+            Conversation:
+            %s""".formatted(context);
+
+        OllamaRequest request = new OllamaRequest();
+        request.model = aiProperties.getOllama().getModel();
+        request.prompt = prompt;
+        request.stream = false;
+        request.temperature = aiProperties.getOllama().getTemperature();
+        return request;
+    }
+
+    private AiReflectionStructure createReflectionStructureFallback() {
+        return new AiReflectionStructure(
+            "I reflected on what happened today and noticed a few meaningful moments.",
+            null,
+            null,
+            null,
+            null,
+            "ollama",
+            aiProperties.getOllama().getModel(),
+            true
+        );
+    }
+
     /**
      * Extract the value of a "LABEL: value" line from a model response. Returns null if the label
      * isn't present. Only looks at the first matching line (responses are prompted to be single-line
@@ -348,6 +496,16 @@ public class OllamaAssistantAdapter implements AiAssistantPort {
             }
         }
         return null;
+    }
+
+    private static Boolean parseAttempted(String raw) {
+        if (raw == null) return null;
+        String normalized = raw.trim().toLowerCase();
+        return switch (normalized) {
+            case "yes", "true" -> true;
+            case "no", "false" -> false;
+            default -> null;
+        };
     }
 
     private void recordFailure() {

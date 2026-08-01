@@ -2,6 +2,65 @@
 
 This log is updated at the end of significant delivery sessions.
 
+## 2026-08-01 Session - Product Experience Realignment, Phase 5 Slice D: Conversational Reflection Flow
+
+Summary:
+- Implemented the final Phase 5 slice by replacing Today’s structured reflection form with a
+  conversational AI chat flow that ends in an explicit review/edit step before save.
+- Kept reflection persistence behavior unchanged: only the existing
+  `POST /api/v1/experiments/{id}/reflections` path writes data.
+
+Changes:
+- Backend (`apps/api`):
+  - Extended `AiAssistantPort` with `continueReflectionChat(String)` and
+    `structureReflection(String)` plus new `AiReflectionStructure` record.
+  - Implemented both methods across OpenAI/Ollama/NoAI adapters with existing circuit-breaker
+    fallback patterns and labeled-line parsing for the structuring response.
+  - Added a new stateless reflection-chat surface in the reflection module:
+    `ReflectionChatService` + `ReflectionChatController` with:
+    - `POST /api/v1/experiments/{id}/reflection-chat/turn`
+    - `POST /api/v1/experiments/{id}/reflection-chat/finish`
+    Both endpoints validate experiment existence and persist nothing.
+  - Added `ReflectionChatServiceTest` and expanded adapter tests for the new methods.
+- Frontend (`apps/web`, `packages/contracts`):
+  - Added reflection-chat contracts (`ReflectionChatMessage`, turn/finish response types).
+  - Added `api.continueReflectionChat(...)` and `api.finishReflectionChat(...)`.
+  - Replaced `TodayPage` reflection form UI with:
+    - transcript view + message input/send,
+    - explicit "I’m done — review my reflection" action,
+    - editable structured-review form for `content`/`attempted`/`noticed`/`evidenceNoted`/`surprise`,
+    - save via existing `api.createReflection(...)` call.
+  - Added local buffering for unsent input text only:
+    `helix:reflection-chat-draft:<experimentId>`.
+  - Reworked Today tests to cover chat-turn flow, finish review/edit/save flow, and clear
+    connection-required error handling.
+- Docs/governance:
+  - Added ADR-017 (`docs/decisions/ADR-017-network-required-for-reflection-chat-capture.md`)
+    narrowing ADR-012 for reflection capture.
+  - Updated ADR index, traceability matrix, running-app guide, and Phase 5 roadmap status/details.
+
+Governance:
+- ADR-008 preserved: AI output remains proposal-only until explicit user review/edit/accept.
+- ADR-017 added: reflection chat send/finish is network-required; local draft buffering narrowed to
+  unsent text only.
+- ADR-012 is narrowed (not removed) by ADR-017 for this specific flow.
+
+Verification:
+- Backend:
+  - `./scripts/test-backend` passed.
+  - `./scripts/verify-architecture` passed.
+- Frontend:
+  - Could not run `npm run typecheck`, `npm run lint`, `npx vitest run`, or `npm run build` in
+    this environment because Node/npm are unavailable (`node`/`npm` commands not found).
+- Docs:
+  - `./scripts/check-docs` passed.
+
+Known limitations / follow-ups:
+- No live provider round-trip against a real OpenAI API key was exercised here; new adapter prompts
+  and parsing were validated via code review and fallback-path tests.
+- Reflection chat transcript is intentionally not persisted across reloads; only unsent draft text is
+  buffered locally (per ADR-017 scope).
+
 ## 2026-08-01 Session - Product Experience Realignment, Phase 5 Slices B & C: AI Weekly Retrospective + AI-Drafted Experiments
 
 Summary:

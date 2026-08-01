@@ -212,6 +212,93 @@ public class OpenAiAssistantAdapter implements AiAssistantPort {
         }
     }
 
+    @Override
+    public AiSuggestion continueReflectionChat(String context) {
+        if (!isAvailable && System.currentTimeMillis() - lastFailureTime < AVAILABILITY_RESET_MS) {
+            return createReflectionChatFallback();
+        }
+
+        try {
+            OpenAiRequest request = buildReflectionChatRequest(context);
+            OpenAiResponse response = restClient.post()
+                .uri("/v1/chat/completions")
+                .body(request)
+                .retrieve()
+                .onStatus(status -> !status.is2xxSuccessful(),
+                    (httpRequest, httpResponse) -> {
+                        throw new OpenAiException("OpenAI API error: " + httpResponse.getStatusCode());
+                    })
+                .toEntity(OpenAiResponse.class)
+                .getBody();
+
+            if (response == null || response.choices == null || response.choices.isEmpty()) {
+                recordFailure();
+                return createReflectionChatFallback();
+            }
+
+            String text = response.choices.get(0).message.content;
+            isAvailable = true;
+            return new AiSuggestion(
+                text == null ? null : text.trim(),
+                "openai",
+                aiProperties.getOpenai().getModel(),
+                "v1",
+                false
+            );
+        } catch (RestClientException | OpenAiException e) {
+            recordFailure();
+            return createReflectionChatFallback();
+        }
+    }
+
+    @Override
+    public AiReflectionStructure structureReflection(String context) {
+        if (!isAvailable && System.currentTimeMillis() - lastFailureTime < AVAILABILITY_RESET_MS) {
+            return createReflectionStructureFallback();
+        }
+
+        try {
+            OpenAiRequest request = buildReflectionStructureRequest(context);
+            OpenAiResponse response = restClient.post()
+                .uri("/v1/chat/completions")
+                .body(request)
+                .retrieve()
+                .onStatus(status -> !status.is2xxSuccessful(),
+                    (httpRequest, httpResponse) -> {
+                        throw new OpenAiException("OpenAI API error: " + httpResponse.getStatusCode());
+                    })
+                .toEntity(OpenAiResponse.class)
+                .getBody();
+
+            if (response == null || response.choices == null || response.choices.isEmpty()) {
+                recordFailure();
+                return createReflectionStructureFallback();
+            }
+
+            String text = response.choices.get(0).message.content;
+            String content = extractLabeledLine(text, "CONTENT");
+            if (content == null || content.isBlank()) {
+                recordFailure();
+                return createReflectionStructureFallback();
+            }
+
+            isAvailable = true;
+            return new AiReflectionStructure(
+                content,
+                parseAttempted(extractLabeledLine(text, "ATTEMPTED")),
+                extractLabeledLine(text, "NOTICED"),
+                extractLabeledLine(text, "EVIDENCE"),
+                extractLabeledLine(text, "SURPRISE"),
+                "openai",
+                aiProperties.getOpenai().getModel(),
+                false
+            );
+        } catch (RestClientException | OpenAiException e) {
+            recordFailure();
+            return createReflectionStructureFallback();
+        }
+    }
+
     /**
      * Check if this adapter is currently available.
      * Implements circuit-breaker pattern to prevent cascading failures.
@@ -349,6 +436,71 @@ public class OpenAiAssistantAdapter implements AiAssistantPort {
         );
     }
 
+    private OpenAiRequest buildReflectionChatRequest(String context) {
+        String systemPrompt = """
+            You are a warm, concise reflection coach helping someone process today's experiment.
+            Given the conversation so far, reply with exactly one short, natural follow-up question
+            that helps clarify what happened or what they noticed. If no further clarification seems
+            useful, reply with one short encouraging closing remark instead.
+            Keep your response to 1-2 sentences, no markdown, no preamble.
+            """;
+
+        OpenAiRequest request = new OpenAiRequest();
+        request.model = aiProperties.getOpenai().getModel();
+        request.temperature = aiProperties.getOpenai().getTemperature();
+        request.maxTokens = aiProperties.getOpenai().getMaxTokens();
+        request.messages = List.of(
+            new OpenAiRequest.Message("system", systemPrompt),
+            new OpenAiRequest.Message("user", context)
+        );
+        return request;
+    }
+
+    private AiSuggestion createReflectionChatFallback() {
+        return new AiSuggestion(
+            "What else stood out about today?",
+            "openai",
+            aiProperties.getOpenai().getModel(),
+            "v1",
+            true
+        );
+    }
+
+    private OpenAiRequest buildReflectionStructureRequest(String context) {
+        String systemPrompt = """
+            You are helping structure a completed reflection chat for later user review before save.
+            Respond with EXACTLY these labeled lines, no markdown, no preamble:
+            CONTENT: <a first-person narrative summary of what happened, written as if the user said it>
+            ATTEMPTED: <yes or no>
+            NOTICED: <what they noticed internally, or omit if nothing useful>
+            EVIDENCE: <what evidence this gave them, or omit if nothing useful>
+            SURPRISE: <what surprised them, or omit if nothing useful>
+            """;
+
+        OpenAiRequest request = new OpenAiRequest();
+        request.model = aiProperties.getOpenai().getModel();
+        request.temperature = aiProperties.getOpenai().getTemperature();
+        request.maxTokens = aiProperties.getOpenai().getMaxTokens();
+        request.messages = List.of(
+            new OpenAiRequest.Message("system", systemPrompt),
+            new OpenAiRequest.Message("user", context)
+        );
+        return request;
+    }
+
+    private AiReflectionStructure createReflectionStructureFallback() {
+        return new AiReflectionStructure(
+            "I reflected on what happened today and noticed a few meaningful moments.",
+            null,
+            null,
+            null,
+            null,
+            "openai",
+            aiProperties.getOpenai().getModel(),
+            true
+        );
+    }
+
     /**
      * Extract the value of a "LABEL: value" line from a model response. Returns null if the label
      * isn't present. Only looks at the first matching line (responses are prompted to be single-line
@@ -364,6 +516,16 @@ public class OpenAiAssistantAdapter implements AiAssistantPort {
             }
         }
         return null;
+    }
+
+    private static Boolean parseAttempted(String raw) {
+        if (raw == null) return null;
+        String normalized = raw.trim().toLowerCase();
+        return switch (normalized) {
+            case "yes", "true" -> true;
+            case "no", "false" -> false;
+            default -> null;
+        };
     }
 
     private void recordFailure() {

@@ -16,6 +16,9 @@ import type {
   MemoryProposalDetail,
   MemoryProposalRevision,
   Reflection,
+  ReflectionChatFinishResponse,
+  ReflectionChatMessage,
+  ReflectionChatTurnResponse,
   ReviewMemoryProposalRequest,
   ReviseBeliefRequest,
   ReviseMemoryProposalRequest,
@@ -78,6 +81,16 @@ export const api = {
     request<CreateReflectionResponse>(`/api/v1/experiments/${experimentId}/reflections`, {
       method: 'POST',
       body: JSON.stringify(payload),
+    }),
+  continueReflectionChat: (experimentId: string, transcript: ReflectionChatMessage[]) =>
+    request<ReflectionChatTurnResponse>(`/api/v1/experiments/${experimentId}/reflection-chat/turn`, {
+      method: 'POST',
+      body: JSON.stringify({ transcript }),
+    }),
+  finishReflectionChat: (experimentId: string, transcript: ReflectionChatMessage[]) =>
+    request<ReflectionChatFinishResponse>(`/api/v1/experiments/${experimentId}/reflection-chat/finish`, {
+      method: 'POST',
+      body: JSON.stringify({ transcript }),
     }),
   listBeliefs: () => request<Belief[]>('/api/v1/beliefs'),
   createBelief: (payload: CreateBeliefRequest) =>

@@ -119,4 +119,26 @@ class OpenAiAssistantAdapterTest {
 
         assertThat(action.text()).isNotEqualTo(question.text());
     }
+
+    @Test
+    @DisplayName("continueReflectionChat should fall back gracefully without a reachable provider")
+    void testContinueReflectionChatFallback() {
+        AiAssistantPort.AiSuggestion response = adapter.continueReflectionChat("User: I paused once.");
+
+        assertThat(response).isNotNull();
+        assertThat(response.provider()).isEqualTo("openai");
+        assertThat(response.deterministicFallback()).isTrue();
+        assertThat(response.text()).isNotEmpty();
+    }
+
+    @Test
+    @DisplayName("structureReflection should return deterministic structure when provider unavailable")
+    void testStructureReflectionFallback() {
+        AiAssistantPort.AiReflectionStructure response = adapter.structureReflection("User: I paused once.");
+
+        assertThat(response).isNotNull();
+        assertThat(response.provider()).isEqualTo("openai");
+        assertThat(response.deterministicFallback()).isTrue();
+        assertThat(response.content()).isNotBlank();
+    }
 }
