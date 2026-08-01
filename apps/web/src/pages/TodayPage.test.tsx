@@ -4,11 +4,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider, createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
 import { TodayPage } from './TodayPage'
 import { api } from '../api/http'
+import type { Reflection, Suggestion } from '../../../../packages/contracts/src'
 
 vi.mock('../api/http', () => ({
   api: {
-    getToday: vi.fn(),
-    listTransformations: vi.fn(),
+    getCurrentFocus: vi.fn(),
     createReflection: vi.fn(),
     continueReflectionChat: vi.fn(),
     finishReflectionChat: vi.fn(),
@@ -17,6 +17,8 @@ vi.mock('../api/http', () => ({
     replaceSuggestion: vi.fn(),
     getWeeklyRetrospectiveDraft: vi.fn(),
     createWisdom: vi.fn(),
+    proposeMemoryDraft: vi.fn(),
+    createMemoryProposal: vi.fn(),
   },
 }))
 
@@ -27,6 +29,35 @@ const EMPTY_RETROSPECTIVE_DRAFT = {
   summary: '',
   assistance: '',
   source: 'DETERMINISTIC' as const,
+}
+
+const BASE_TRANSFORMATIONS = [{ id: 't-1', title: 'Become more peaceful', createdAt: '2026-01-01T00:00:00Z' }]
+
+const BASE_ACTIVE_EXPERIMENT = {
+  id: 'e-1',
+  transformationId: 't-1',
+  title: 'Pause before responding',
+  hypothesis: 'Pausing helps me respond calmly',
+  status: 'ACTIVE' as const,
+  createdAt: '2026-01-01T00:00:00Z',
+}
+
+/** A Today/current-focus response for a user who has already completed onboarding (Phase 7) with an active experiment. */
+function activeExperimentFocus(overrides: Partial<{
+  activeExperiment: typeof BASE_ACTIVE_EXPERIMENT
+  reflectionHistory: Reflection[]
+  suggestionHistory: Suggestion[]
+  transformations: typeof BASE_TRANSFORMATIONS
+}> = {}) {
+  return {
+    onboardingStatus: 'COMPLETE' as const,
+    transformations: BASE_TRANSFORMATIONS,
+    hasActiveExperiment: true,
+    activeExperiment: BASE_ACTIVE_EXPERIMENT,
+    reflectionHistory: [],
+    suggestionHistory: [],
+    ...overrides,
+  }
 }
 
 function renderTodayPage() {
@@ -72,8 +103,7 @@ function renderTodayPage() {
 
 describe('TodayPage', () => {
   afterEach(() => {
-    vi.mocked(api.getToday).mockReset()
-    vi.mocked(api.listTransformations).mockReset()
+    vi.mocked(api.getCurrentFocus).mockReset()
     vi.mocked(api.createReflection).mockReset()
     vi.mocked(api.continueReflectionChat).mockReset()
     vi.mocked(api.finishReflectionChat).mockReset()
@@ -82,24 +112,26 @@ describe('TodayPage', () => {
     vi.mocked(api.replaceSuggestion).mockReset()
     vi.mocked(api.getWeeklyRetrospectiveDraft).mockReset()
     vi.mocked(api.createWisdom).mockReset()
+    vi.mocked(api.proposeMemoryDraft).mockReset()
+    vi.mocked(api.createMemoryProposal).mockReset()
   })
 
   it('shows loading state', async () => {
-    vi.mocked(api.getToday).mockReturnValue(new Promise(() => {}))
-    vi.mocked(api.listTransformations).mockReturnValue(new Promise(() => {}))
+    vi.mocked(api.getCurrentFocus).mockReturnValue(new Promise(() => {}))
     renderTodayPage()
 
     expect(await screen.findByText(/Loading your active context/i)).toBeInTheDocument()
   })
 
-  it('shows a welcome/first-use state when there are no transformations yet', async () => {
-    vi.mocked(api.getToday).mockResolvedValue({
+  it('shows a welcome/first-use state when onboarding has not started', async () => {
+    vi.mocked(api.getCurrentFocus).mockResolvedValue({
+      onboardingStatus: 'NOT_STARTED',
+      transformations: [],
       hasActiveExperiment: false,
       activeExperiment: null,
       reflectionHistory: [],
       suggestionHistory: [],
     })
-    vi.mocked(api.listTransformations).mockResolvedValue([])
 
     renderTodayPage()
 
@@ -108,15 +140,14 @@ describe('TodayPage', () => {
   })
 
   it('shows a direct call to action when a transformation exists but no experiment is active', async () => {
-    vi.mocked(api.getToday).mockResolvedValue({
+    vi.mocked(api.getCurrentFocus).mockResolvedValue({
+      onboardingStatus: 'FIRST_TRANSFORMATION_CREATED',
+      transformations: BASE_TRANSFORMATIONS,
       hasActiveExperiment: false,
       activeExperiment: null,
       reflectionHistory: [],
       suggestionHistory: [],
     })
-    vi.mocked(api.listTransformations).mockResolvedValue([
-      { id: 't-1', title: 'Become more peaceful', createdAt: '2026-01-01T00:00:00Z' },
-    ])
     vi.mocked(api.getWeeklyRetrospectiveDraft).mockResolvedValue(EMPTY_RETROSPECTIVE_DRAFT)
 
     renderTodayPage()
@@ -125,17 +156,7 @@ describe('TodayPage', () => {
   })
 
   it('orders the suggested action above the reflection prompt and does not leak roadmap language', async () => {
-    vi.mocked(api.getToday).mockResolvedValue({
-      hasActiveExperiment: true,
-      activeExperiment: {
-        id: 'e-1',
-        transformationId: 't-1',
-        title: 'Pause before responding',
-        hypothesis: 'Pausing helps me respond calmly',
-        status: 'ACTIVE',
-        createdAt: '2026-01-01T00:00:00Z',
-      },
-      reflectionHistory: [],
+    vi.mocked(api.getCurrentFocus).mockResolvedValue(activeExperimentFocus({
       suggestionHistory: [
         {
           id: 's-1',
@@ -148,10 +169,7 @@ describe('TodayPage', () => {
           aiModel: 'gpt-4o-mini',
         },
       ],
-    })
-    vi.mocked(api.listTransformations).mockResolvedValue([
-      { id: 't-1', title: 'Become more peaceful', createdAt: '2026-01-01T00:00:00Z' },
-    ])
+    }))
     vi.mocked(api.getWeeklyRetrospectiveDraft).mockResolvedValue(EMPTY_RETROSPECTIVE_DRAFT)
 
     renderTodayPage()
@@ -185,25 +203,10 @@ describe('TodayPage', () => {
       replacementText: 'Take one breath before replying',
       respondedAt: '2026-01-01T00:05:00Z',
     }
-    const todayResponse = {
-      hasActiveExperiment: true,
-      activeExperiment: {
-        id: 'e-1',
-        transformationId: 't-1',
-        title: 'Pause before responding',
-        hypothesis: 'Pausing helps me respond calmly',
-        status: 'ACTIVE' as const,
-        createdAt: '2026-01-01T00:00:00Z',
-      },
-      reflectionHistory: [],
-      suggestionHistory: [originalSuggestion],
-    }
-    vi.mocked(api.getToday)
-      .mockResolvedValueOnce(todayResponse)
-      .mockResolvedValue({ ...todayResponse, suggestionHistory: [replacedSuggestion] })
-    vi.mocked(api.listTransformations).mockResolvedValue([
-      { id: 't-1', title: 'Become more peaceful', createdAt: '2026-01-01T00:00:00Z' },
-    ])
+    const focusResponse = activeExperimentFocus({ suggestionHistory: [originalSuggestion] })
+    vi.mocked(api.getCurrentFocus)
+      .mockResolvedValueOnce(focusResponse)
+      .mockResolvedValue({ ...focusResponse, suggestionHistory: [replacedSuggestion] })
     vi.mocked(api.getWeeklyRetrospectiveDraft).mockResolvedValue(EMPTY_RETROSPECTIVE_DRAFT)
     vi.mocked(api.replaceSuggestion).mockResolvedValue(replacedSuggestion)
 
@@ -235,18 +238,7 @@ describe('TodayPage', () => {
       createdAt: '2026-01-01T00:00:00Z',
       source: 'DETERMINISTIC' as const,
     }
-    vi.mocked(api.getToday).mockResolvedValue({
-      hasActiveExperiment: true,
-      activeExperiment: {
-        id: 'e-1', transformationId: 't-1', title: 'Pause before responding',
-        hypothesis: 'Pausing helps me respond calmly', status: 'ACTIVE', createdAt: '2026-01-01T00:00:00Z',
-      },
-      reflectionHistory: [],
-      suggestionHistory: [suggestion],
-    })
-    vi.mocked(api.listTransformations).mockResolvedValue([
-      { id: 't-1', title: 'Become more peaceful', createdAt: '2026-01-01T00:00:00Z' },
-    ])
+    vi.mocked(api.getCurrentFocus).mockResolvedValue(activeExperimentFocus({ suggestionHistory: [suggestion] }))
     vi.mocked(api.getWeeklyRetrospectiveDraft).mockResolvedValue(EMPTY_RETROSPECTIVE_DRAFT)
     vi.mocked(api[apiMethod]).mockResolvedValue({
       ...suggestion,
@@ -263,22 +255,7 @@ describe('TodayPage', () => {
   })
 
   it('captures reflection via chat, allows review edits, and saves the edited structured payload', async () => {
-    vi.mocked(api.getToday).mockResolvedValue({
-      hasActiveExperiment: true,
-      activeExperiment: {
-        id: 'e-1',
-        transformationId: 't-1',
-        title: 'Pause before responding',
-        hypothesis: 'Pausing helps me respond calmly',
-        status: 'ACTIVE',
-        createdAt: '2026-01-01T00:00:00Z',
-      },
-      reflectionHistory: [],
-      suggestionHistory: [],
-    })
-    vi.mocked(api.listTransformations).mockResolvedValue([
-      { id: 't-1', title: 'Become more peaceful', createdAt: '2026-01-01T00:00:00Z' },
-    ])
+    vi.mocked(api.getCurrentFocus).mockResolvedValue(activeExperimentFocus())
     vi.mocked(api.getWeeklyRetrospectiveDraft).mockResolvedValue(EMPTY_RETROSPECTIVE_DRAFT)
     vi.mocked(api.continueReflectionChat).mockResolvedValue({
       text: 'What did you notice internally afterward?',
@@ -314,6 +291,7 @@ describe('TodayPage', () => {
         aiModel: 'gpt-4o-mini',
       },
     })
+    vi.mocked(api.proposeMemoryDraft).mockResolvedValue({ source: 'DETERMINISTIC' })
 
     renderTodayPage()
 
@@ -373,22 +351,7 @@ describe('TodayPage', () => {
   })
 
   it('offers a contextual wisdom prompt prefilled from the most specific answer, and saves it', async () => {
-    vi.mocked(api.getToday).mockResolvedValue({
-      hasActiveExperiment: true,
-      activeExperiment: {
-        id: 'e-1',
-        transformationId: 't-1',
-        title: 'Pause before responding',
-        hypothesis: 'Pausing helps me respond calmly',
-        status: 'ACTIVE',
-        createdAt: '2026-01-01T00:00:00Z',
-      },
-      reflectionHistory: [],
-      suggestionHistory: [],
-    })
-    vi.mocked(api.listTransformations).mockResolvedValue([
-      { id: 't-1', title: 'Become more peaceful', createdAt: '2026-01-01T00:00:00Z' },
-    ])
+    vi.mocked(api.getCurrentFocus).mockResolvedValue(activeExperimentFocus())
     vi.mocked(api.getWeeklyRetrospectiveDraft).mockResolvedValue(EMPTY_RETROSPECTIVE_DRAFT)
     vi.mocked(api.continueReflectionChat).mockResolvedValue({
       text: 'What evidence did that give you?',
@@ -431,6 +394,7 @@ describe('TodayPage', () => {
       createdAt: '2026-01-01T00:00:00Z',
       revisedAt: '2026-01-01T00:00:00Z',
     })
+    vi.mocked(api.proposeMemoryDraft).mockResolvedValue({ source: 'DETERMINISTIC' })
 
     renderTodayPage()
 
@@ -460,23 +424,136 @@ describe('TodayPage', () => {
     expect(screen.queryByText(/This reflection may contain a lesson worth keeping/i)).not.toBeInTheDocument()
   })
 
-  it('shows a clear connection-required error when chat turn request fails', async () => {
-    vi.mocked(api.getToday).mockResolvedValue({
-      hasActiveExperiment: true,
-      activeExperiment: {
-        id: 'e-1',
-        transformationId: 't-1',
-        title: 'Pause before responding',
-        hypothesis: 'Pausing helps me respond calmly',
-        status: 'ACTIVE',
+  it('offers an AI-derived memory proposal after saving a reflection, distinct from the wisdom card, and saves it', async () => {
+    vi.mocked(api.getCurrentFocus).mockResolvedValue(activeExperimentFocus())
+    vi.mocked(api.getWeeklyRetrospectiveDraft).mockResolvedValue(EMPTY_RETROSPECTIVE_DRAFT)
+    vi.mocked(api.continueReflectionChat).mockResolvedValue({
+      text: 'What did you notice internally afterward?',
+      source: 'AI',
+      aiProvider: 'openai',
+      aiModel: 'gpt-4o-mini',
+    })
+    vi.mocked(api.finishReflectionChat).mockResolvedValue({
+      content: 'I paused twice today before replying.',
+      attempted: true,
+      noticed: 'My shoulders were tense at first.',
+      source: 'AI',
+      aiProvider: 'openai',
+      aiModel: 'gpt-4o-mini',
+    })
+    vi.mocked(api.createReflection).mockResolvedValue({
+      reflection: {
+        id: 'r-1',
+        experimentId: 'e-1',
+        content: 'I paused twice today before replying.',
         createdAt: '2026-01-01T00:00:00Z',
       },
-      reflectionHistory: [],
-      suggestionHistory: [],
+      suggestion: {
+        id: 's-1',
+        experimentId: 'e-1',
+        text: 'Optional next step: keep going',
+        status: 'PROPOSED',
+        createdAt: '2026-01-01T00:00:00Z',
+        source: 'AI',
+        aiProvider: 'openai',
+        aiModel: 'gpt-4o-mini',
+      },
     })
-    vi.mocked(api.listTransformations).mockResolvedValue([
-      { id: 't-1', title: 'Become more peaceful', createdAt: '2026-01-01T00:00:00Z' },
-    ])
+    vi.mocked(api.proposeMemoryDraft).mockResolvedValue({
+      statement: 'I tend to feel steadier when I pause before reacting.',
+      source: 'AI',
+      aiProvider: 'openai',
+      aiModel: 'gpt-4o-mini',
+    })
+    vi.mocked(api.createMemoryProposal).mockResolvedValue({
+      id: 'm-1',
+      statement: 'I tend to feel steadier when I pause before reacting.',
+      status: 'PROPOSED',
+      sourceKind: 'AI_DERIVED',
+      sourceRecordType: 'REFLECTION',
+      sourceRecordId: 'r-1',
+      createdAt: '2026-01-01T00:00:00Z',
+      revisedAt: '2026-01-01T00:00:00Z',
+    })
+
+    renderTodayPage()
+
+    await screen.findByLabelText(/Your message/i)
+    expect(screen.queryByText(/Something worth remembering about you/i)).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText(/Your message/i), { target: { value: 'I paused twice today.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    await waitFor(() => expect(api.continueReflectionChat).toHaveBeenCalled())
+    fireEvent.click(screen.getByRole('button', { name: /I'm done — review my reflection/i }))
+    await waitFor(() => expect(api.finishReflectionChat).toHaveBeenCalled())
+    fireEvent.click(screen.getByRole('button', { name: 'Save reflection' }))
+
+    await waitFor(() => expect(api.proposeMemoryDraft).toHaveBeenCalledWith('r-1'))
+    await screen.findByText(/Something worth remembering about you/i)
+    expect(screen.getByLabelText('Proposed memory statement')).toHaveValue(
+      'I tend to feel steadier when I pause before reacting.',
+    )
+    expect(screen.getByText(/AI suggested — openai/i)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remember this' }))
+
+    await waitFor(() =>
+      expect(api.createMemoryProposal).toHaveBeenCalledWith({
+        statement: 'I tend to feel steadier when I pause before reacting.',
+        sourceKind: 'AI_DERIVED',
+        sourceRecordType: 'REFLECTION',
+        sourceRecordId: 'r-1',
+      }),
+    )
+    expect(await screen.findByText(/Saved to Memory for review/i)).toBeInTheDocument()
+    expect(screen.queryByText(/Something worth remembering about you/i)).not.toBeInTheDocument()
+  })
+
+  it('does not show a memory-proposal card when the AI has nothing durable to propose', async () => {
+    vi.mocked(api.getCurrentFocus).mockResolvedValue(activeExperimentFocus())
+    vi.mocked(api.getWeeklyRetrospectiveDraft).mockResolvedValue(EMPTY_RETROSPECTIVE_DRAFT)
+    vi.mocked(api.continueReflectionChat).mockResolvedValue({
+      text: 'What did you notice internally afterward?',
+      source: 'DETERMINISTIC',
+    })
+    vi.mocked(api.finishReflectionChat).mockResolvedValue({
+      content: 'Nothing notable happened today.',
+      source: 'DETERMINISTIC',
+    })
+    vi.mocked(api.createReflection).mockResolvedValue({
+      reflection: {
+        id: 'r-1',
+        experimentId: 'e-1',
+        content: 'Nothing notable happened today.',
+        createdAt: '2026-01-01T00:00:00Z',
+      },
+      suggestion: {
+        id: 's-1',
+        experimentId: 'e-1',
+        text: 'Optional next step: keep going',
+        status: 'PROPOSED',
+        createdAt: '2026-01-01T00:00:00Z',
+        source: 'DETERMINISTIC',
+      },
+    })
+    vi.mocked(api.proposeMemoryDraft).mockResolvedValue({ source: 'AI', aiProvider: 'openai', aiModel: 'gpt-4o-mini' })
+
+    renderTodayPage()
+
+    await screen.findByLabelText(/Your message/i)
+    fireEvent.change(screen.getByLabelText(/Your message/i), { target: { value: 'Nothing much happened.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    await waitFor(() => expect(api.continueReflectionChat).toHaveBeenCalled())
+    fireEvent.click(screen.getByRole('button', { name: /I'm done — review my reflection/i }))
+    await waitFor(() => expect(api.finishReflectionChat).toHaveBeenCalled())
+    fireEvent.click(screen.getByRole('button', { name: 'Save reflection' }))
+
+    await waitFor(() => expect(api.proposeMemoryDraft).toHaveBeenCalledWith('r-1'))
+    expect(screen.queryByText(/Something worth remembering about you/i)).not.toBeInTheDocument()
+  })
+
+  it('shows a clear connection-required error when chat turn request fails', async () => {
+    vi.mocked(api.getCurrentFocus).mockResolvedValue(activeExperimentFocus())
     vi.mocked(api.getWeeklyRetrospectiveDraft).mockResolvedValue(EMPTY_RETROSPECTIVE_DRAFT)
     vi.mocked(api.continueReflectionChat).mockRejectedValue(new Error('network down'))
 
@@ -490,22 +567,7 @@ describe('TodayPage', () => {
   })
 
   it('surfaces a weekly retrospective teaser on Today when there is one to show', async () => {
-    vi.mocked(api.getToday).mockResolvedValue({
-      hasActiveExperiment: true,
-      activeExperiment: {
-        id: 'e-1',
-        transformationId: 't-1',
-        title: 'Pause before responding',
-        hypothesis: 'Pausing helps me respond calmly',
-        status: 'ACTIVE',
-        createdAt: '2026-01-01T00:00:00Z',
-      },
-      reflectionHistory: [],
-      suggestionHistory: [],
-    })
-    vi.mocked(api.listTransformations).mockResolvedValue([
-      { id: 't-1', title: 'Become more peaceful', createdAt: '2026-01-01T00:00:00Z' },
-    ])
+    vi.mocked(api.getCurrentFocus).mockResolvedValue(activeExperimentFocus())
     vi.mocked(api.getWeeklyRetrospectiveDraft).mockResolvedValue({
       periodStart: '2026-01-01',
       periodEnd: '2026-01-07',
@@ -525,22 +587,7 @@ describe('TodayPage', () => {
   })
 
   it('refetches and shows the weekly retrospective teaser after saving the first reflection', async () => {
-    vi.mocked(api.getToday).mockResolvedValue({
-      hasActiveExperiment: true,
-      activeExperiment: {
-        id: 'e-1',
-        transformationId: 't-1',
-        title: 'Pause before responding',
-        hypothesis: 'Pausing helps me respond calmly',
-        status: 'ACTIVE',
-        createdAt: '2026-01-01T00:00:00Z',
-      },
-      reflectionHistory: [],
-      suggestionHistory: [],
-    })
-    vi.mocked(api.listTransformations).mockResolvedValue([
-      { id: 't-1', title: 'Become more peaceful', createdAt: '2026-01-01T00:00:00Z' },
-    ])
+    vi.mocked(api.getCurrentFocus).mockResolvedValue(activeExperimentFocus())
     vi.mocked(api.getWeeklyRetrospectiveDraft)
       .mockResolvedValueOnce(EMPTY_RETROSPECTIVE_DRAFT)
       .mockResolvedValue({
@@ -577,6 +624,7 @@ describe('TodayPage', () => {
         source: 'DETERMINISTIC',
       },
     })
+    vi.mocked(api.proposeMemoryDraft).mockResolvedValue({ source: 'DETERMINISTIC' })
 
     renderTodayPage()
 

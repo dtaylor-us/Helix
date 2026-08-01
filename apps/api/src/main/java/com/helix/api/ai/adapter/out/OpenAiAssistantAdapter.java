@@ -299,6 +299,51 @@ public class OpenAiAssistantAdapter implements AiAssistantPort {
         }
     }
 
+    @Override
+    public AiMemoryProposal proposeMemory(String context) {
+        if (!isAvailable && System.currentTimeMillis() - lastFailureTime < AVAILABILITY_RESET_MS) {
+            return createMemoryProposalFallback();
+        }
+
+        try {
+            OpenAiRequest request = buildMemoryProposalRequest(context);
+            OpenAiResponse response = restClient.post()
+                .uri("/v1/chat/completions")
+                .body(request)
+                .retrieve()
+                .onStatus(status -> !status.is2xxSuccessful(),
+                    (httpRequest, httpResponse) -> {
+                        throw new OpenAiException("OpenAI API error: " + httpResponse.getStatusCode());
+                    })
+                .toEntity(OpenAiResponse.class)
+                .getBody();
+
+            if (response == null || response.choices == null || response.choices.isEmpty()) {
+                recordFailure();
+                return createMemoryProposalFallback();
+            }
+
+            String text = response.choices.get(0).message.content;
+            String statement = text == null ? null : text.trim();
+            if (statement == null || statement.isBlank()) {
+                recordFailure();
+                return createMemoryProposalFallback();
+            }
+
+            isAvailable = true;
+            // A model that decides there's nothing durable worth remembering isn't a failure — it's
+            // a legitimate live answer that just has no statement to propose. The caller treats a
+            // null statement as "nothing to show," independent of deterministicFallback.
+            if (statement.equalsIgnoreCase("NONE")) {
+                return new AiMemoryProposal(null, "openai", aiProperties.getOpenai().getModel(), false);
+            }
+            return new AiMemoryProposal(statement, "openai", aiProperties.getOpenai().getModel(), false);
+        } catch (RestClientException | OpenAiException e) {
+            recordFailure();
+            return createMemoryProposalFallback();
+        }
+    }
+
     /**
      * Check if this adapter is currently available.
      * Implements circuit-breaker pattern to prevent cascading failures.
@@ -499,6 +544,33 @@ public class OpenAiAssistantAdapter implements AiAssistantPort {
             aiProperties.getOpenai().getModel(),
             true
         );
+    }
+
+    private OpenAiRequest buildMemoryProposalRequest(String context) {
+        String systemPrompt = """
+            You are helping someone notice durable facts, patterns, or preferences about themselves
+            worth remembering long-term — not a lesson from a single experiment (that's captured
+            elsewhere as "wisdom"), but something true about who they are or how they operate that
+            would be useful context in future conversations. Based on their reflection, propose
+            exactly ONE such statement, written in the first person, at most 30 words. If nothing in
+            the reflection reveals a genuine durable pattern (as opposed to a one-off event), respond
+            with exactly: NONE. Respond with ONLY the statement or NONE — no preamble, no quotation
+            marks, no labels.
+            """;
+
+        OpenAiRequest request = new OpenAiRequest();
+        request.model = aiProperties.getOpenai().getModel();
+        request.temperature = aiProperties.getOpenai().getTemperature();
+        request.maxTokens = aiProperties.getOpenai().getMaxTokens();
+        request.messages = List.of(
+            new OpenAiRequest.Message("system", systemPrompt),
+            new OpenAiRequest.Message("user", context)
+        );
+        return request;
+    }
+
+    private AiMemoryProposal createMemoryProposalFallback() {
+        return new AiMemoryProposal(null, "openai", aiProperties.getOpenai().getModel(), true);
     }
 
     /**

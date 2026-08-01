@@ -1,8 +1,11 @@
 package com.helix.api.memory;
 
+import com.helix.api.ai.application.AiAssistantPort;
 import com.helix.api.evidence.application.EvidenceService;
 import com.helix.api.beliefs.application.BeliefService;
 import com.helix.api.experiments.application.ExperimentService;
+import com.helix.api.experiments.domain.ExperimentEntity;
+import com.helix.api.experiments.domain.ExperimentStatus;
 import com.helix.api.memory.adapter.out.persistence.MemoryProposalRepository;
 import com.helix.api.memory.adapter.out.persistence.MemoryProposalRevisionRepository;
 import com.helix.api.memory.application.MemoryProposalService;
@@ -23,6 +26,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
@@ -51,6 +55,7 @@ class MemoryProposalServiceTest {
         when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(revisionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
+        var aiAssistantPort = Mockito.mock(AiAssistantPort.class);
         var service = new MemoryProposalService(
             repository,
             revisionRepository,
@@ -59,7 +64,8 @@ class MemoryProposalServiceTest {
             reflectionService,
             evidenceService,
             wisdomService,
-            retrospectiveService
+            retrospectiveService,
+            aiAssistantPort
         );
 
         var proposal = service.create(
@@ -101,6 +107,7 @@ class MemoryProposalServiceTest {
 
         when(reflectionService.get(missingReflectionId)).thenThrow(new NoSuchElementException("Reflection not found"));
 
+        var aiAssistantPort = Mockito.mock(AiAssistantPort.class);
         var service = new MemoryProposalService(
             repository,
             revisionRepository,
@@ -109,7 +116,8 @@ class MemoryProposalServiceTest {
             reflectionService,
             evidenceService,
             wisdomService,
-            retrospectiveService
+            retrospectiveService,
+            aiAssistantPort
         );
 
         var error = assertThrows(IllegalArgumentException.class, () -> service.create(
@@ -121,5 +129,80 @@ class MemoryProposalServiceTest {
         ));
 
         assertEquals("That source record couldn't be found — check the ID/type and try again.", error.getMessage());
+    }
+
+    @Test
+    void proposeFromReflectionReturnsAiDraftWithoutPersistingAnything() {
+        var repository = Mockito.mock(MemoryProposalRepository.class);
+        var revisionRepository = Mockito.mock(MemoryProposalRevisionRepository.class);
+        var experimentService = Mockito.mock(ExperimentService.class);
+        var beliefService = Mockito.mock(BeliefService.class);
+        var reflectionService = Mockito.mock(ReflectionService.class);
+        var evidenceService = Mockito.mock(EvidenceService.class);
+        var wisdomService = Mockito.mock(WisdomService.class);
+        var retrospectiveService = Mockito.mock(WeeklyRetrospectiveService.class);
+        var aiAssistantPort = Mockito.mock(AiAssistantPort.class);
+
+        var experimentId = UUID.randomUUID();
+        var reflectionId = UUID.randomUUID();
+        when(reflectionService.get(reflectionId)).thenReturn(new ReflectionEntity(
+            reflectionId, experimentId, "I paused before responding and felt steadier.",
+            OffsetDateTime.now().minusHours(2)
+        ));
+        when(experimentService.get(experimentId)).thenReturn(new ExperimentEntity(
+            experimentId, UUID.randomUUID(), "Pause before responding", "Pausing helps",
+            "Breathe once", ExperimentStatus.ACTIVE, OffsetDateTime.now().minusDays(1)
+        ));
+        when(aiAssistantPort.proposeMemory(any())).thenReturn(new AiAssistantPort.AiMemoryProposal(
+            "I tend to feel steadier when I pause before reacting.", "openai", "gpt-4o-mini", false
+        ));
+
+        var service = new MemoryProposalService(
+            repository, revisionRepository, experimentService, beliefService,
+            reflectionService, evidenceService, wisdomService, retrospectiveService, aiAssistantPort
+        );
+
+        var draft = service.proposeFromReflection(reflectionId);
+
+        assertEquals("I tend to feel steadier when I pause before reacting.", draft.statement());
+        assertEquals("AI", draft.source());
+        Mockito.verifyNoInteractions(repository);
+        Mockito.verifyNoInteractions(revisionRepository);
+    }
+
+    @Test
+    void proposeFromReflectionReturnsNullStatementWhenNothingWorthProposing() {
+        var repository = Mockito.mock(MemoryProposalRepository.class);
+        var revisionRepository = Mockito.mock(MemoryProposalRevisionRepository.class);
+        var experimentService = Mockito.mock(ExperimentService.class);
+        var beliefService = Mockito.mock(BeliefService.class);
+        var reflectionService = Mockito.mock(ReflectionService.class);
+        var evidenceService = Mockito.mock(EvidenceService.class);
+        var wisdomService = Mockito.mock(WisdomService.class);
+        var retrospectiveService = Mockito.mock(WeeklyRetrospectiveService.class);
+        var aiAssistantPort = Mockito.mock(AiAssistantPort.class);
+
+        var experimentId = UUID.randomUUID();
+        var reflectionId = UUID.randomUUID();
+        when(reflectionService.get(reflectionId)).thenReturn(new ReflectionEntity(
+            reflectionId, experimentId, "Nothing notable happened today.", OffsetDateTime.now()
+        ));
+        when(experimentService.get(experimentId)).thenReturn(new ExperimentEntity(
+            experimentId, UUID.randomUUID(), "Pause before responding", "Pausing helps",
+            "Breathe once", ExperimentStatus.ACTIVE, OffsetDateTime.now().minusDays(1)
+        ));
+        when(aiAssistantPort.proposeMemory(any())).thenReturn(new AiAssistantPort.AiMemoryProposal(
+            null, "openai", "gpt-4o-mini", false
+        ));
+
+        var service = new MemoryProposalService(
+            repository, revisionRepository, experimentService, beliefService,
+            reflectionService, evidenceService, wisdomService, retrospectiveService, aiAssistantPort
+        );
+
+        var draft = service.proposeFromReflection(reflectionId);
+
+        assertNull(draft.statement());
+        assertEquals("AI", draft.source());
     }
 }

@@ -8,12 +8,15 @@ import type {
   CreateMemoryProposalRequest,
   CreateReflectionRequest,
   CreateReflectionResponse,
+  CurrentFocusResponse,
+  DataExportResponse,
   ExperimentDraft,
   CreateTransformationRequest,
   Evidence,
   Experiment,
   MemoryProposal,
   MemoryProposalDetail,
+  MemoryProposalDraft,
   MemoryProposalRevision,
   Reflection,
   ReflectionChatFinishResponse,
@@ -94,6 +97,7 @@ function extractErrorMessage(body: string): string | null {
 
 export const api = {
   getToday: () => request<TodayResponse>('/api/v1/today'),
+  getCurrentFocus: () => request<CurrentFocusResponse>('/api/v1/current-focus'),
   createTransformation: (payload: CreateTransformationRequest) =>
     request<Transformation>('/api/v1/transformations', {
       method: 'POST',
@@ -167,6 +171,11 @@ export const api = {
   getReflection: (id: string) => request<Reflection>(`/api/v1/reflections/${id}`),
   listMemoryProposals: () => request<MemoryProposal[]>('/api/v1/memory/proposals'),
   getMemoryProposal: (id: string) => request<MemoryProposalDetail>(`/api/v1/memory/proposals/${id}`),
+  proposeMemoryDraft: (reflectionId: string) =>
+    request<MemoryProposalDraft>('/api/v1/memory/proposals/draft', {
+      method: 'POST',
+      body: JSON.stringify({ reflectionId }),
+    }),
   createMemoryProposal: (payload: CreateMemoryProposalRequest) =>
     request<MemoryProposal>('/api/v1/memory/proposals', {
       method: 'POST',
@@ -194,5 +203,13 @@ export const api = {
     request<Suggestion>(`/api/v1/suggestions/${id}/replace`, {
       method: 'POST',
       body: JSON.stringify({ replacementText }),
+    }),
+  exportData: () => request<DataExportResponse>('/api/v1/data/export'),
+  // Backend requires an explicit confirm: true body (ADR-019) — not a security control, just
+  // protection against a reflexive, no-body DELETE destroying everything by accident.
+  deleteAllData: () =>
+    request<void>('/api/v1/data', {
+      method: 'DELETE',
+      body: JSON.stringify({ confirm: true }),
     }),
 }

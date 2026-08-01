@@ -6,3 +6,4 @@
 - Evidence: observation supporting or challenging a belief.
 - Wisdom: user-accepted principle linked to source records.
 - Suggested Small Action: optional practical next step from deterministic rules or AI.
+- Memory: durable fact or pattern about you, proposed for review before being kept.

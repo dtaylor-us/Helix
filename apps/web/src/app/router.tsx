@@ -5,6 +5,7 @@ import {
   RouterProvider,
 } from '@tanstack/react-router'
 import { AppLayout } from '../components/AppLayout'
+import { DataExportPage } from '../pages/DataExportPage'
 import { ExperimentPage } from '../pages/ExperimentPage'
 import { KnowledgePage } from '../pages/KnowledgePage'
 import { LibraryPage } from '../pages/LibraryPage'
@@ -108,7 +109,7 @@ const settingsMemoryRoute = createRoute({
 const settingsExportRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/settings/export',
-  component: () => <PlaceholderPage title="Export Settings" />,
+  component: DataExportPage,
 })
 
 const routeTree = rootRoute.addChildren([

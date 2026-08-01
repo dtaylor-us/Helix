@@ -41,6 +41,8 @@ export function TransformationDetailPage() {
       setSavedExperiment(experiment)
       setSaveStatusText(`Saved "${experiment.title}" as your current active experiment.`)
       queryClient.invalidateQueries({ queryKey: ['today'] })
+      // TodayPage reads Phase 7's combined projection instead of ['today'] directly.
+      queryClient.invalidateQueries({ queryKey: ['current-focus'] })
     },
     onError: () => {
       setSaveStatusText('Could not save the experiment. Please try again.')

@@ -17,3 +17,5 @@
 - ADR-015 Data export and deletion as foundational capabilities
 - ADR-016 AI required for generative suggestion content (amends ADR-006)
 - ADR-017 Network required for conversational reflection capture (amends ADR-012)
+- ADR-018 AI-derived memory proposal candidates (amends ADR-006)
+- ADR-019 Hard delete, whole-app scope, for data deletion (amends ADR-015)

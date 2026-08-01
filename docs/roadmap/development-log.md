@@ -2,6 +2,282 @@
 
 This log is updated at the end of significant delivery sessions.
 
+## 2026-08-02 Session - Roadmap Phase 9: Data Export and Deletion (closes ADR-015)
+
+Summary:
+- Closed ADR-015's foundational commitment, which had existed since before this roadmap doc with
+  zero implementation behind it. Two open questions blocked implementation (hard vs. soft delete;
+  deletion scope given no auth yet) — resolved via `AskUserQuestion` before writing any code: hard
+  delete, whole-app scope, documented in new ADR-019. Continued working locally (no branch/PR),
+  consistent with Phases 6 and 7 this session.
+
+Changes:
+- Backend (`apps/api`):
+  - New `data` module (`application`/`adapter.in.http`): `DataExportService` (reads every
+    repository's `findAll()` plus onboarding status into one snapshot, deliberately excluding
+    `semantic_search_documents` — a derived/regenerable embedding cache, not user-authored content)
+    and `DataDeletionService` (`@Transactional`, deletes every table leaf-first even though most
+    foreign keys already cascade, then resets onboarding back to `NOT_STARTED`).
+  - `DataController`: `GET /api/v1/data/export` (full JSON bundle) and `DELETE /api/v1/data`
+    (requires `{"confirm": true}` in the body — not real security, just protection against a
+    reflexive no-body DELETE; a missing/false confirm returns 400 via the existing
+    `IllegalArgumentException` -> `ApiExceptionHandler` path).
+  - `OnboardingStateEntity`/`OnboardingService` gained a `reset()` that unconditionally returns to
+    `NOT_STARTED`, bypassing the monotonic guard `advanceTo()` enforces — used only by the wipe.
+  - New tests: `DataExportServiceTest`, `DataDeletionServiceTest` (verifies every repository's
+    `deleteAllInBatch()` and `onboardingService.reset()` are called), `DataControllerTest`
+    (including the missing-confirmation 400 case).
+- Frontend (`apps/web`, `packages/contracts`):
+  - Added `DataExportResponse` contract; `api.exportData()` and `api.deleteAllData()` (the latter
+    always sends `confirm: true` — the frontend's own confirmation gate, described below, is what
+    actually protects the user).
+  - New `DataExportPage.tsx` replaces the `/settings/export` placeholder: an export card that
+    downloads the bundle as a pretty-printed `.json` file via a `Blob`/object-URL, and a delete
+    card that only enables its button once the user types the literal string `DELETE` into a
+    confirmation input — the frontend's real safeguard, since the backend's `confirm: true` is
+    trivial for any API client to send. On successful deletion, `queryClient.clear()` wipes the
+    entire cache (every cached response is now stale in the strongest sense — the records are gone,
+    not just changed).
+  - Added a "Export & delete data" link to `AppLayout`'s secondary nav (the route existed as a
+    placeholder with no way to reach it before).
+  - New `DataExportPage.test.tsx` (5 tests: download + confirmation, export error, button
+    disabled/enabled by confirmation text, successful delete clears the input, delete error).
+- Docs/governance:
+  - New ADR-019 (amends ADR-015): hard delete, whole-app scope, semantic-index export exclusion,
+    confirmation-flag rationale, onboarding-reset rationale — full reasoning and reconsideration
+    triggers (chiefly: this must be revisited the moment auth ships).
+  - Updated ADR index, traceability matrix (HELIX-NFR-002 row), roadmap doc (Phase 9 marked
+    shipped).
+
+Governance:
+- ADR-015 is now actually implemented rather than just decided.
+- ADR-019 explicitly flags itself for reconsideration once ADR-013 (auth) is implemented — shipping
+  per-user auth without re-scoping this endpoint away from "delete literally everything" would be a
+  serious bug.
+
+Verification:
+- Backend: not run this session — same JDK 21 / `./gradlew` distribution-download gap as Phases 6
+  and 7. All thirteen `deleteAllInBatch()` calls and the repository/service wiring were checked by
+  direct code review against the subagent-verified field lists for every entity touched, rather than
+  a compiler.
+- Frontend:
+  - `npm run typecheck` passed.
+  - `npm run lint` passed.
+  - `npx vitest run` passed (9 files, 31 tests).
+  - `npm run build`: same sandbox `dist/` `EPERM` as prior sessions; re-verified via `vite build
+    --outDir` to a scratch directory, which completed cleanly.
+- Docs: `./scripts/check-docs` passed.
+
+Known limitations / follow-ups:
+- Backend is unverified by an actual compile/test run in this environment — third session in a row
+  with this gap. Phases 6, 7, and 9 are all sitting uncommitted in the local working copy; strongly
+  recommend getting a JDK 21 environment before any more phases stack up unverified.
+- No automated backups exist anywhere in this app. The export endpoint is the *only* recovery path
+  before running delete — this is called out explicitly in ADR-019 but is worth restating here: a
+  user who deletes without exporting first has no way to get their data back.
+- Deletion is whole-app only; no per-transformation or partial deletion exists. Explicitly out of
+  scope for this ADR (see Alternatives), not an oversight.
+
+## 2026-08-02 Note - Phase 8 (Visual Redesign) Reconciled as Already Shipped
+
+While starting Phase 8, the user confirmed the calm-editorial-minimalism
+redesign was already implemented. Verified directly against the repository
+rather than taking that at face value: `apps/web/src/styles/main.css`
+contains the full token system (warm parchment canvas, warm near-black ink,
+one rust/terracotta accent, distinct provenance color, radii up to 1.25rem,
+soft card shadows, a real type scale), and `git log` shows it merged to
+`main`/`origin/main` via commits `912a409` and `f32b4ec` on 2026-08-01 — a
+session that predates `docs/roadmap/2026-08-roadmap.md` and was never logged
+here or marked shipped in that roadmap doc. Confirmed component files
+(`TodayPage.tsx`, `AppLayout.tsx`) are unchanged at the logic level (same
+plain class names throughout), consistent with the redesign's hard
+constraint that it stay a pure CSS/token layer change. No code changes made
+this session — updated `docs/roadmap/2026-08-roadmap.md` (Part 1 and the
+Phase 8 section) to reflect reality and moved on to Phase 9.
+
+## 2026-08-02 Session - Roadmap Phase 7: CurrentFocus Projection + Server-Persisted Onboarding
+
+Summary:
+- Closed the two long-carried-forward Phase 2 gaps documented in every dev log entry since: Today
+  assembling its view from two separate calls, and the welcome/first-use state being purely derived
+  from `transformations.length === 0` client-side instead of persisted server-side.
+- Per explicit user scoping decisions: kept working directly on the local copy (same as Phase 6, no
+  branch/PR this session); added a new `GET /api/v1/current-focus` endpoint rather than expanding
+  `/today`; used 3 onboarding states.
+
+Design decision (not previously specified, made here): the 3 onboarding states — `NOT_STARTED`,
+`FIRST_TRANSFORMATION_CREATED`, `COMPLETE` — map exactly onto the two gates Today's UI already had
+(no transformations -> welcome screen; a transformation but no experiment -> "add an experiment"
+prompt), so `COMPLETE` is reached the moment the first experiment is ever created, not a new
+invented milestone. Transitions are monotonic (enforced by ordinal comparison) and fire
+automatically from `TransformationService.create` / `ExperimentService.create` — no explicit
+"finish onboarding" user action was introduced.
+
+Changes:
+- Backend (`apps/api`):
+  - New `onboarding` module (`domain`/`adapter.out.persistence`/`application`, mirroring every
+    other module's hexagonal layout): `OnboardingStatus` enum, `OnboardingStateEntity` (singleton
+    row, `SINGLETON_ID` constant — Helix is single-user with no auth per ADR-013, same shape auth
+    would later key by user_id), `OnboardingStateRepository`, `OnboardingService`
+    (`get()`/`advanceToFirstTransformationCreated()`/`advanceToComplete()`, all monotonic/no-op
+    once already past a state).
+  - Migration `V10__onboarding_state.sql`: singleton table, seeded `NOT_STARTED`.
+  - `TransformationService`/`ExperimentService` gained an `OnboardingService` dependency and call
+    the corresponding `advanceTo*` method after a successful save (constructor signatures changed
+    directly, all call sites — both services' test files — updated to the new arity).
+  - New `today.application.CurrentFocusService` composes `TodayService`, `TransformationService`,
+    and `OnboardingService` into one snapshot; new `today.adapter.in.http.CurrentFocusController`
+    exposes it as `GET /api/v1/current-focus`. `GET /api/v1/today` and `GET /api/v1/transformations`
+    are both left unchanged for their other existing callers (Knowledge page, Transformations page).
+  - New tests: `OnboardingServiceTest`, `CurrentFocusServiceTest`, `CurrentFocusControllerTest`;
+    extended `TransformationServiceTest`/`ExperimentServiceTest` to verify the onboarding
+    advancement calls (and that `proposeDraft` — a non-persisting AI draft call — never touches
+    onboarding state).
+- Frontend (`apps/web`, `packages/contracts`):
+  - Added `OnboardingStatus` and `CurrentFocusResponse` contracts; `api.getCurrentFocus()`.
+  - `TodayPage`: replaced the `['today']` + `['transformations']` query pair with a single
+    `['current-focus']` query; the welcome-screen branch now checks
+    `data.onboardingStatus === 'NOT_STARTED'` instead of `transformations.length === 0`; the
+    weekly-retrospective-draft query's `enabled` gate uses the same onboarding-status check;
+    `suggestionAction`'s optimistic cache update and `reflectMutation`'s invalidation both moved to
+    the `['current-focus']` key.
+  - `TransformationDetailPage`: also invalidates `['current-focus']` (alongside the existing
+    `['today']` invalidation it already had) after creating an experiment, so Today picks up the
+    newly active experiment immediately rather than waiting for TanStack Query's background
+    refetch-on-mount.
+  - Rewrote `TodayPage.test.tsx`'s mocking to a single `api.getCurrentFocus` mock (previously two
+    separate `api.getToday`/`api.listTransformations` mocks), with a shared
+    `activeExperimentFocus()` helper to cut down repetition across the file's many test cases.
+- Docs/governance:
+  - Updated traceability matrix: added a row for HELIX-FR-007 ("Provide Today summary for active
+    experiment"), which previously existed in the requirements catalog with no traceability row at
+    all.
+  - Updated `docs/roadmap/2026-08-roadmap.md` marking Phase 7 shipped.
+
+Governance:
+- No new ADR needed — this is backend plumbing (a projection endpoint and a persistence-backed
+  status field), not a new AI-optionality or governance-lifecycle decision; ADR-008/ADR-016-style
+  amendments don't apply here.
+
+Verification:
+- Backend: not run this session, same constraint as the prior Phase 6 entry — this sandbox only has
+  JDK 11, the backend targets Java 21, and `./gradlew` cannot download a JDK 21 toolchain or even
+  the Gradle distribution itself without network access to `services.gradle.org` (blocked by the
+  sandbox's network allowlist). All constructor call-site updates were verified by direct grep
+  (`new TransformationService(`, `new ExperimentService(`) rather than a compiler.
+- Frontend:
+  - `npm run typecheck` passed.
+  - `npm run lint` passed.
+  - `npx vitest run` passed (8 files, 26 tests).
+  - `npm run build`: same pre-existing sandbox `EPERM` on `apps/web/dist/` as the Phase 6 session;
+    re-verified via `vite build --outDir` to a scratch directory, which completed cleanly.
+- Docs: `./scripts/check-docs` passed.
+
+Known limitations / follow-ups:
+- Backend changes are unverified by an actual compile/test run in this environment. This should be
+  the first thing exercised (`./scripts/test-backend`, `./scripts/verify-architecture`) on a
+  machine/CI with JDK 21 before this phase is considered fully closed — same caveat as Phase 6,
+  now two sessions in a row without a working JDK 21 in this sandbox.
+- `TransformationsPage` (list/create transformations) does not invalidate `['current-focus']` after
+  creating a transformation. This is a pre-existing-shaped gap (it didn't invalidate `['today']`
+  either, before this change) — TanStack Query's default `staleTime: 0` means Today will still
+  self-correct on next mount via background refetch, just with a possible stale-data flash first
+  rather than an immediate update. Not fixed here since it wasn't part of this phase's stated scope
+  and the behavior is no worse than before.
+- Neither this endpoint nor the onboarding state is versioned/keyed by user — deliberately, since
+  ADR-013 still defers auth behind a port and the app is single-user today. Whoever implements auth
+  will need to add a `user_id` column and change the singleton lookup to a per-user one.
+
+## 2026-08-02 Session - Roadmap Phase 6: Contextual Memory Proposals
+
+Summary:
+- Closed the gap identified in the Memory feature review: Memory previously had a fully-built
+  governance workspace (propose/revise/accept/reject) but no contextual trigger — it was reachable
+  only through manual entry. This session adds an AI-derived candidate memory statement, proposed
+  after a reflection save, as a second and distinctly-sourced card alongside the existing
+  deterministic wisdom-capture prompt (per the user's explicit scoping: AI-derived source,
+  triggered after reflection save as a second distinct card).
+- Implemented directly on the local working copy per explicit instruction — no branch or PR for
+  this session's work.
+
+Changes:
+- Backend (`apps/api`):
+  - Extended `AiAssistantPort` with `proposeMemory(String context)` returning
+    `AiMemoryProposal(statement, provider, model, deterministicFallback)`, implemented across
+    OpenAI, Ollama, and NoOp adapters using the existing circuit-breaker pattern. Unlike other
+    ADR-016 surfaces, the NoOp adapter and outage fallback return a `null` statement rather than
+    placeholder content — a templated "fact about you" would be misleading, not just generic. The
+    model may also legitimately answer `NONE` (nothing durable worth proposing), mapped to a
+    `null` statement with `deterministicFallback: false` to distinguish it from an outage.
+  - `MemoryProposalService.proposeFromReflection(UUID reflectionId)` builds context from the
+    reflection and its experiment and calls the port; persists nothing.
+  - `MemoryProposalController`: new `POST /api/v1/memory/proposals/draft` endpoint. The existing,
+    unmodified `POST /api/v1/memory/proposals` endpoint remains the only way a proposal actually
+    lands as `PROPOSED`.
+  - Updated `MemoryProposalServiceTest`/`MemoryProposalControllerTest` (new 9-arg service
+    constructor call sites fixed; new tests for the AI-draft path and the "nothing to propose"
+    path).
+- Frontend (`apps/web`, `packages/contracts`):
+  - Added `MemoryProposalDraft`/`ProposeMemoryDraftRequest` contracts and
+    `api.proposeMemoryDraft(reflectionId)`.
+  - `TodayPage`: after a reflection saves, fires `proposeMemoryDraft` and — only if a statement
+    comes back — shows a "Something worth remembering about you" card (editable, "Remember this" /
+    "Not now"), persisted locally under `helix:memory-draft` the same way the wisdom draft is,
+    distinct from and independent of the wisdom card.
+  - Added `Memory` to the shared glossary (`docs/product/glossary.md` and
+    `apps/web/src/content/glossary.ts`) and wired a `TermHint` on the new card.
+  - Added `TodayPage.test.tsx` coverage: the memory-proposal card appears and saves correctly, and
+    no card appears when the AI proposes nothing.
+- Docs/governance:
+  - Added ADR-018 (`docs/decisions/ADR-018-ai-derived-memory-proposal-candidates.md`), amending
+    ADR-006, following the ADR-016 precedent for AI-required generative surfaces.
+  - Updated ADR index and traceability matrix (HELIX-FR-017).
+  - Wrote `docs/roadmap/2026-08-roadmap.md` reconciling prior roadmap docs with current shipped
+    state (see that session's roadmap-authoring work, same day).
+
+Governance:
+- ADR-008 preserved: the draft endpoint persists nothing; a proposal only becomes real data through
+  the existing, unmodified create endpoint after explicit user review.
+- ADR-018 added: narrows ADR-006's AI-optionality for this one generative surface, consistent with
+  ADR-016's precedent for suggestions/retrospective/experiment drafts.
+
+Verification:
+- Backend: not run this session — this sandbox only has JDK 11 available, and the backend targets
+  Java 21; `./scripts/test-backend` and `./scripts/verify-architecture` could not be executed here.
+  Every constructor call site for `MemoryProposalService`'s new 9-arg signature was verified by
+  direct file review (both test files, no other callers found via repo search).
+- Frontend:
+  - `npm run typecheck` passed.
+  - `npm run lint` passed.
+  - `npx vitest run` passed (8 files, 26 tests, including 14 in `TodayPage.test.tsx`).
+  - `npm run build`: `tsc -b` and module transform succeeded; the final `vite build` write step hit
+    an `EPERM` unlinking pre-existing files in `apps/web/dist/`, a sandbox filesystem-permission
+    artifact unrelated to this change — confirmed by re-running `vite build --outDir` to a scratch
+    directory outside the mounted repo, which completed and produced the expected bundle
+    (`index-*.js`, `index-*.css`, service worker) with no errors.
+- Docs: `./scripts/check-docs` passed.
+
+Also fixed, incidentally discovered while verifying:
+- `apps/web/src/test/setup.ts` didn't clear `localStorage` between tests. Since Vitest's jsdom
+  environment is shared across every test in a file (isolation is per-file, not per-test), and
+  several `TodayPage` tests reuse the same experiment/reflection IDs, a wisdom-draft written to
+  `localStorage` by one test was silently bleeding into a later, unrelated test's initial render
+  (the component's experiment-mismatch reset never fired because the IDs happened to match). Added
+  an `afterEach(() => globalThis.localStorage?.clear())` alongside the existing DOM `cleanup()`.
+  This was a latent pre-existing gap, not something introduced by this session's changes, and it
+  isn't scoped to Phase 6 — flagging it here since it was the actual root cause of a UI test failure
+  during verification.
+
+Known limitations / follow-ups:
+- Backend changes are unverified by an actual test run in this environment (no JDK 21 available in
+  the sandbox); they should be exercised by the standard verification scripts on a machine/CI that
+  has one before this is considered fully closed.
+- Memory and wisdom now both fire after a reflection save; ADR-018 explicitly flags this as a
+  UX-density tradeoff worth watching, not a settled decision.
+- Two AI calls (suggestion + memory) now happen per reflection save on top of the existing
+  suggestion call; `AiProperties.timeoutSeconds`/`retryMaxAttempts` remain unused by any adapter
+  (pre-existing gap, unchanged by this session).
+
 ## 2026-08-01 Session - Product Experience Realignment, Phase 5 Slice D: Conversational Reflection Flow
 
 Summary:

@@ -4,6 +4,7 @@ import com.helix.api.ai.application.AiAssistantPort;
 import com.helix.api.experiments.adapter.out.persistence.ExperimentRepository;
 import com.helix.api.experiments.domain.ExperimentEntity;
 import com.helix.api.experiments.domain.ExperimentStatus;
+import com.helix.api.onboarding.application.OnboardingService;
 import com.helix.api.transformation.application.TransformationService;
 import com.helix.api.transformation.domain.TransformationEntity;
 import org.springframework.stereotype.Service;
@@ -20,13 +21,16 @@ public class ExperimentService {
     private final ExperimentRepository repository;
     private final TransformationService transformationService;
     private final AiAssistantPort aiAssistantPort;
+    private final OnboardingService onboardingService;
 
     public ExperimentService(
-        ExperimentRepository repository, TransformationService transformationService, AiAssistantPort aiAssistantPort
+        ExperimentRepository repository, TransformationService transformationService,
+        AiAssistantPort aiAssistantPort, OnboardingService onboardingService
     ) {
         this.repository = repository;
         this.transformationService = transformationService;
         this.aiAssistantPort = aiAssistantPort;
+        this.onboardingService = onboardingService;
     }
 
     public ExperimentEntity create(UUID transformationId, String title, String hypothesis, String nextAction) {
@@ -50,7 +54,10 @@ public class ExperimentService {
             ExperimentStatus.ACTIVE,
             OffsetDateTime.now()
         );
-        return repository.save(entity);
+        var saved = repository.save(entity);
+        // Phase 7: server-persisted onboarding state. No-op once onboarding is already COMPLETE.
+        onboardingService.advanceToComplete();
+        return saved;
     }
 
     public ExperimentEntity get(UUID id) {

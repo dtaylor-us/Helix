@@ -285,6 +285,49 @@ public class OllamaAssistantAdapter implements AiAssistantPort {
         }
     }
 
+    @Override
+    public AiMemoryProposal proposeMemory(String context) {
+        if (!isAvailable && System.currentTimeMillis() - lastFailureTime < AVAILABILITY_RESET_MS) {
+            return createMemoryProposalFallback();
+        }
+
+        try {
+            OllamaRequest request = buildMemoryProposalRequest(context);
+            OllamaResponse response = restClient.post()
+                .uri("/api/generate")
+                .body(request)
+                .retrieve()
+                .onStatus(status -> !status.is2xxSuccessful(),
+                    (httpRequest, httpResponse) -> {
+                        throw new OllamaException("Ollama API error: " + httpResponse.getStatusCode());
+                    })
+                .toEntity(OllamaResponse.class)
+                .getBody();
+
+            if (response == null || response.response == null || response.response.isEmpty()) {
+                recordFailure();
+                return createMemoryProposalFallback();
+            }
+
+            String statement = response.response.trim();
+            if (statement.isBlank()) {
+                recordFailure();
+                return createMemoryProposalFallback();
+            }
+
+            isAvailable = true;
+            // A model that decides there's nothing durable worth remembering isn't a failure — it's
+            // a legitimate live answer that just has no statement to propose.
+            if (statement.equalsIgnoreCase("NONE")) {
+                return new AiMemoryProposal(null, "ollama", aiProperties.getOllama().getModel(), false);
+            }
+            return new AiMemoryProposal(statement, "ollama", aiProperties.getOllama().getModel(), false);
+        } catch (RestClientException | OllamaException e) {
+            recordFailure();
+            return createMemoryProposalFallback();
+        }
+    }
+
     /**
      * Check if this adapter is currently available.
      * Implements circuit-breaker pattern to prevent cascading failures.
@@ -479,6 +522,31 @@ public class OllamaAssistantAdapter implements AiAssistantPort {
             aiProperties.getOllama().getModel(),
             true
         );
+    }
+
+    private OllamaRequest buildMemoryProposalRequest(String context) {
+        String prompt = """
+            You are helping someone notice durable facts, patterns, or preferences about themselves
+            worth remembering long-term — not a lesson from a single experiment (that's captured
+            elsewhere as "wisdom"), but something true about who they are or how they operate that
+            would be useful context in future conversations. Based on their reflection, propose
+            exactly ONE such statement, written in the first person, at most 30 words. If nothing in
+            the reflection reveals a genuine durable pattern (as opposed to a one-off event), respond
+            with exactly: NONE. Respond with ONLY the statement or NONE — no preamble, no quotation
+            marks, no labels.
+
+            Reflection: %s""".formatted(context);
+
+        OllamaRequest request = new OllamaRequest();
+        request.model = aiProperties.getOllama().getModel();
+        request.prompt = prompt;
+        request.stream = false;
+        request.temperature = aiProperties.getOllama().getTemperature();
+        return request;
+    }
+
+    private AiMemoryProposal createMemoryProposalFallback() {
+        return new AiMemoryProposal(null, "ollama", aiProperties.getOllama().getModel(), true);
     }
 
     /**

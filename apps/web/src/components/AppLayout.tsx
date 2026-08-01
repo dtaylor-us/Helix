@@ -10,6 +10,7 @@ const secondaryLinks = [
   { to: '/search', label: 'Search' },
   { to: '/knowledge', label: 'Knowledge graph' },
   { to: '/settings/memory', label: 'Memories' },
+  { to: '/settings/export', label: 'Export & delete data' },
   { to: '/settings', label: 'Settings' },
 ] as const
 

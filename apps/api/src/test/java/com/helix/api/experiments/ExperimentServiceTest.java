@@ -3,6 +3,7 @@ package com.helix.api.experiments;
 import com.helix.api.ai.application.AiAssistantPort;
 import com.helix.api.experiments.adapter.out.persistence.ExperimentRepository;
 import com.helix.api.experiments.application.ExperimentService;
+import com.helix.api.onboarding.application.OnboardingService;
 import com.helix.api.transformation.application.TransformationService;
 import com.helix.api.transformation.domain.TransformationEntity;
 import org.junit.jupiter.api.Test;
@@ -31,7 +32,8 @@ class ExperimentServiceTest {
         when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         var aiAssistantPort = Mockito.mock(AiAssistantPort.class);
-        var service = new ExperimentService(repository, transformationService, aiAssistantPort);
+        var onboardingService = Mockito.mock(OnboardingService.class);
+        var service = new ExperimentService(repository, transformationService, aiAssistantPort, onboardingService);
         var reviewDate = LocalDate.now().plusWeeks(1);
         var experiment = service.create(
             transformationId,
@@ -46,6 +48,7 @@ class ExperimentServiceTest {
         assertEquals("Whenever I feel criticized", experiment.getCadence());
         assertEquals("Fewer moments of regretting how I responded", experiment.getEvidenceOfSuccess());
         assertEquals(reviewDate, experiment.getReviewAt());
+        Mockito.verify(onboardingService).advanceToComplete();
     }
 
     @Test
@@ -60,7 +63,8 @@ class ExperimentServiceTest {
         when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         var aiAssistantPort = Mockito.mock(AiAssistantPort.class);
-        var service = new ExperimentService(repository, transformationService, aiAssistantPort);
+        var onboardingService = Mockito.mock(OnboardingService.class);
+        var service = new ExperimentService(repository, transformationService, aiAssistantPort, onboardingService);
         var experiment = service.create(transformationId, "Pause before responding", "Pausing helps", "Breathe once");
 
         assertNull(experiment.getCadence());
@@ -83,11 +87,13 @@ class ExperimentServiceTest {
             "Whenever I feel criticized", "Fewer moments of regret", "openai", "gpt-4o-mini", false
         ));
 
-        var service = new ExperimentService(repository, transformationService, aiAssistantPort);
+        var onboardingService = Mockito.mock(OnboardingService.class);
+        var service = new ExperimentService(repository, transformationService, aiAssistantPort, onboardingService);
         var draft = service.proposeDraft(transformationId);
 
         assertEquals("Pause before responding", draft.title());
         assertEquals("AI", draft.source());
         Mockito.verifyNoInteractions(repository);
+        Mockito.verifyNoInteractions(onboardingService);
     }
 }

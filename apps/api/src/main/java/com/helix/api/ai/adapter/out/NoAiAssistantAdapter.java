@@ -93,4 +93,14 @@ public class NoAiAssistantAdapter implements AiAssistantPort {
             true
         );
     }
+
+    // Unlike the other generative surfaces, memory proposals have no generic deterministic
+    // statement worth showing — a made-up "fact about the user" template would be actively
+    // misleading, not just less personalized. With no AI provider configured (or during an
+    // outage), there's simply nothing to propose; the caller treats a null statement as "no
+    // card to show" rather than falling back to placeholder content.
+    @Override
+    public AiMemoryProposal proposeMemory(String context) {
+        return new AiMemoryProposal(null, "none", "deterministic", true);
+    }
 }

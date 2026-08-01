@@ -49,4 +49,24 @@ class MemoryProposalControllerTest {
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.detail").value("That source record couldn't be found — check the ID/type and try again."));
     }
+
+    @Test
+    void proposeDraftReturnsAiStatementForReflection() throws Exception {
+        var reflectionId = UUID.randomUUID();
+        Mockito.when(service.proposeFromReflection(reflectionId)).thenReturn(
+            new MemoryProposalService.MemoryProposalDraft(
+                "I tend to feel steadier when I pause before reacting.", "AI", "openai", "gpt-4o-mini"
+            )
+        );
+
+        mockMvc.perform(post("/api/v1/memory/proposals/draft")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(
+                    new MemoryProposalController.ProposeMemoryDraftRequest(reflectionId)
+                )))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.statement").value("I tend to feel steadier when I pause before reacting."))
+            .andExpect(jsonPath("$.source").value("AI"))
+            .andExpect(jsonPath("$.aiProvider").value("openai"));
+    }
 }

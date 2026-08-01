@@ -3,12 +3,22 @@ import { Link } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { TermHint } from '../components/TermHint'
 import { api } from '../api/http'
-import type { Suggestion, TodayResponse } from '../../../../packages/contracts/src'
+import type { CurrentFocusResponse, Suggestion } from '../../../../packages/contracts/src'
 
 const CHAT_DRAFT_KEY_PREFIX = 'helix:reflection-chat-draft:'
 const WISDOM_DRAFT_KEY = 'helix:wisdom-draft'
+const MEMORY_DRAFT_KEY = 'helix:memory-draft'
 
 type WisdomDraft = { experimentId: string; reflectionId: string; statement: string }
+// Distinct from WisdomDraft: memory is an AI-derived inference about the user (a durable pattern
+// or preference), not a deterministic restatement of the reflection's own text (ADR-018).
+type MemoryDraft = {
+  experimentId: string
+  reflectionId: string
+  statement: string
+  aiProvider?: string
+  aiModel?: string
+}
 
 type ReflectionChatMessage = {
   role: 'user' | 'assistant'
@@ -44,25 +54,41 @@ export function TodayPage() {
     }
   })
   const [wisdomStatusText, setWisdomStatusText] = useState<string | null>(null)
+  const [memoryDraft, setMemoryDraft] = useState<MemoryDraft | null>(() => {
+    try {
+      const stored = globalThis.localStorage?.getItem(MEMORY_DRAFT_KEY)
+      return stored ? (JSON.parse(stored) as MemoryDraft) : null
+    } catch {
+      return null
+    }
+  })
+  const [memoryStatusText, setMemoryStatusText] = useState<string | null>(null)
 
-  const todayQuery = useQuery({ queryKey: ['today'], queryFn: api.getToday })
-  const transformationsQuery = useQuery({ queryKey: ['transformations'], queryFn: api.listTransformations })
+  // Phase 7: a single projection endpoint replaces the previous /today + /transformations pair,
+  // and carries server-persisted onboarding status instead of deriving a welcome state from
+  // transformations.length === 0 client-side.
+  const currentFocusQuery = useQuery({ queryKey: ['current-focus'], queryFn: api.getCurrentFocus })
   // Fetched here (rather than only inside the Wisdom workspace) so a weekly narrative retrospective
-  // can be surfaced contextually on Today, per Phase 4. Only fetched once the user has at least one
-  // transformation, so it doesn't fire on the true first-use welcome screen.
+  // can be surfaced contextually on Today, per Phase 4. Only fetched once onboarding has moved past
+  // the true first-use welcome screen.
   const retrospectiveDraftQuery = useQuery({
     queryKey: ['weekly-retrospective-draft'],
     queryFn: api.getWeeklyRetrospectiveDraft,
-    enabled: (transformationsQuery.data?.length ?? 0) > 0,
+    enabled: currentFocusQuery.data != null && currentFocusQuery.data.onboardingStatus !== 'NOT_STARTED',
   })
 
-  const activeExperimentId = todayQuery.data?.activeExperiment?.id
+  const activeExperimentId = currentFocusQuery.data?.activeExperiment?.id
   const chatDraftKey = activeExperimentId ? `${CHAT_DRAFT_KEY_PREFIX}${activeExperimentId}` : null
 
   useEffect(() => {
     if (wisdomDraft) globalThis.localStorage?.setItem(WISDOM_DRAFT_KEY, JSON.stringify(wisdomDraft))
     else globalThis.localStorage?.removeItem(WISDOM_DRAFT_KEY)
   }, [wisdomDraft])
+
+  useEffect(() => {
+    if (memoryDraft) globalThis.localStorage?.setItem(MEMORY_DRAFT_KEY, JSON.stringify(memoryDraft))
+    else globalThis.localStorage?.removeItem(MEMORY_DRAFT_KEY)
+  }, [memoryDraft])
 
   // Chat input drafts are namespaced per experiment so switching experiments never shows text
   // typed for a different one. Sent transcript turns are intentionally not persisted locally;
@@ -76,6 +102,10 @@ export function TodayPage() {
     if (!wisdomDraft || wisdomDraft.experimentId !== activeExperimentId) {
       setWisdomDraft(null)
       setWisdomStatusText(null)
+    }
+    if (!memoryDraft || memoryDraft.experimentId !== activeExperimentId) {
+      setMemoryDraft(null)
+      setMemoryStatusText(null)
     }
   }
 
@@ -114,12 +144,53 @@ export function TodayPage() {
         statement: proposedStatement,
       } : null)
       setWisdomStatusText(null)
-      queryClient.invalidateQueries({ queryKey: ['today'] })
+      queryClient.invalidateQueries({ queryKey: ['current-focus'] })
       queryClient.invalidateQueries({ queryKey: ['weekly-retrospective-draft'] })
+      // AI-derived candidate memory statement (Phase 6 / ADR-018) — a separate, distinctly
+      // sourced surface from the deterministic wisdom draft above. Fire-and-forget: if it fails
+      // or the AI decides there's nothing durable worth proposing, simply no card appears.
+      setMemoryDraft(null)
+      setMemoryStatusText(null)
+      proposeMemoryMutation.mutate({ experimentId: variables.experimentId, reflectionId: result.reflection.id })
     },
     onError: () => {
       setStatusText(null)
       setErrorText('Reflection could not be saved. Your draft is kept on this device.')
+    },
+  })
+
+  const proposeMemoryMutation = useMutation({
+    mutationFn: (payload: { experimentId: string; reflectionId: string }) =>
+      api.proposeMemoryDraft(payload.reflectionId).then((draft) => ({ ...payload, draft })),
+    onSuccess: ({ experimentId, reflectionId, draft }) => {
+      if (!draft.statement?.trim()) return
+      setMemoryDraft({
+        experimentId,
+        reflectionId,
+        statement: draft.statement,
+        aiProvider: draft.aiProvider,
+        aiModel: draft.aiModel,
+      })
+    },
+    // Silent on failure — this is a bonus surface layered on top of an already-saved reflection;
+    // surfacing an error here would be noise, not something the user needs to act on.
+  })
+
+  const captureMemory = useMutation({
+    mutationFn: (payload: { reflectionId: string; statement: string }) =>
+      api.createMemoryProposal({
+        statement: payload.statement,
+        sourceKind: 'AI_DERIVED',
+        sourceRecordType: 'REFLECTION',
+        sourceRecordId: payload.reflectionId,
+      }),
+    onSuccess: () => {
+      setMemoryDraft(null)
+      setMemoryStatusText('Saved to Memory for review.')
+      queryClient.invalidateQueries({ queryKey: ['memory-proposals'] })
+    },
+    onError: () => {
+      setMemoryStatusText('Could not save this memory. You can also add it from Memory.')
     },
   })
 
@@ -181,7 +252,7 @@ export function TodayPage() {
       return api.replaceSuggestion(params.id, params.replacement ?? '')
     },
     onSuccess: (updatedSuggestion: Suggestion, variables) => {
-      queryClient.setQueryData<TodayResponse>(['today'], (current) => current ? {
+      queryClient.setQueryData<CurrentFocusResponse>(['current-focus'], (current) => current ? {
         ...current,
         suggestionHistory: current.suggestionHistory.map((suggestion) =>
           suggestion.id === updatedSuggestion.id ? updatedSuggestion : suggestion,
@@ -199,19 +270,20 @@ export function TodayPage() {
     onError: () => setSuggestionStatusText('Could not update this action. Please try again.'),
   })
 
-  if (todayQuery.isLoading || transformationsQuery.isLoading) {
+  if (currentFocusQuery.isLoading) {
     return <p>Loading your active context...</p>
   }
 
-  if (todayQuery.isError) {
+  if (currentFocusQuery.isError) {
     return <p role="alert">Unable to load today view right now.</p>
   }
 
-  const data = todayQuery.data
-  const transformations = transformationsQuery.data ?? []
+  const data = currentFocusQuery.data
+  const transformations = data?.transformations ?? []
 
-  // True first-use state: nothing has been started yet.
-  if (transformations.length === 0) {
+  // True first-use state: server-persisted onboarding progress (Phase 7) says nothing has been
+  // started yet, replacing the old transformations.length === 0 client-side derivation.
+  if (!data || data.onboardingStatus === 'NOT_STARTED') {
     return (
       <div className="stack">
         <section className="card intro-card">
@@ -531,6 +603,44 @@ export function TodayPage() {
       {wisdomStatusText && (
         <p role="status" aria-live="polite" className="muted">
           {wisdomStatusText}
+        </p>
+      )}
+
+      {memoryDraft && (
+        <section className="card">
+          <h2>Something worth remembering about you</h2>
+          <p className="muted">
+            Helix noticed a pattern in this reflection. Edit it, or save it as-is &mdash; it&rsquo;ll go to Memory for
+            your review.
+          </p>
+          <p className="ai-badge">
+            (AI suggested{memoryDraft.aiProvider ? ` — ${memoryDraft.aiProvider}` : ''})
+          </p>
+          <label htmlFor="memory-draft-statement">Proposed memory statement</label>
+          <textarea
+            id="memory-draft-statement"
+            rows={2}
+            maxLength={500}
+            value={memoryDraft.statement}
+            onChange={(e) => setMemoryDraft({ ...memoryDraft, statement: e.target.value.slice(0, 500) })}
+          />
+          <div className="row">
+            <button
+              onClick={() => captureMemory.mutate(memoryDraft)}
+              disabled={!memoryDraft.statement.trim() || captureMemory.isPending}
+            >
+              Remember this
+            </button>
+            <button type="button" className="secondary-button" onClick={() => setMemoryDraft(null)}>
+              Not now
+            </button>
+          </div>
+          <TermHint term="Memory" />
+        </section>
+      )}
+      {memoryStatusText && (
+        <p role="status" aria-live="polite" className="muted">
+          {memoryStatusText}
         </p>
       )}
 

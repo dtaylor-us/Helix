@@ -43,6 +43,16 @@ public interface AiAssistantPort {
      */
     AiReflectionStructure structureReflection(String context);
 
+    /**
+     * Propose a single candidate memory statement — a durable fact, pattern, or preference about
+     * the user worth remembering for future context — from a reflection (and its surrounding
+     * experiment context). Distinct from a wisdom "lesson": memory is about the user themselves,
+     * not a takeaway from the experiment. Nothing is persisted by this call alone — per ADR-008,
+     * the caller must route the result through the existing memory-proposal create endpoint
+     * (landing as PROPOSED) before it becomes a real memory. See ADR-018 (Phase 6).
+     */
+    AiMemoryProposal proposeMemory(String context);
+
     record AiSuggestion(String text, String provider, String model, String promptVersion, boolean deterministicFallback) {}
 
     record AiWeeklySummary(String summary, String assistance, String provider, String model, boolean deterministicFallback) {}
@@ -60,4 +70,6 @@ public interface AiAssistantPort {
         String model,
         boolean deterministicFallback
     ) {}
+
+    record AiMemoryProposal(String statement, String provider, String model, boolean deterministicFallback) {}
 }

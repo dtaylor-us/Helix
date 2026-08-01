@@ -225,6 +225,27 @@ export interface TodayResponse {
   suggestionHistory: Suggestion[];
 }
 
+/**
+ * Server-persisted onboarding progress (Phase 7), replacing the purely client-derived
+ * `transformations.length === 0` welcome-state check. NOT_STARTED -> FIRST_TRANSFORMATION_CREATED
+ * happens when the first transformation is created; -> COMPLETE happens when the first experiment
+ * is created. Monotonic — never moves backward.
+ */
+export type OnboardingStatus = "NOT_STARTED" | "FIRST_TRANSFORMATION_CREATED" | "COMPLETE";
+
+/**
+ * Phase 7 projection: everything Today's UI needs in one response, replacing two separate calls
+ * to GET /api/v1/today and GET /api/v1/transformations.
+ */
+export interface CurrentFocusResponse {
+  onboardingStatus: OnboardingStatus;
+  transformations: Transformation[];
+  hasActiveExperiment: boolean;
+  activeExperiment: Experiment | null;
+  reflectionHistory: Reflection[];
+  suggestionHistory: Suggestion[];
+}
+
 export interface CreateTransformationRequest {
   title: string;
   purpose?: string;
@@ -332,4 +353,37 @@ export interface ReviseMemoryProposalRequest {
 
 export interface ReviewMemoryProposalRequest {
   reason: string;
+}
+
+/**
+ * Phase 9 (ADR-015, ADR-019): a complete, human-readable export of every user-owned record.
+ * Deliberately excludes the semantic search index — that's a derived/regenerable cache, not
+ * user-authored content.
+ */
+export interface DataExportResponse {
+  onboardingStatus: OnboardingStatus;
+  transformations: Transformation[];
+  experiments: Experiment[];
+  reflections: Reflection[];
+  suggestions: Suggestion[];
+  beliefs: Belief[];
+  beliefRevisions: BeliefRevision[];
+  evidence: Evidence[];
+  weeklyRetrospectives: WeeklyRetrospective[];
+  wisdomEntries: WisdomEntry[];
+  wisdomRevisions: WisdomRevision[];
+  wisdomSourceLinks: WisdomSourceLink[];
+  memoryProposals: MemoryProposal[];
+  memoryProposalRevisions: MemoryProposalRevision[];
+}
+
+export interface ProposeMemoryDraftRequest {
+  reflectionId: UUID;
+}
+
+export interface MemoryProposalDraft {
+  statement?: string;
+  source: "AI" | "DETERMINISTIC";
+  aiProvider?: string;
+  aiModel?: string;
 }

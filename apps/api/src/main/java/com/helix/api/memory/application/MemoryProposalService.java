@@ -1,8 +1,10 @@
 package com.helix.api.memory.application;
 
+import com.helix.api.ai.application.AiAssistantPort;
 import com.helix.api.evidence.application.EvidenceService;
 import com.helix.api.beliefs.application.BeliefService;
 import com.helix.api.experiments.application.ExperimentService;
+import com.helix.api.experiments.domain.ExperimentEntity;
 import com.helix.api.memory.adapter.out.persistence.MemoryProposalRepository;
 import com.helix.api.memory.adapter.out.persistence.MemoryProposalRevisionRepository;
 import com.helix.api.memory.domain.MemoryProposalEntity;
@@ -11,6 +13,7 @@ import com.helix.api.memory.domain.MemoryProposalStatus;
 import com.helix.api.memory.domain.MemorySourceKind;
 import com.helix.api.memory.domain.MemorySourceRecordType;
 import com.helix.api.reflection.application.ReflectionService;
+import com.helix.api.reflection.domain.ReflectionEntity;
 import com.helix.api.wisdom.application.WeeklyRetrospectiveService;
 import com.helix.api.wisdom.application.WisdomService;
 import org.springframework.stereotype.Service;
@@ -32,6 +35,7 @@ public class MemoryProposalService {
     private final EvidenceService evidenceService;
     private final WisdomService wisdomService;
     private final WeeklyRetrospectiveService retrospectiveService;
+    private final AiAssistantPort aiAssistantPort;
 
     public MemoryProposalService(MemoryProposalRepository repository,
                                  MemoryProposalRevisionRepository revisionRepository,
@@ -40,7 +44,8 @@ public class MemoryProposalService {
                                  ReflectionService reflectionService,
                                  EvidenceService evidenceService,
                                  WisdomService wisdomService,
-                                 WeeklyRetrospectiveService retrospectiveService) {
+                                 WeeklyRetrospectiveService retrospectiveService,
+                                 AiAssistantPort aiAssistantPort) {
         this.repository = repository;
         this.revisionRepository = revisionRepository;
         this.experimentService = experimentService;
@@ -49,6 +54,7 @@ public class MemoryProposalService {
         this.evidenceService = evidenceService;
         this.wisdomService = wisdomService;
         this.retrospectiveService = retrospectiveService;
+        this.aiAssistantPort = aiAssistantPort;
     }
 
     @Transactional
@@ -72,6 +78,43 @@ public class MemoryProposalService {
 
     public List<MemoryProposalEntity> list() {
         return repository.findAllByOrderByRevisedAtDesc();
+    }
+
+    /**
+     * Propose a candidate memory statement from a just-saved reflection, using AI (ADR-018,
+     * Phase 6). Nothing is persisted by this call — per ADR-008, the caller must route the result
+     * through the existing {@link #create} flow (which lands it as PROPOSED) before it becomes a
+     * real memory. A null {@code statement} on the returned draft means there's nothing worth
+     * proposing (either the model judged the reflection didn't reveal a durable pattern, or no AI
+     * provider is available) — the caller should simply not show a proposal card in that case,
+     * not treat it as an error.
+     */
+    public MemoryProposalDraft proposeFromReflection(UUID reflectionId) {
+        var reflection = reflectionService.get(reflectionId);
+        var experiment = experimentService.get(reflection.getExperimentId());
+        var aiProposal = aiAssistantPort.proposeMemory(buildMemoryContext(experiment, reflection));
+        return new MemoryProposalDraft(
+            aiProposal.statement(),
+            aiProposal.deterministicFallback() ? "DETERMINISTIC" : "AI",
+            aiProposal.provider(),
+            aiProposal.model()
+        );
+    }
+
+    private String buildMemoryContext(ExperimentEntity experiment, ReflectionEntity reflection) {
+        var context = new StringBuilder();
+        context.append("Experiment: ").append(experiment.getTitle()).append(". ");
+        context.append("Reflection: ").append(reflection.getContent()).append(". ");
+        if (reflection.getNoticed() != null) {
+            context.append("Noticed: ").append(reflection.getNoticed()).append(". ");
+        }
+        if (reflection.getEvidenceNoted() != null) {
+            context.append("Evidence: ").append(reflection.getEvidenceNoted()).append(". ");
+        }
+        if (reflection.getSurprise() != null) {
+            context.append("Surprise: ").append(reflection.getSurprise()).append(". ");
+        }
+        return context.toString();
     }
 
     public MemoryProposalEntity get(UUID id) {
@@ -160,4 +203,6 @@ public class MemoryProposalService {
             throw new IllegalArgumentException("That source record couldn't be found — check the ID/type and try again.");
         }
     }
+
+    public record MemoryProposalDraft(String statement, String source, String aiProvider, String aiModel) {}
 }

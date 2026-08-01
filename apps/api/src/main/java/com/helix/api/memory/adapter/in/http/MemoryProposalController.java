@@ -47,6 +47,18 @@ public class MemoryProposalController {
         ));
     }
 
+    /**
+     * Propose an AI-derived candidate memory statement from a reflection. Nothing is persisted —
+     * the response is meant for the user to review, edit, and submit via {@link #create} (with
+     * sourceKind AI_DERIVED / sourceRecordType REFLECTION), per ADR-008's explicit-review
+     * requirement for AI-derived content. See ADR-018.
+     */
+    @PostMapping("/draft")
+    public MemoryProposalDraftDto proposeDraft(@Valid @RequestBody ProposeMemoryDraftRequest request) {
+        var draft = service.proposeFromReflection(request.reflectionId());
+        return new MemoryProposalDraftDto(draft.statement(), draft.source(), draft.aiProvider(), draft.aiModel());
+    }
+
     @GetMapping("/{id}")
     public MemoryProposalDetailDto detail(@PathVariable UUID id) {
         var proposal = service.get(id);
@@ -100,6 +112,10 @@ public class MemoryProposalController {
             entity.getCreatedAt().toString()
         );
     }
+
+    public record ProposeMemoryDraftRequest(@NotNull UUID reflectionId) {}
+
+    public record MemoryProposalDraftDto(String statement, String source, String aiProvider, String aiModel) {}
 
     public record CreateMemoryProposalRequest(@NotBlank @Size(max = 2000) String statement,
                                               @NotNull MemorySourceKind sourceKind,
