@@ -1,0 +1,104 @@
+{
+  "inventory": {
+    "text": "Skip to content\nHelix\n\nA private place to turn who you want to become into small, tested steps.\n\nToday\nJourney\nLibrary\nMore\nWelcome to Helix\n\nHelix helps you turn who you want to become into small actions, reflection, and evidence of growth — one transformation at a time.\n\nStart a transformation\nRun one small experiment\nReflect on what happened\nNotice the evidence it leaves behind\nKeep what turns into wisdom\nBegin my first transformation",
+    "controls": [
+      {
+        "i": 0,
+        "tag": "A",
+        "text": "Skip to content",
+        "name": "",
+        "type": "",
+        "href": "#main-content",
+        "placeholder": ""
+      },
+      {
+        "i": 1,
+        "tag": "A",
+        "text": "Today",
+        "name": "",
+        "type": "",
+        "href": "/today",
+        "placeholder": ""
+      },
+      {
+        "i": 2,
+        "tag": "A",
+        "text": "Journey",
+        "name": "",
+        "type": "",
+        "href": "/transformations",
+        "placeholder": ""
+      },
+      {
+        "i": 3,
+        "tag": "A",
+        "text": "Library",
+        "name": "",
+        "type": "",
+        "href": "/library",
+        "placeholder": ""
+      },
+      {
+        "i": 4,
+        "tag": "A",
+        "text": "",
+        "name": "",
+        "type": "",
+        "href": "/search",
+        "placeholder": ""
+      },
+      {
+        "i": 5,
+        "tag": "A",
+        "text": "",
+        "name": "",
+        "type": "",
+        "href": "/knowledge",
+        "placeholder": ""
+      },
+      {
+        "i": 6,
+        "tag": "A",
+        "text": "",
+        "name": "",
+        "type": "",
+        "href": "/settings/memory",
+        "placeholder": ""
+      },
+      {
+        "i": 7,
+        "tag": "A",
+        "text": "",
+        "name": "",
+        "type": "",
+        "href": "/settings",
+        "placeholder": ""
+      },
+      {
+        "i": 8,
+        "tag": "A",
+        "text": "Begin my first transformation",
+        "name": "",
+        "type": "",
+        "href": "/transformations",
+        "placeholder": ""
+      }
+    ],
+    "labels": [],
+    "live": []
+  },
+  "events": [
+    {
+      "type": "console:debug",
+      "text": "[vite] connecting..."
+    },
+    {
+      "type": "console:debug",
+      "text": "[vite] connected."
+    },
+    {
+      "type": "console:info",
+      "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+    }
+  ]
+}

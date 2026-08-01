@@ -8,6 +8,7 @@ import type {
   CreateMemoryProposalRequest,
   CreateReflectionRequest,
   CreateReflectionResponse,
+  ExperimentDraft,
   CreateTransformationRequest,
   Evidence,
   Experiment,
@@ -15,6 +16,9 @@ import type {
   MemoryProposalDetail,
   MemoryProposalRevision,
   Reflection,
+  ReflectionChatFinishResponse,
+  ReflectionChatMessage,
+  ReflectionChatTurnResponse,
   ReviewMemoryProposalRequest,
   ReviseBeliefRequest,
   ReviseMemoryProposalRequest,
@@ -44,8 +48,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   })
 
   if (!response.ok) {
-    const message = await response.text()
-    throw new Error(message || `Request failed: ${response.status}`)
+    const body = await response.text()
+    const message = extractErrorMessage(body) || `Request failed: ${response.status}`
+    throw new Error(message)
   }
 
   const body = await response.text()
@@ -54,6 +59,37 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return JSON.parse(body) as T
+}
+
+function extractErrorMessage(body: string): string | null {
+  if (!body) {
+    return null
+  }
+
+  try {
+    const parsed = JSON.parse(body) as unknown
+    if (typeof parsed === 'string') {
+      return parsed
+    }
+
+    if (parsed && typeof parsed === 'object') {
+      if ('detail' in parsed && typeof parsed.detail === 'string') {
+        return parsed.detail
+      }
+
+      if ('message' in parsed && typeof parsed.message === 'string') {
+        return parsed.message
+      }
+
+      if ('title' in parsed && typeof parsed.title === 'string') {
+        return parsed.title
+      }
+    }
+  } catch {
+    return body
+  }
+
+  return body
 }
 
 export const api = {
@@ -71,10 +107,22 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   getExperiment: (id: string) => request<Experiment>(`/api/v1/experiments/${id}`),
+  proposeExperimentDraft: (transformationId: string) =>
+    request<ExperimentDraft>(`/api/v1/transformations/${transformationId}/experiments/draft`, { method: 'POST' }),
   createReflection: (experimentId: string, payload: CreateReflectionRequest) =>
     request<CreateReflectionResponse>(`/api/v1/experiments/${experimentId}/reflections`, {
       method: 'POST',
       body: JSON.stringify(payload),
+    }),
+  continueReflectionChat: (experimentId: string, transcript: ReflectionChatMessage[]) =>
+    request<ReflectionChatTurnResponse>(`/api/v1/experiments/${experimentId}/reflection-chat/turn`, {
+      method: 'POST',
+      body: JSON.stringify({ transcript }),
+    }),
+  finishReflectionChat: (experimentId: string, transcript: ReflectionChatMessage[]) =>
+    request<ReflectionChatFinishResponse>(`/api/v1/experiments/${experimentId}/reflection-chat/finish`, {
+      method: 'POST',
+      body: JSON.stringify({ transcript }),
     }),
   listBeliefs: () => request<Belief[]>('/api/v1/beliefs'),
   createBelief: (payload: CreateBeliefRequest) =>

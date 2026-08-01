@@ -11,6 +11,8 @@ import java.util.UUID;
 @Service
 public class SemanticRetrievalService {
 
+    private static final double MINIMUM_SEMANTIC_SIMILARITY_SCORE = 0.1d;
+
     private final SemanticSearchDocumentRepository repository;
     private final TextEmbeddingPort textEmbeddingPort;
 
@@ -30,7 +32,7 @@ public class SemanticRetrievalService {
 
         repository.findAllByOrderByIndexedAtDesc().forEach(document -> {
             var similarity = cosineSimilarity(queryEmbedding, parse(document.getEmbeddingValues()));
-            if (similarity > 0d) {
+            if (similarity >= MINIMUM_SEMANTIC_SIMILARITY_SCORE) {
                 matches.add(new SemanticMatch(
                     document.getRecordType(),
                     document.getRecordId(),

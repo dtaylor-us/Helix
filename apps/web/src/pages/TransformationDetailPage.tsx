@@ -14,6 +14,7 @@ export function TransformationDetailPage() {
   const [cadence, setCadence] = useState('')
   const [evidenceOfSuccess, setEvidenceOfSuccess] = useState('')
   const [reviewAt, setReviewAt] = useState('')
+  const [draftStatusText, setDraftStatusText] = useState<string | null>(null)
   const [saveStatusText, setSaveStatusText] = useState<string | null>(null)
   const [savedExperiment, setSavedExperiment] = useState<Experiment | null>(null)
 
@@ -36,12 +37,34 @@ export function TransformationDetailPage() {
       setCadence('')
       setEvidenceOfSuccess('')
       setReviewAt('')
+      setDraftStatusText(null)
       setSavedExperiment(experiment)
       setSaveStatusText(`Saved "${experiment.title}" as your current active experiment.`)
       queryClient.invalidateQueries({ queryKey: ['today'] })
     },
     onError: () => {
       setSaveStatusText('Could not save the experiment. Please try again.')
+    },
+  })
+
+  // Prefills the form below with an AI-proposed experiment (ADR-016). Nothing is created until the
+  // user reviews/edits these fields and presses "Save experiment" themselves (ADR-008).
+  const proposeDraft = useMutation({
+    mutationFn: () => api.proposeExperimentDraft(id),
+    onSuccess: (draft) => {
+      setTitle(draft.title ?? '')
+      setHypothesis(draft.hypothesis ?? '')
+      setNextAction(draft.nextAction ?? '')
+      setCadence(draft.cadence ?? '')
+      setEvidenceOfSuccess(draft.evidenceOfSuccess ?? '')
+      setDraftStatusText(
+        draft.source === 'AI'
+          ? `Drafted by AI${draft.aiProvider ? ` (${draft.aiProvider})` : ''}. Review and edit before saving.`
+          : `Fallback draft${draft.aiProvider ? ` — ${draft.aiProvider}` : ''}. Review and edit before saving.`,
+      )
+    },
+    onError: () => {
+      setDraftStatusText('Could not draft an experiment right now. You can still fill this in yourself.')
     },
   })
 
@@ -64,6 +87,16 @@ export function TransformationDetailPage() {
           A small, time-bounded attempt that helps you learn what actually moves this transformation forward.
         </p>
         <TermHint term="Experiment" />
+        <div className="row">
+          <button type="button" className="secondary-button" onClick={() => proposeDraft.mutate()} disabled={proposeDraft.isPending}>
+            {proposeDraft.isPending ? 'Drafting…' : 'Draft this for me'}
+          </button>
+        </div>
+        {draftStatusText && (
+          <p role="status" aria-live="polite" className="muted">
+            {draftStatusText}
+          </p>
+        )}
         <label htmlFor="exp-title">Experiment</label>
         <input id="exp-title" value={title} onChange={(e) => setTitle(e.target.value)} />
         <label htmlFor="exp-hypothesis">What do you want to learn?</label>

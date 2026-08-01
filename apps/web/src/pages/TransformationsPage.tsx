@@ -10,6 +10,7 @@ export function TransformationsPage() {
   const [purpose, setPurpose] = useState('')
   const [desiredIdentity, setDesiredIdentity] = useState('')
   const [obstacle, setObstacle] = useState('')
+  const isTitleBlank = !title.trim()
 
   const transformations = useQuery({
     queryKey: ['transformations'],
@@ -47,7 +48,15 @@ export function TransformationsPage() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Become more peaceful in the face of criticism"
+            aria-describedby={isTitleBlank ? 'title-helper' : undefined}
+            aria-invalid={isTitleBlank}
+            required
           />
+          {isTitleBlank && (
+            <p id="title-helper" className="muted">
+              Add a title to save your transformation.
+            </p>
+          )}
           <label htmlFor="purpose">Why does this matter to you right now?</label>
           <textarea id="purpose" rows={3} value={purpose} onChange={(e) => setPurpose(e.target.value)} />
           <label htmlFor="desired-identity">Who are you becoming through this? (optional)</label>
@@ -67,7 +76,7 @@ export function TransformationsPage() {
             placeholder="e.g. I treat feedback as a verdict on who I am, not on what I did"
           />
           <div>
-            <button disabled={!title.trim() || createMutation.isPending} onClick={() => createMutation.mutate()}>
+            <button disabled={isTitleBlank || createMutation.isPending} onClick={() => createMutation.mutate()}>
               Save transformation
             </button>
           </div>
