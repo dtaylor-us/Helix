@@ -22,6 +22,17 @@ export interface Experiment {
   createdAt: string;
 }
 
+export interface ExperimentDraft {
+  title: string;
+  hypothesis: string;
+  nextAction: string;
+  cadence?: string;
+  evidenceOfSuccess?: string;
+  source: "AI" | "DETERMINISTIC";
+  aiProvider?: string;
+  aiModel?: string;
+}
+
 export interface Reflection {
   id: UUID;
   experimentId: UUID;

@@ -15,7 +15,7 @@ by the user as no longer worth the design cost.
 
 ## Decision
 For the generative content surfaces explicitly in scope (post-reflection suggestion generation now;
-weekly retrospective narrative and experiment drafting in later slices), AI becomes the required
+experiment drafting now, and weekly retrospective narrative in a later slice), AI becomes the required
 content source. `AiAssistantPort` is still the abstraction boundary (ADR-007's provider selection,
 including `HELIX_AI_PROVIDER=none`, is untouched), but the `NoAiAssistantAdapter` / any adapter's
 circuit-breaker fallback response is no longer a supported steady-state experience for these
@@ -24,6 +24,10 @@ not a target design state maintained with equal care to the AI path. `Suggestion
 whether a given suggestion's text came from a live model call or a fallback (`source`,
 `ai_provider`, `ai_model` columns), so this distinction is visible in data and to the user rather
 than silently blurred.
+
+For experiment drafting specifically, both live-model and fallback responses must still populate the
+core editable fields (`title`, `hypothesis`, and `nextAction`) so the user always has a complete
+starting point to review before choosing whether to save it.
 
 ADR-008 (user-governed AI memory: proposal → review → explicit acceptance before anything persists
 as accepted fact) is explicitly **not** relaxed by this decision. AI-authored suggestions still land
@@ -62,4 +66,4 @@ as a genuinely-maintained parallel path, or if a future privacy/offline-first re
 ADR-006's original "must work without AI" scope for these features.
 
 ## Related Requirements
-HELIX-FR-004, HELIX-AI-001, HELIX-AI-002, HELIX-BR-001
+HELIX-FR-002, HELIX-FR-004, HELIX-AI-001, HELIX-AI-002, HELIX-BR-001, HELIX-BR-002

@@ -12,5 +12,26 @@ public interface AiAssistantPort {
      */
     AiSuggestion suggestNextAction(String context);
 
-    record AiSuggestion(String text, String provider, String model, String promptVersion, boolean deterministicFallback) {}
+     /**
+      * Propose a reviewable experiment draft for a transformation. The returned
+      * {@code deterministicFallback} flag distinguishes a live model answer from an
+      * outage/no-provider fallback so the UI can surface provenance clearly.
+      */
+     AiExperimentDraft proposeExperiment(ExperimentDraftRequest request);
+
+     record AiSuggestion(String text, String provider, String model, String promptVersion, boolean deterministicFallback) {}
+
+     record ExperimentDraftRequest(String transformationTitle, String purpose, String desiredIdentity, String obstacle) {}
+
+     record AiExperimentDraft(
+         String title,
+         String hypothesis,
+         String nextAction,
+         String cadence,
+         String evidenceOfSuccess,
+         String provider,
+         String model,
+         String promptVersion,
+         boolean deterministicFallback
+     ) {}
 }
