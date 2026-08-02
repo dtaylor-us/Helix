@@ -16,6 +16,7 @@ import type {
   Experiment,
   GraphEdge,
   GraphView,
+  KnowledgeGraphDiscoveryResponse,
   KnowledgeGraphRebuildResponse,
   KnowledgeGraphStatusResponse,
   KnowledgeNodeType,
@@ -217,6 +218,8 @@ export const api = {
     request<GraphView>(`/api/v1/knowledge-graph/focus/${nodeType}/${sourceRecordId}`),
   getGraphStatus: () => request<KnowledgeGraphStatusResponse>('/api/v1/knowledge-graph/status'),
   rebuildGraph: () => request<KnowledgeGraphRebuildResponse>('/api/v1/knowledge-graph/rebuild', { method: 'POST' }),
+  discoverGraphRelationships: () =>
+    request<KnowledgeGraphDiscoveryResponse>('/api/v1/knowledge-graph/discover-relationships', { method: 'POST' }),
   confirmGraphEdge: (edgeId: string) => request<GraphEdge>(`/api/v1/knowledge-graph/edges/${edgeId}/confirm`, { method: 'POST' }),
   rejectGraphEdge: (edgeId: string) => request<GraphEdge>(`/api/v1/knowledge-graph/edges/${edgeId}/reject`, { method: 'POST' }),
   hideGraphEdge: (edgeId: string) => request<GraphEdge>(`/api/v1/knowledge-graph/edges/${edgeId}/hide`, { method: 'POST' }),

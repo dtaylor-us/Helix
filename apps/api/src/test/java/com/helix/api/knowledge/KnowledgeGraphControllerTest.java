@@ -4,6 +4,7 @@ import com.helix.api.knowledge.adapter.in.http.KnowledgeGraphController;
 import com.helix.api.knowledge.application.KnowledgeEdgeGovernanceService;
 import com.helix.api.knowledge.application.KnowledgeGraphProjectionService;
 import com.helix.api.knowledge.application.KnowledgeGraphQueryService;
+import com.helix.api.knowledge.application.KnowledgeGraphRelationshipDiscoveryService;
 import com.helix.api.knowledge.domain.KnowledgeEdgeConfidence;
 import com.helix.api.knowledge.domain.KnowledgeEdgeEntity;
 import com.helix.api.knowledge.domain.KnowledgeEdgeOrigin;
@@ -33,8 +34,9 @@ class KnowledgeGraphControllerTest {
     private final KnowledgeGraphProjectionService projectionService = Mockito.mock(KnowledgeGraphProjectionService.class);
     private final KnowledgeGraphQueryService queryService = Mockito.mock(KnowledgeGraphQueryService.class);
     private final KnowledgeEdgeGovernanceService governanceService = Mockito.mock(KnowledgeEdgeGovernanceService.class);
+    private final KnowledgeGraphRelationshipDiscoveryService discoveryService = Mockito.mock(KnowledgeGraphRelationshipDiscoveryService.class);
     private final MockMvc mockMvc = MockMvcBuilders
-        .standaloneSetup(new KnowledgeGraphController(projectionService, queryService, governanceService))
+        .standaloneSetup(new KnowledgeGraphController(projectionService, queryService, governanceService, discoveryService))
         .setControllerAdvice(new ApiExceptionHandler())
         .build();
 
@@ -77,7 +79,9 @@ class KnowledgeGraphControllerTest {
             .andExpect(jsonPath("$.edges[0].displayLabel").value("Includes belief"))
             .andExpect(jsonPath("$.edges[0].explanation").value("This belief belongs to this transformation."))
             .andExpect(jsonPath("$.truncated").value(false))
-            .andExpect(jsonPath("$.nodes[0].sourceRoute").value("/transformations/" + transformationId));
+            .andExpect(jsonPath("$.nodes[0].sourceRoute").value("/transformations/" + transformationId))
+            .andExpect(jsonPath("$.edges[0].history.createdAt").value(edge.getCreatedAt().toString()))
+            .andExpect(jsonPath("$.edges[0].history.confirmedAt").value(edge.getConfirmedAt().toString()));
     }
 
     @Test
@@ -103,6 +107,18 @@ class KnowledgeGraphControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.status").value("CONFIRMED"))
             .andExpect(jsonPath("$.displayLabel").value("Supported by"));
+    }
+
+    @Test
+    void discoverRelationshipsReturnsPairAndProposalCounts() throws Exception {
+        Mockito.when(discoveryService.discoverBeliefRelationships()).thenReturn(
+            new KnowledgeGraphRelationshipDiscoveryService.DiscoveryRunSummary(6, 2)
+        );
+
+        mockMvc.perform(post("/api/v1/knowledge-graph/discover-relationships"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.pairsEvaluated").value(6))
+            .andExpect(jsonPath("$.proposalsCreated").value(2));
     }
 
     @Test

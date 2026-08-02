@@ -53,6 +53,19 @@ public interface AiAssistantPort {
      */
     AiMemoryProposal proposeMemory(String context);
 
+    /**
+     * Judge whether two belief statements describe a meaningful thematic relationship worth
+     * surfacing in the knowledge graph, when no explicit or deterministic domain relationship
+     * already connects them (e.g. beliefs from two different transformations that echo the same
+     * pattern). This is the only knowledge-graph edge type this app ever derives from an AI
+     * judgment rather than a domain foreign key. Nothing is persisted by this call alone -- per
+     * ADR-008/ADR-020, the caller must land any positive result as
+     * KnowledgeEdgeStatus.PROPOSED / KnowledgeEdgeOrigin.AI_PROPOSED, never auto-confirmed; a human
+     * reviews it via the existing confirm/reject/hide governance actions (Phase 11D) before it's
+     * treated as trustworthy. See ADR-020 (Phase 11E).
+     */
+    AiRelationshipProposal proposeBeliefRelationship(String context);
+
     record AiSuggestion(String text, String provider, String model, String promptVersion, boolean deterministicFallback) {}
 
     record AiWeeklySummary(String summary, String assistance, String provider, String model, boolean deterministicFallback) {}
@@ -72,4 +85,12 @@ public interface AiAssistantPort {
     ) {}
 
     record AiMemoryProposal(String statement, String provider, String model, boolean deterministicFallback) {}
+
+    /**
+     * {@code related=false} with {@code deterministicFallback=false} is a legitimate live answer
+     * ("I looked and these aren't meaningfully related"), not a failure -- distinct from
+     * {@code deterministicFallback=true}, which means no live judgment was made at all (outage or
+     * no provider configured). The caller only creates a graph edge when {@code related=true}.
+     */
+    record AiRelationshipProposal(boolean related, String explanation, String provider, String model, boolean deterministicFallback) {}
 }

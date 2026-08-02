@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
-import type { GraphEdge, GraphNode, KnowledgeNodeType } from '../../../../packages/contracts/src/index'
+import type { GraphEdge, GraphEdgeHistory, GraphNode, KnowledgeNodeType } from '../../../../packages/contracts/src/index'
 import { api } from '../api/http'
 
 const NODE_TYPE_LABELS: Record<KnowledgeNodeType, string> = {
@@ -28,6 +28,7 @@ export function KnowledgeGraphPage() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [hiddenTypes, setHiddenTypes] = useState<Set<KnowledgeNodeType>>(new Set())
   const [viewMode, setViewMode] = useState<'diagram' | 'list'>('diagram')
+  const [discoveryStatusText, setDiscoveryStatusText] = useState<string | null>(null)
 
   const focusType = nodeType as KnowledgeNodeType
 
@@ -54,6 +55,24 @@ export function KnowledgeGraphPage() {
   const hideEdge = useMutation({
     mutationFn: (edgeId: string) => api.hideGraphEdge(edgeId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['knowledge-graph', focusType, sourceRecordId] }),
+  })
+
+  // Phase 11E: a bounded, manually triggered pass comparing beliefs with no existing connection.
+  // Anything found lands as a PROPOSED edge for review via the confirm/reject/hide actions below —
+  // it never appears already-confirmed.
+  const discoverRelationships = useMutation({
+    mutationFn: () => api.discoverGraphRelationships(),
+    onSuccess: (result) => {
+      setDiscoveryStatusText(
+        result.proposalsCreated > 0
+          ? `Found ${result.proposalsCreated} possible connection${result.proposalsCreated === 1 ? '' : 's'} to review, out of ${result.pairsEvaluated} pair${result.pairsEvaluated === 1 ? '' : 's'} checked.`
+          : `Checked ${result.pairsEvaluated} pair${result.pairsEvaluated === 1 ? '' : 's'} of beliefs — nothing new to review.`,
+      )
+      queryClient.invalidateQueries({ queryKey: ['knowledge-graph', focusType, sourceRecordId] })
+    },
+    onError: () => {
+      setDiscoveryStatusText('Could not check for new connections right now.')
+    },
   })
 
   const view = graphQuery.data
@@ -106,7 +125,20 @@ export function KnowledgeGraphPage() {
           <button type="button" className="secondary-button" onClick={() => rebuild.mutate()} disabled={rebuild.isPending}>
             {rebuild.isPending ? 'Refreshing…' : 'Refresh connections'}
           </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => discoverRelationships.mutate()}
+            disabled={discoverRelationships.isPending}
+          >
+            {discoverRelationships.isPending ? 'Checking…' : 'Check for new connections'}
+          </button>
         </div>
+        {discoveryStatusText && (
+          <p role="status" aria-live="polite" className="muted">
+            {discoveryStatusText}
+          </p>
+        )}
       </section>
 
       {graphQuery.isLoading && (
@@ -176,6 +208,7 @@ export function KnowledgeGraphPage() {
                         <strong>{source.label}</strong> — {edge.displayLabel.toLowerCase()} — <strong>{target.label}</strong>
                       </p>
                       {edge.explanation && <p className="muted">{edge.explanation}</p>}
+                      <EdgeHistoryLine history={edge.history} />
                       <EdgeGovernanceActions
                         edge={edge}
                         onConfirm={() => confirmEdge.mutate(edge.id)}
@@ -206,6 +239,24 @@ export function KnowledgeGraphPage() {
       )}
     </div>
   )
+}
+
+// Phase 11F: a lightweight, non-animated history line — just the dates this edge actually has, not
+// a fabricated richer timeline. effectiveFrom/effectiveTo are reserved for a future feature and are
+// typically absent today.
+function EdgeHistoryLine({ history }: { history: GraphEdgeHistory }) {
+  const parts: string[] = [`Noticed ${formatDate(history.createdAt)}`]
+  if (history.confirmedAt) parts.push(`confirmed ${formatDate(history.confirmedAt)}`)
+  if (history.rejectedAt) parts.push(`rejected ${formatDate(history.rejectedAt)}`)
+  if (history.effectiveFrom) parts.push(`effective from ${formatDate(history.effectiveFrom)}`)
+  if (history.effectiveTo) parts.push(`effective until ${formatDate(history.effectiveTo)}`)
+
+  return <p className="muted">{parts.join(' · ')}</p>
+}
+
+function formatDate(iso: string): string {
+  const parsed = new Date(iso)
+  return Number.isNaN(parsed.getTime()) ? iso : parsed.toLocaleDateString()
 }
 
 function EdgeGovernanceActions({

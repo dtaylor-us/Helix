@@ -2,6 +2,66 @@
 
 This log is updated at the end of significant delivery sessions.
 
+## 2026-08-02 Session - Roadmap Phase 11E/11F: AI Relationship Discovery and Temporal History (Knowledge Graph completion)
+
+Summary:
+- Final continuation of the "implement all the phases for the knowledge graph" instruction. Closes
+  out Phase 11 entirely: 11A (scoping) through 11F (temporal exploration) are all done.
+- 11E was scoped narrowly and deliberately: the brief's own example (`BELIEF_RELATED_TO_BELIEF`) is
+  the only new AI-derived edge type added, comparing belief pairs system-wide via a manually
+  triggered, capped (25 pairs/run) discovery pass rather than an automatic per-rebuild scan — keeps
+  AI usage visible, bounded, and opt-in rather than a silent background cost.
+- 11F was scoped as literally as the roadmap's own phrasing: "lightweight... no animated timeline."
+  The temporal columns (`effective_from`, `effective_to`, `superseded_by_edge_id`) already existed
+  in the 11B migration and were already unused; this session just surfaces what's actually populated
+  (`created_at`, `confirmed_at`, `rejected_at`) rather than building UI for fields nothing sets yet.
+
+Changes (backend):
+- `AiAssistantPort`: new `proposeBeliefRelationship(String context)` method + `AiRelationshipProposal`
+  record (`related`, `explanation`, `provider`, `model`, `deterministicFallback`), following the
+  same Javadoc/ADR-citation convention as the port's other six methods.
+- `OpenAiAssistantAdapter` / `OllamaAssistantAdapter`: implemented using the exact same
+  circuit-breaker/build-request/parse/fallback skeleton as every other method on these adapters
+  (labeled-line response format: `RELATED: yes|no` / `WHY: <explanation>`).
+- `NoAiAssistantAdapter`: returns `related=false` on principle — no live judgment was made, so
+  defaulting to "not related" avoids fabricating a connection, mirroring the existing
+  `proposeMemory` precedent of never inventing content on fallback.
+- `KnowledgeEdgeType`: added `BELIEF_RELATED_TO_BELIEF`.
+- `KnowledgeNodeRepository.findByNodeType`, `KnowledgeEdgeRepository.findByRelationshipType`: new
+  query methods needed by the discovery service.
+- New `KnowledgeGraphRelationshipDiscoveryService.discoverBeliefRelationships()`: iterates BELIEF
+  node pairs with no existing `BELIEF_RELATED_TO_BELIEF` edge of any status (so a rejected pair is
+  never re-asked), capped at `MAX_PAIRS_PER_RUN = 25`, calling the new port method per pair and
+  persisting any positive result as `PROPOSED`/`AI_PROPOSED` with `KnowledgeEdgeConfidence.MODERATE`
+  — never auto-confirmed.
+- `KnowledgeGraphController`: new `POST /discover-relationships` endpoint; `GraphEdgeDto` gained a
+  nested `EdgeHistoryDto` (`createdAt`, `confirmedAt`, `rejectedAt`, `effectiveFrom`, `effectiveTo`,
+  `supersededByEdgeId`) populated from the columns every edge has carried since 11B; `DISPLAY_LABELS`
+  gained `BELIEF_RELATED_TO_BELIEF -> "May relate to"`.
+- New tests: `KnowledgeGraphRelationshipDiscoveryServiceTest` (proposal creation, no-edge-on-
+  not-related, previously-rejected-pairs-not-re-asked, the 25-pair cap), plus additions to
+  `KnowledgeGraphControllerTest` for the new endpoint and the `history` field.
+
+Changes (frontend):
+- `packages/contracts`: `GraphEdgeHistory`, `KnowledgeGraphDiscoveryResponse`; `GraphEdge` gained a
+  required `history` field.
+- `apps/web/src/api/http.ts`: `discoverGraphRelationships()`.
+- `KnowledgeGraphPage.tsx`: "Check for new connections" action reporting pairs-checked/
+  connections-found; each list-view edge now shows a one-line history summary (noticed/confirmed/
+  rejected/effective dates, omitting anything not populated).
+- Updated `KnowledgeGraphPage.test.tsx` fixtures for the new required `history` field; added a test
+  for the discovery action's status message.
+
+Verification:
+- `npm run typecheck`, `npm run lint`, `npx vitest run`: all clean, 35/35 tests passing (1 new).
+- Backend: not compiled in this sandbox, same constraint as every backend phase this engagement
+  (JDK 11 only, no Gradle network access). The two live-provider adapter implementations
+  (`proposeBeliefRelationship` in `OpenAiAssistantAdapter`/`OllamaAssistantAdapter`) were not given
+  their own adapter-level HTTP-mocking tests in this session — they mirror the already-tested
+  `proposeMemory` method's control flow exactly (same circuit breaker, same request/response
+  shapes, same labeled-line parsing), so the incremental risk of skipping a dedicated test for
+  each is low, but it is a real gap relative to full coverage and should be closed if this ships.
+
 ## 2026-08-02 Session - Roadmap Phase 11C/11D: Knowledge Graph Exploration UI and Governance Wiring (Frontend)
 
 Summary:

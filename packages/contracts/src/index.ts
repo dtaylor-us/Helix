@@ -413,6 +413,20 @@ export interface GraphEdgeSourceReference {
 }
 
 /**
+ * Phase 11F: a lightweight history view over columns every edge has carried since the 11B
+ * migration. `effectiveFrom`/`effectiveTo` are reserved for a future edge-validity-window feature
+ * and are typically null today — nothing in this app currently revises an edge's validity window.
+ */
+export interface GraphEdgeHistory {
+  createdAt: string;
+  confirmedAt?: string;
+  rejectedAt?: string;
+  effectiveFrom?: string;
+  effectiveTo?: string;
+  supersededByEdgeId?: UUID;
+}
+
+/**
  * Every edge carries its provenance (ADR-020): `origin` explains how it was derived, `status`
  * whether it's currently shown/confirmed, `confidence` how certain the derivation is. The first
  * release ships only EXPLICIT_DOMAIN_RELATIONSHIP/DETERMINISTIC_DERIVATION origins, all CONFIRMED —
@@ -429,6 +443,7 @@ export interface GraphEdge {
   confidence: "EXPLICIT" | "HIGH" | "MODERATE" | "LOW" | "NOT_APPLICABLE";
   explanation?: string;
   sourceReferences: GraphEdgeSourceReference[];
+  history: GraphEdgeHistory;
 }
 
 /** A bounded, focus-node-centered view — never the whole graph (default: 25 nodes, 2-hop depth). */
@@ -454,4 +469,14 @@ export interface KnowledgeGraphCheckpoint {
 
 export interface KnowledgeGraphStatusResponse {
   checkpoints: KnowledgeGraphCheckpoint[];
+}
+
+/**
+ * Phase 11E: a manually triggered, bounded pass comparing pairs of beliefs with no existing
+ * connection. Anything found lands as a PROPOSED/AI_PROPOSED edge for a human to review via the
+ * Phase 11D governance actions — this response is just the run's own accounting, not the edges.
+ */
+export interface KnowledgeGraphDiscoveryResponse {
+  pairsEvaluated: number;
+  proposalsCreated: number;
 }

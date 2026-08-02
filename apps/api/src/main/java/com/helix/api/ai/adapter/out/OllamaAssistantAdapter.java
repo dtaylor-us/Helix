@@ -328,6 +328,71 @@ public class OllamaAssistantAdapter implements AiAssistantPort {
         }
     }
 
+    @Override
+    public AiRelationshipProposal proposeBeliefRelationship(String context) {
+        if (!isAvailable && System.currentTimeMillis() - lastFailureTime < AVAILABILITY_RESET_MS) {
+            return createRelationshipProposalFallback();
+        }
+
+        try {
+            OllamaRequest request = buildRelationshipProposalRequest(context);
+            OllamaResponse response = restClient.post()
+                .uri("/api/generate")
+                .body(request)
+                .retrieve()
+                .onStatus(status -> !status.is2xxSuccessful(),
+                    (httpRequest, httpResponse) -> {
+                        throw new OllamaException("Ollama API error: " + httpResponse.getStatusCode());
+                    })
+                .toEntity(OllamaResponse.class)
+                .getBody();
+
+            if (response == null || response.response == null || response.response.isEmpty()) {
+                recordFailure();
+                return createRelationshipProposalFallback();
+            }
+
+            String related = extractLabeledLine(response.response, "RELATED");
+            if (related == null || related.isBlank()) {
+                recordFailure();
+                return createRelationshipProposalFallback();
+            }
+
+            isAvailable = true;
+            boolean isRelated = related.trim().equalsIgnoreCase("yes");
+            String explanation = isRelated ? extractLabeledLine(response.response, "WHY") : null;
+            return new AiRelationshipProposal(isRelated, explanation, "ollama", aiProperties.getOllama().getModel(), false);
+        } catch (RestClientException | OllamaException e) {
+            recordFailure();
+            return createRelationshipProposalFallback();
+        }
+    }
+
+    private OllamaRequest buildRelationshipProposalRequest(String context) {
+        String prompt = """
+            You are helping notice thematic connections between two of someone's personal beliefs
+            that aren't already linked by an explicit record in their data. Only say they're related
+            if there's a genuine, specific thematic echo (e.g. the same underlying fear, the same
+            kind of situation, one seeming like an evolution of the other) -- not just because both
+            are beliefs, or both mention a similar generic topic. Respond with EXACTLY these labeled
+            lines, no markdown, no preamble:
+            RELATED: <yes or no>
+            WHY: <if yes, one short sentence explaining the specific connection; omit this line if no>
+
+            Context: %s""".formatted(context);
+
+        OllamaRequest request = new OllamaRequest();
+        request.model = aiProperties.getOllama().getModel();
+        request.prompt = prompt;
+        request.stream = false;
+        request.temperature = aiProperties.getOllama().getTemperature();
+        return request;
+    }
+
+    private AiRelationshipProposal createRelationshipProposalFallback() {
+        return new AiRelationshipProposal(false, null, "ollama", aiProperties.getOllama().getModel(), true);
+    }
+
     /**
      * Check if this adapter is currently available.
      * Implements circuit-breaker pattern to prevent cascading failures.

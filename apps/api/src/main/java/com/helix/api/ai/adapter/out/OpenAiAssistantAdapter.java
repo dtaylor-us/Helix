@@ -344,6 +344,76 @@ public class OpenAiAssistantAdapter implements AiAssistantPort {
         }
     }
 
+    @Override
+    public AiRelationshipProposal proposeBeliefRelationship(String context) {
+        if (!isAvailable && System.currentTimeMillis() - lastFailureTime < AVAILABILITY_RESET_MS) {
+            return createRelationshipProposalFallback();
+        }
+
+        try {
+            OpenAiRequest request = buildRelationshipProposalRequest(context);
+            OpenAiResponse response = restClient.post()
+                .uri("/v1/chat/completions")
+                .body(request)
+                .retrieve()
+                .onStatus(status -> !status.is2xxSuccessful(),
+                    (httpRequest, httpResponse) -> {
+                        throw new OpenAiException("OpenAI API error: " + httpResponse.getStatusCode());
+                    })
+                .toEntity(OpenAiResponse.class)
+                .getBody();
+
+            if (response == null || response.choices == null || response.choices.isEmpty()) {
+                recordFailure();
+                return createRelationshipProposalFallback();
+            }
+
+            String text = response.choices.get(0).message.content;
+            String related = extractLabeledLine(text, "RELATED");
+            if (related == null || related.isBlank()) {
+                recordFailure();
+                return createRelationshipProposalFallback();
+            }
+
+            isAvailable = true;
+            boolean isRelated = related.trim().equalsIgnoreCase("yes");
+            String explanation = isRelated ? extractLabeledLine(text, "WHY") : null;
+            return new AiRelationshipProposal(isRelated, explanation, "openai", aiProperties.getOpenai().getModel(), false);
+        } catch (RestClientException | OpenAiException e) {
+            recordFailure();
+            return createRelationshipProposalFallback();
+        }
+    }
+
+    private OpenAiRequest buildRelationshipProposalRequest(String context) {
+        String systemPrompt = """
+            You are helping notice thematic connections between two of someone's personal beliefs
+            that aren't already linked by an explicit record in their data. Only say they're related
+            if there's a genuine, specific thematic echo (e.g. the same underlying fear, the same
+            kind of situation, one seeming like an evolution of the other) -- not just because both
+            are beliefs, or both mention a similar generic topic. Respond with EXACTLY these labeled
+            lines, no markdown, no preamble:
+            RELATED: <yes or no>
+            WHY: <if yes, one short sentence explaining the specific connection; omit this line if no>
+            """;
+
+        OpenAiRequest request = new OpenAiRequest();
+        request.model = aiProperties.getOpenai().getModel();
+        request.temperature = aiProperties.getOpenai().getTemperature();
+        request.maxTokens = aiProperties.getOpenai().getMaxTokens();
+        request.messages = List.of(
+            new OpenAiRequest.Message("system", systemPrompt),
+            new OpenAiRequest.Message("user", context)
+        );
+        return request;
+    }
+
+    private AiRelationshipProposal createRelationshipProposalFallback() {
+        // No live judgment was made -- default to "not related" rather than fabricating a
+        // connection, mirroring the memory-proposal precedent of never inventing content on fallback.
+        return new AiRelationshipProposal(false, null, "openai", aiProperties.getOpenai().getModel(), true);
+    }
+
     /**
      * Check if this adapter is currently available.
      * Implements circuit-breaker pattern to prevent cascading failures.

@@ -3,6 +3,7 @@ package com.helix.api.knowledge.adapter.in.http;
 import com.helix.api.knowledge.application.KnowledgeEdgeGovernanceService;
 import com.helix.api.knowledge.application.KnowledgeGraphProjectionService;
 import com.helix.api.knowledge.application.KnowledgeGraphQueryService;
+import com.helix.api.knowledge.application.KnowledgeGraphRelationshipDiscoveryService;
 import com.helix.api.knowledge.domain.KnowledgeEdgeEntity;
 import com.helix.api.knowledge.domain.KnowledgeEdgeSourceEntity;
 import com.helix.api.knowledge.domain.KnowledgeEdgeType;
@@ -43,19 +44,22 @@ public class KnowledgeGraphController {
         DISPLAY_LABELS.put(KnowledgeEdgeType.WISDOM_SUPPORTED_BY_EVIDENCE, "Supported by");
         DISPLAY_LABELS.put(KnowledgeEdgeType.WISDOM_EMERGED_FROM_REFLECTION, "Emerged from");
         DISPLAY_LABELS.put(KnowledgeEdgeType.MEMORY_DERIVED_FROM, "Derived from");
+        DISPLAY_LABELS.put(KnowledgeEdgeType.BELIEF_RELATED_TO_BELIEF, "May relate to");
     }
 
     private final KnowledgeGraphProjectionService projectionService;
     private final KnowledgeGraphQueryService queryService;
     private final KnowledgeEdgeGovernanceService governanceService;
+    private final KnowledgeGraphRelationshipDiscoveryService discoveryService;
 
     public KnowledgeGraphController(
         KnowledgeGraphProjectionService projectionService, KnowledgeGraphQueryService queryService,
-        KnowledgeEdgeGovernanceService governanceService
+        KnowledgeEdgeGovernanceService governanceService, KnowledgeGraphRelationshipDiscoveryService discoveryService
     ) {
         this.projectionService = projectionService;
         this.queryService = queryService;
         this.governanceService = governanceService;
+        this.discoveryService = discoveryService;
     }
 
     @PostMapping("/rebuild")
@@ -90,6 +94,12 @@ public class KnowledgeGraphController {
     @GetMapping("/focus/{nodeType}/{sourceRecordId}")
     public GraphViewDto focusView(@PathVariable KnowledgeNodeType nodeType, @PathVariable UUID sourceRecordId) {
         return toDto(queryService.focusView(nodeType, sourceRecordId), "Connections", "Records connected to this one.");
+    }
+
+    @PostMapping("/discover-relationships")
+    public DiscoveryResponseDto discoverRelationships() {
+        var summary = discoveryService.discoverBeliefRelationships();
+        return new DiscoveryResponseDto(summary.pairsEvaluated(), summary.proposalsCreated());
     }
 
     @PostMapping("/edges/{edgeId}/confirm")
@@ -131,7 +141,24 @@ public class KnowledgeGraphController {
             edge.getId(), edge.getSourceNodeId(), edge.getTargetNodeId(), edge.getRelationshipType().name(),
             DISPLAY_LABELS.getOrDefault(edge.getRelationshipType(), edge.getRelationshipType().name()),
             edge.getOrigin().name(), edge.getStatus().name(), edge.getConfidence().name(),
-            edge.getExplanation(), sourceRefs
+            edge.getExplanation(), sourceRefs, toHistory(edge)
+        );
+    }
+
+    // Phase 11F: a lightweight history view over the temporal/governance columns every edge has
+    // carried since the 11B migration (effective_from/effective_to/superseded_by_edge_id were
+    // reserved from day one, per ADR-020, even though nothing populates effective_from/effective_to
+    // yet -- no feature in this app currently revises an edge's validity window). Surfaces whatever
+    // is actually populated today (created/confirmed/rejected timestamps) rather than fabricating a
+    // richer timeline than the data supports.
+    private EdgeHistoryDto toHistory(KnowledgeEdgeEntity edge) {
+        return new EdgeHistoryDto(
+            edge.getCreatedAt().toString(),
+            edge.getConfirmedAt() != null ? edge.getConfirmedAt().toString() : null,
+            edge.getRejectedAt() != null ? edge.getRejectedAt().toString() : null,
+            edge.getEffectiveFrom() != null ? edge.getEffectiveFrom().toString() : null,
+            edge.getEffectiveTo() != null ? edge.getEffectiveTo().toString() : null,
+            edge.getSupersededByEdgeId()
         );
     }
 
@@ -147,6 +174,7 @@ public class KnowledgeGraphController {
     }
 
     public record RebuildResponseDto(int nodeCount, int edgeCount, String rebuiltAt) {}
+    public record DiscoveryResponseDto(int pairsEvaluated, int proposalsCreated) {}
     public record CheckpointDto(String sourceModule, String lastProjectedAt) {}
     public record StatusResponseDto(List<CheckpointDto> checkpoints) {}
     public record GraphViewDto(String title, String description, UUID focusNodeId,
@@ -155,6 +183,10 @@ public class KnowledgeGraphController {
                                String sourceRoute, String status, String visualCategory) {}
     public record GraphEdgeDto(UUID id, UUID sourceNodeId, UUID targetNodeId, String relationshipType,
                                String displayLabel, String origin, String status, String confidence,
-                               String explanation, List<SourceReferenceDto> sourceReferences) {}
+                               String explanation, List<SourceReferenceDto> sourceReferences, EdgeHistoryDto history) {}
     public record SourceReferenceDto(String recordType, UUID recordId) {}
+    public record EdgeHistoryDto(
+        String createdAt, String confirmedAt, String rejectedAt,
+        String effectiveFrom, String effectiveTo, UUID supersededByEdgeId
+    ) {}
 }

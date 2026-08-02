@@ -103,4 +103,13 @@ public class NoAiAssistantAdapter implements AiAssistantPort {
     public AiMemoryProposal proposeMemory(String context) {
         return new AiMemoryProposal(null, "none", "deterministic", true);
     }
+
+    // Same reasoning as proposeMemory above: with no AI provider configured, there's no
+    // trustworthy way to judge a thematic connection between two beliefs. Defaulting to "not
+    // related" rather than fabricating one keeps this feature dormant, not misleading, when no
+    // provider is configured.
+    @Override
+    public AiRelationshipProposal proposeBeliefRelationship(String context) {
+        return new AiRelationshipProposal(false, null, "none", "deterministic", true);
+    }
 }

@@ -363,9 +363,41 @@ UI has nothing to act on yet, by design — the first release has zero
 from backend mechanism to clickable UI is in place, so Phase 11E only needs
 to start producing `AI_PROPOSED` edges, not build any new surface for them.
 
-**Phase 11E (AI-assisted relationship discovery) and 11F (temporal
-exploration)**: not started. See the scoping doc and ADR-020 for the full
-subphase breakdown and exit criteria.
+**Phase 11E (AI-assisted relationship discovery) — done (2026-08-02).** Added
+one new edge type, `BELIEF_RELATED_TO_BELIEF` — the only edge type this
+graph ever derives from an AI judgment rather than a domain foreign key —
+plus `AiAssistantPort.proposeBeliefRelationship(context)` implemented across
+all three adapters (OpenAI, Ollama, No-Op; No-Op and any fallback path
+default to "not related" rather than fabricating a connection, mirroring
+the existing memory-proposal precedent). A new
+`KnowledgeGraphRelationshipDiscoveryService`, triggered manually via
+`POST /discover-relationships` (not run automatically on every rebuild, to
+keep AI usage visible and bounded), compares pairs of BELIEF nodes with no
+existing `BELIEF_RELATED_TO_BELIEF` edge of any status (so a previously
+rejected pair is never re-asked), capped at 25 pairs per run. Anything the
+model says is related lands as `KnowledgeEdgeStatus.PROPOSED` /
+`KnowledgeEdgeOrigin.AI_PROPOSED` — never auto-confirmed — which is exactly
+what the already-built Phase 11D governance UI needed to have something to
+act on. The frontend gained a "Check for new connections" action on
+`KnowledgeGraphPage` reporting pairs-checked/connections-found.
+
+**Phase 11F (temporal exploration) — done (2026-08-02), lightweight as
+scoped.** Every edge's response now includes a `history` object
+(`createdAt`, `confirmedAt`, `rejectedAt`, `effectiveFrom`, `effectiveTo`,
+`supersededByEdgeId`) surfacing the temporal/governance columns the 11B
+migration reserved from day one. `effectiveFrom`/`effectiveTo` remain null
+today — no feature in this app currently revises an edge's validity window,
+so nothing populates them yet — and the UI shows only what's actually
+present rather than fabricating a richer timeline. No animated timeline, as
+scoped; the list view's new history line is enough to answer "when was this
+noticed / confirmed / rejected."
+
+All six knowledge graph subphases (11A-11F) are now done. Remaining gaps are
+noted in the "Known limitations" sections of the corresponding dev log
+entries, chiefly: the backend has never been compiled in this sandbox, and
+the adapter-level (OpenAI/Ollama HTTP) tests for the new
+`proposeBeliefRelationship` method were not added, since the implementation
+mirrors the already-tested `proposeMemory` method's structure exactly.
 
 ### Phase 12 — Production deployment & operations hardening (Increment 10)
 

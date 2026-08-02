@@ -12,6 +12,7 @@ vi.mock('../api/http', () => ({
     confirmGraphEdge: vi.fn(),
     rejectGraphEdge: vi.fn(),
     hideGraphEdge: vi.fn(),
+    discoverGraphRelationships: vi.fn(),
   },
 }))
 
@@ -42,6 +43,7 @@ describe('KnowledgeGraphPage', () => {
     vi.mocked(api.confirmGraphEdge).mockReset()
     vi.mocked(api.rejectGraphEdge).mockReset()
     vi.mocked(api.hideGraphEdge).mockReset()
+    vi.mocked(api.discoverGraphRelationships).mockReset()
   })
 
   it('renders a bounded view with a diagram, list toggle, and node detail on selection', async () => {
@@ -83,6 +85,7 @@ describe('KnowledgeGraphPage', () => {
           confidence: 'EXPLICIT',
           explanation: 'This belief belongs to this transformation.',
           sourceReferences: [],
+          history: { createdAt: '2026-08-01T00:00:00Z', confirmedAt: '2026-08-01T00:00:00Z' },
         },
       ],
       truncated: false,
@@ -95,6 +98,7 @@ describe('KnowledgeGraphPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'List' }))
     expect(await screen.findByText(/Includes belief/i)).toBeInTheDocument()
+    expect(screen.getByText(/Noticed .* · confirmed /i)).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Belief' }))
     await waitFor(() => expect(screen.queryByText(/Includes belief/i)).not.toBeInTheDocument())
@@ -131,6 +135,7 @@ describe('KnowledgeGraphPage', () => {
           confidence: 'MODERATE',
           explanation: 'AI suggested this connection.',
           sourceReferences: [],
+          history: { createdAt: '2026-08-01T00:00:00Z' },
         },
       ],
       truncated: false,
@@ -146,6 +151,7 @@ describe('KnowledgeGraphPage', () => {
       confidence: 'MODERATE',
       explanation: 'AI suggested this connection.',
       sourceReferences: [],
+      history: { createdAt: '2026-08-01T00:00:00Z', confirmedAt: '2026-08-01T01:00:00Z' },
     })
 
     renderGraphPage()
@@ -154,5 +160,22 @@ describe('KnowledgeGraphPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Confirm' }))
 
     await waitFor(() => expect(api.confirmGraphEdge).toHaveBeenCalledWith('e-2'))
+  })
+
+  it('reports how many pairs were checked and how many connections were found', async () => {
+    vi.mocked(api.getGraphFocus).mockResolvedValue({
+      title: 'Connections',
+      focusNodeId: 'n-1',
+      nodes: [{ id: 'n-1', type: 'TRANSFORMATION', label: 'Focus', sourceRecordId: 't-1', visualCategory: 'transformation' }],
+      edges: [],
+      truncated: false,
+    })
+    vi.mocked(api.discoverGraphRelationships).mockResolvedValue({ pairsEvaluated: 5, proposalsCreated: 2 })
+
+    renderGraphPage()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Check for new connections' }))
+
+    expect(await screen.findByText('Found 2 possible connections to review, out of 5 pairs checked.')).toBeInTheDocument()
   })
 })
