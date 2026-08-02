@@ -7,6 +7,7 @@ import {
 import { AppLayout } from '../components/AppLayout'
 import { DataExportPage } from '../pages/DataExportPage'
 import { ExperimentPage } from '../pages/ExperimentPage'
+import { KnowledgeGraphPage } from '../pages/KnowledgeGraphPage'
 import { KnowledgePage } from '../pages/KnowledgePage'
 import { LibraryPage } from '../pages/LibraryPage'
 import { PlaceholderPage } from '../pages/PlaceholderPage'
@@ -82,6 +83,12 @@ const knowledgeRoute = createRoute({
   component: KnowledgePage,
 })
 
+const knowledgeGraphRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/knowledge-graph/$nodeType/$sourceRecordId',
+  component: KnowledgeGraphPage,
+})
+
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/settings',
@@ -123,6 +130,7 @@ const routeTree = rootRoute.addChildren([
   libraryRoute,
   searchRoute,
   knowledgeRoute,
+  knowledgeGraphRoute,
   settingsRoute,
   settingsPrivacyRoute,
   settingsAiRoute,

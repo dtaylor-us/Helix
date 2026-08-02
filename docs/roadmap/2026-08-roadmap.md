@@ -300,15 +300,72 @@ and evidence as a flat list/detail view (confirmed: no graph library, no
 graph data model, no visualization anywhere in `apps/web` or `apps/api`
 under the knowledge/beliefs modules).
 
-Scope: needs its own product-level scoping pass before implementation — "a
-knowledge graph" is underspecified until decisions are made on: what the
-nodes/edges actually represent (belief↔evidence↔transformation
-relationships? something richer?), whether this is a genuine graph data
-model change on the backend or a client-side visualization over existing
-relational data, and what interaction model it needs (read-only exploration
-vs. editing). Treat this as the lowest-priority, highest-ambiguity phase in
-this roadmap — don't start implementation without a dedicated scoping
-session first.
+**Phase 11A (product and domain scoping) — DONE (2026-08-02).** A detailed
+product brief was supplied and scoped against Helix's actual schema in
+`docs/product/knowledge-graph-scoping.md`, with the architecture decision
+recorded in ADR-020 (status: Proposed, pending sign-off — the brief's own
+exit criterion for 11A requires product-owner approval before any 11B
+implementation work starts). Key outcomes: relational PostgreSQL projection,
+no dedicated graph database; domain modules stay authoritative; the first
+release ships zero AI-proposed edges (only `EXPLICIT_DOMAIN_RELATIONSHIP` and
+`DETERMINISTIC_DERIVATION` origins, both auto-confirmed); `Value` and
+`Growth Dimension` node types deferred (no backing concept exists anywhere in
+Helix today); roughly a third of the brief's proposed edge types deferred to
+Phase 11E or dropped as not supportable by current data (full mapping in the
+scoping doc's Section 4). No code was written this session — explicitly out
+of scope per the brief's own instruction not to begin persistence or
+visualization changes before scoping and the ADR are complete.
+
+**Phase 11B (projection foundation) — backend done (2026-08-02, not yet
+verified by a compiled build; see Known limitations).** User instruction to
+"implement all the phases for the knowledge graph" is treated as the
+required sign-off on ADR-020, superseding the "requires product-owner
+approval before 11B starts" gate noted above. Shipped: migration
+`V11__knowledge_graph.sql` (`knowledge_node`, `knowledge_edge`,
+`knowledge_edge_source`, `knowledge_projection_checkpoint`); a `knowledge`
+module (domain/adapter.out.persistence/application/adapter.in.http) with a
+full-rebuild-only projection service deriving every edge type the scoping
+doc's Section 4 marked in-scope for 11B from the seven authoritative domain
+repositories; a bounded, depth-and-node-capped BFS query service
+(`KnowledgeGraphQueryService`, default depth 2 / max 25 nodes); a governance
+service (confirm/reject/hide) built ahead of Phase 11E's need since nothing
+produces `PROPOSED` edges yet; and a REST controller exposing rebuild,
+status, transformation/belief convenience views, a generic focus view, and
+the three governance actions. Unit tests cover the projection service
+(including the retrospective-exclusion and orphaned-edge-skip cases), the
+query service's BFS/truncation/depth behavior, the governance service, and
+the controller.
+
+**Phase 11C (frontend graph exploration) — done (2026-08-02).** Resolved the
+two items the scoping doc left open for this subphase: no external graph
+library (custom SVG radial diagram, keeping bundle size flat) and no
+separate mobile-specific layout (the list view doubles as the small-screen
+experience). Shipped `KnowledgeGraphPage` at
+`/knowledge-graph/$nodeType/$sourceRecordId` — a calm radial SVG diagram of
+the bounded focus view plus a fully accessible structured-list alternative
+(required, not optional, per the brief), a type filter, a node detail panel
+with a link back to the record's own page, loading/empty/error states, and a
+"Build connections"/"Refresh connections" action wired to the rebuild
+endpoint. "Explore connections" entry points added to
+`TransformationDetailPage` and the belief detail panel in `KnowledgePage`.
+Contracts and `http.ts` extended to match the 11B controller's DTOs exactly.
+Frontend typecheck, lint, and vitest (34/34, including 3 new tests) all
+pass; `vite build` fails only on an environment-specific `EPERM` unlinking
+a stale `dist/` in this sandbox (same host-sync permission pattern noted
+elsewhere in this engagement, not a code defect — `tsc -b`, the first half
+of the build script, completed cleanly before that unrelated failure).
+
+**Phase 11D (relationship governance UI) — done (2026-08-02), dormant until
+11E.** Confirm/reject/hide buttons are wired into the list view for any edge
+with `status: PROPOSED`, calling the governance endpoints built in 11B. This
+UI has nothing to act on yet, by design — the first release has zero
+`PROPOSED` edges (all 11B/11C edges ship pre-confirmed) — but the full path
+from backend mechanism to clickable UI is in place, so Phase 11E only needs
+to start producing `AI_PROPOSED` edges, not build any new surface for them.
+
+**Phase 11E (AI-assisted relationship discovery) and 11F (temporal
+exploration)**: not started. See the scoping doc and ADR-020 for the full
+subphase breakdown and exit criteria.
 
 ### Phase 12 — Production deployment & operations hardening (Increment 10)
 

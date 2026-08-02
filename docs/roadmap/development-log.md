@@ -2,6 +2,171 @@
 
 This log is updated at the end of significant delivery sessions.
 
+## 2026-08-02 Session - Roadmap Phase 11C/11D: Knowledge Graph Exploration UI and Governance Wiring (Frontend)
+
+Summary:
+- Continuation of the same session/instruction as Phase 11B ("implement all the phases for the
+  knowledge graph"). Built the frontend exploration UI (11C) and wired the already-built backend
+  governance mechanism into a real UI surface (11D) — both in one pass since the governance actions
+  live naturally inside the same page as the graph view.
+- Resolved the two items 11A's scoping deliberately left open for 11C: no external graph
+  visualization library (a custom SVG radial layout was enough for a bounded ≤25-node view, and
+  keeps this optional feature from adding to every user's bundle size) and no separate mobile
+  layout (the accessible list view already works at any viewport width, so it doubles as the small-
+  screen experience rather than building a second bespoke layout).
+
+Changes:
+- `packages/contracts/src/index.ts`: added `KnowledgeNodeType`, `GraphNode`, `GraphEdge`,
+  `GraphEdgeSourceReference`, `GraphView`, `KnowledgeGraphRebuildResponse`,
+  `KnowledgeGraphCheckpoint`, `KnowledgeGraphStatusResponse` — matching the 11B controller's DTOs
+  field-for-field.
+- `apps/web/src/api/http.ts`: added `getGraphByTransformation`, `getGraphByBelief`,
+  `getGraphFocus`, `getGraphStatus`, `rebuildGraph`, `confirmGraphEdge`, `rejectGraphEdge`,
+  `hideGraphEdge`.
+- New `apps/web/src/pages/KnowledgeGraphPage.tsx` at route
+  `/knowledge-graph/$nodeType/$sourceRecordId`: renders the bounded focus view as a calm radial SVG
+  diagram (focus node centered, neighbors placed on a circle around it, muted palette reusing the
+  existing `--provenance`/`--accent`/`--border` tokens rather than a new categorical color set) with
+  a toggleable, fully accessible structured-list alternative that is not gated behind the diagram —
+  per the brief's explicit accessibility requirement. Includes a type filter, a node detail panel
+  (label/summary/status/link back to the record's own page), loading/error/empty states, a
+  build/refresh-connections action, and — Phase 11D — confirm/reject/hide buttons that appear only
+  on edges with `status: PROPOSED` (none exist yet; dormant until 11E).
+- "Explore connections" entry points added to `TransformationDetailPage.tsx` (transformation
+  summary card) and the belief detail panel in `KnowledgePage.tsx`.
+- New `KnowledgeGraphPage.test.tsx`: bounded-view rendering with diagram/list toggle and type
+  filtering, the build-connections path when the projection hasn't been built yet, and governance
+  actions appearing only for `PROPOSED` edges and calling the correct mutation.
+- Updated `docs/roadmap/2026-08-roadmap.md` Phase 11 section: 11C and 11D marked done, 11E/11F
+  remain the only unstarted subphases.
+
+Verification:
+- `npm run typecheck` (tsc -b): clean.
+- `npm run lint` (eslint): clean.
+- `npx vitest run`: 10 test files, 34/34 tests passing (3 new).
+- `npm run build`: `tsc -b` (the type-check half) passed cleanly; `vite build` itself failed only on
+  an `EPERM: operation not permitted, unlink .../dist/assets/...` while clearing a stale `dist/`
+  directory — the same host-sync file-locking pattern already documented elsewhere in this
+  engagement (e.g. the un-removable `.git/index.lock`), not a defect in the code. Nothing about this
+  failure is specific to the knowledge graph work; it would reproduce on a clean `npm run build` of
+  this branch's `dist/` regardless of what changed.
+
+## 2026-08-02 Session - Roadmap Phase 11B: Knowledge Graph Projection Foundation (Backend)
+
+Summary:
+- User instructed "implement all the phases for the knowledge graph," which is treated as the
+  product-owner sign-off Phase 11A's exit criterion required before starting 11B — ADR-020 updated
+  from Proposed to Accepted on that basis.
+- Built the backend projection foundation only (Phase 11B). No frontend, governance UI, or
+  AI-assisted discovery work in this session — those remain 11C–11F.
+- This session also corrected a standing inaccuracy: prior session summaries had repeatedly (and
+  wrongly) described Phases 6, 7, and 9 as sitting uncommitted. Direct `git log`/`git fetch`
+  verification showed all three were already on `origin/main` (commit `a6704c2`). Root cause: this
+  sandbox cannot commit at all — `.git/index.lock` is permission-locked and un-removable here — so
+  every commit in this engagement has come from an external process (almost certainly the user's own
+  local git client on this host-synced folder), not from any git command run in-session. This
+  session's changes will need the same external commit step.
+
+Changes:
+- New migration `V11__knowledge_graph.sql`: `knowledge_node`, `knowledge_edge`,
+  `knowledge_edge_source`, `knowledge_projection_checkpoint` tables with supporting indexes.
+- New `knowledge` module (`domain`, `adapter.out.persistence`, `application`, `adapter.in.http`):
+  - Domain: `KnowledgeNodeType`/`KnowledgeEdgeType`/`KnowledgeEdgeOrigin`/`KnowledgeEdgeStatus`/
+    `KnowledgeEdgeConfidence` enums; `KnowledgeNodeEntity`, `KnowledgeEdgeEntity` (with
+    `confirm`/`reject`/`hide` governance transitions), `KnowledgeEdgeSourceEntity`,
+    `KnowledgeProjectionCheckpointEntity`.
+  - `KnowledgeGraphProjectionService`: full-rebuild-only projection (no incremental sync, per the
+    scoping doc's Q16 answer) deriving every in-scope edge type from the seven authoritative domain
+    repositories (transformation, belief, experiment, evidence, reflection, wisdom, memory). Every
+    edge ships `EXPLICIT_DOMAIN_RELATIONSHIP` or `DETERMINISTIC_DERIVATION` origin, auto-confirmed —
+    zero AI dependency in this phase. Retrospective-sourced wisdom links are explicitly excluded
+    (a weekly retrospective spans multiple transformations, so it isn't attributable to one). Edges
+    referencing a node that wasn't projected are silently skipped rather than failing the rebuild.
+  - `KnowledgeGraphQueryService`: bounded, focus-node-centered BFS views (default 25-node cap,
+    2-hop depth) over `CONFIRMED` edges only — never returns the whole graph.
+  - `KnowledgeEdgeGovernanceService`: confirm/reject/hide mechanism built ahead of Phase 11E's need,
+    so 11E doesn't also have to build it; has nothing to act on until AI-proposed edges exist.
+  - `KnowledgeGraphController`: `POST /rebuild`, `GET /status`, `GET /transformation/{id}`,
+    `GET /belief/{id}`, `GET /focus/{nodeType}/{sourceRecordId}`, and the three governance actions,
+    with a per-edge-type plain-language `displayLabel` lookup and a per-node-type `sourceRoute`.
+- New tests: `KnowledgeGraphProjectionServiceTest` (full derivation chain across all seven domain
+  repositories, retrospective exclusion, orphaned-edge skip, checkpoint touch), 
+  `KnowledgeGraphQueryServiceTest` (missing-focus-node error, BFS walk, truncation, depth limit),
+  `KnowledgeEdgeGovernanceServiceTest`, `KnowledgeGraphControllerTest`.
+- Updated ADR-020 status to Accepted and `docs/roadmap/2026-08-roadmap.md` Phase 11 section to
+  record 11B as backend-done.
+
+Known limitations:
+- Backend has not been compiled or test-run in this sandbox (JDK 11 only; `./gradlew` cannot
+  download its Gradle distribution — network to `services.gradle.org` is blocked). All correctness
+  here relies on manual review against the actual entity/repository source, not a passing build.
+  This constraint has held for every phase in this engagement; flagging again since it applies with
+  extra force to a service this size (12 constructor-injected repositories, one large rebuild
+  method).
+- Phase 11C (frontend), 11D (governance UI), 11E (AI-assisted discovery), 11F (temporal exploration)
+  remain unstarted.
+
+## 2026-08-02 Session - Roadmap Phase 11A: Knowledge Graph Product and Domain Scoping
+
+Summary:
+- User supplied a detailed, prescriptive product brief for a personal knowledge graph (Phase 11 /
+  Increment 7), with an explicit instruction not to begin any visualization or persistence work
+  until the brief's own Phase 11A scoping deliverables and an architecture decision record were
+  complete. This session produced exactly those two artifacts and nothing else — no migrations, no
+  entities, no endpoints, no frontend code.
+- The main value-add beyond transcribing the brief: cross-referencing every one of its ~20 proposed
+  edge types and 8 proposed node types against Helix's actual current schema (verified directly, not
+  assumed) to determine which relationships are genuinely explicit (a direct foreign key already
+  encodes it), which are deterministic derivations (a traceable join across explicit relationships),
+  and which have no supporting data at all today and would require either new domain behavior or
+  AI inference to exist.
+
+Changes:
+- New `docs/product/knowledge-graph-scoping.md`: purpose statement, narrowed user-question list,
+  node catalog (Transformation/Belief/Experiment/Evidence/Reflection/Wisdom/Memory — `Value` and
+  `Growth Dimension` explicitly deferred, since neither exists anywhere in Helix's domain model or
+  product docs today), edge catalog split into three categories (explicit / deterministic-derivation
+  / deferred-not-supported-by-current-data, with per-edge reasoning), provenance model (adopted
+  from the brief's `KnowledgeEdge` shape as-is), governance model (read-only first release; governed
+  confirm/reject/hide UI deferred to land alongside Phase 11E rather than as its own standalone
+  effort, since the first release's all-explicit/all-auto-confirmed edge set gives it nothing to
+  govern), initial transformation-centered user journey, accessibility approach, a 1/3/10-year
+  data-volume estimate, and explicit answers to all 20 of the brief's required scoping questions.
+- New ADR-020 (status: Proposed, not yet Accepted — the brief's own Phase 11A exit criterion
+  requires product-owner sign-off before Phase 11B implementation begins): relational PostgreSQL
+  projection, no dedicated graph database, domain modules remain authoritative, a new Knowledge
+  Graph module owns projection/queries only, zero AI-proposed edges in the first release, bounded
+  contextual graph views (25-node default, 1-2 hop depth), accessible list view ships from day one,
+  rebuildable projection, temporal metadata columns retained from day one even though unused
+  initially.
+- Updated ADR index and `docs/roadmap/2026-08-roadmap.md` Phase 11 section to reflect 11A as done
+  and 11B-11F as not started, with the two genuinely-still-open items (mobile experience shape,
+  graph library selection) called out as deliberately deferred to the start of 11C.
+
+Governance:
+- This session made one product-scoping decision not explicitly dictated by the brief: reordering
+  Phase 11D (governance UI) to land alongside 11E (AI-assisted discovery) rather than before it,
+  since 11D's confirm/reject/hide controls have no function against an all-explicit,
+  all-auto-confirmed edge set. Documented as a deliberate deviation in both the scoping doc (Section
+  10) and ADR-020 (Risks), not a silent reordering.
+- Two node types (`Value`, `Growth Dimension`) and several edge types from the brief were deferred
+  rather than implemented with weak/invented signals, consistent with this project's standing
+  principle against introducing undocumented domain concepts.
+
+Verification:
+- N/A — this was a documentation-only session by design (the brief explicitly forbids code changes
+  before scoping/ADR completion). `./scripts/check-docs` passed.
+
+Known limitations / follow-ups:
+- ADR-020 is Proposed, not Accepted. Phase 11B should not begin until the user reviews and approves
+  both the scoping doc and the ADR — this is the brief's own stated exit criterion, not an
+  optional formality.
+- Graph library selection and the mobile experience shape are both still open, deliberately deferred
+  to a short spike at the start of Phase 11C rather than decided speculatively in this scoping pass.
+- Phases 6, 7, and 9 remain uncommitted with no backend verification (JDK 21 unavailable in this
+  sandbox across every session so far) — unrelated to this session's work, but still the largest
+  outstanding risk in the working copy and worth resolving before more phases stack on top.
+
 ## 2026-08-02 Session - Roadmap Phase 9: Data Export and Deletion (closes ADR-015)
 
 Summary:

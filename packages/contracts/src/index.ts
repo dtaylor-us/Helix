@@ -387,3 +387,71 @@ export interface MemoryProposalDraft {
   aiProvider?: string;
   aiModel?: string;
 }
+
+/**
+ * Phase 11 (ADR-020): the knowledge graph is a read-oriented relational projection over the
+ * authoritative domain records above, not a separate source of truth. `sourceRecordId` is the id of
+ * the underlying Transformation/Belief/Experiment/Evidence/Reflection/Wisdom/Memory row this node
+ * projects; node/edge ids themselves are NOT stable across a projection rebuild.
+ */
+export type KnowledgeNodeType = "TRANSFORMATION" | "BELIEF" | "EXPERIMENT" | "EVIDENCE" | "REFLECTION" | "WISDOM" | "MEMORY";
+
+export interface GraphNode {
+  id: UUID;
+  type: KnowledgeNodeType;
+  label: string;
+  summary?: string;
+  sourceRecordId: UUID;
+  sourceRoute?: string;
+  status?: string;
+  visualCategory: string;
+}
+
+export interface GraphEdgeSourceReference {
+  recordType: string;
+  recordId: UUID;
+}
+
+/**
+ * Every edge carries its provenance (ADR-020): `origin` explains how it was derived, `status`
+ * whether it's currently shown/confirmed, `confidence` how certain the derivation is. The first
+ * release ships only EXPLICIT_DOMAIN_RELATIONSHIP/DETERMINISTIC_DERIVATION origins, all CONFIRMED —
+ * AI_PROPOSED/PROPOSED only start appearing once Phase 11E ships.
+ */
+export interface GraphEdge {
+  id: UUID;
+  sourceNodeId: UUID;
+  targetNodeId: UUID;
+  relationshipType: string;
+  displayLabel: string;
+  origin: "EXPLICIT_DOMAIN_RELATIONSHIP" | "USER_CREATED" | "DETERMINISTIC_DERIVATION" | "AI_PROPOSED";
+  status: "CONFIRMED" | "PROPOSED" | "REJECTED" | "SUPERSEDED" | "HIDDEN";
+  confidence: "EXPLICIT" | "HIGH" | "MODERATE" | "LOW" | "NOT_APPLICABLE";
+  explanation?: string;
+  sourceReferences: GraphEdgeSourceReference[];
+}
+
+/** A bounded, focus-node-centered view — never the whole graph (default: 25 nodes, 2-hop depth). */
+export interface GraphView {
+  title: string;
+  description?: string;
+  focusNodeId: UUID;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  truncated: boolean;
+}
+
+export interface KnowledgeGraphRebuildResponse {
+  nodeCount: number;
+  edgeCount: number;
+  rebuiltAt: string;
+}
+
+export interface KnowledgeGraphCheckpoint {
+  sourceModule: string;
+  lastProjectedAt: string;
+}
+
+export interface KnowledgeGraphStatusResponse {
+  checkpoints: KnowledgeGraphCheckpoint[];
+}

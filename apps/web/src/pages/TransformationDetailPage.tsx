@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useParams } from '@tanstack/react-router'
+import { Link, useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 import type { Experiment } from '../../../../packages/contracts/src/index'
 import { TermHint } from '../components/TermHint'
@@ -82,6 +82,11 @@ export function TransformationDetailPage() {
         {transformation.data?.obstacle && (
           <p className="muted">What gets in the way: {transformation.data.obstacle}</p>
         )}
+        <div className="row">
+          <Link to="/knowledge-graph/$nodeType/$sourceRecordId" params={{ nodeType: 'TRANSFORMATION', sourceRecordId: id }} className="secondary-button">
+            Explore connections
+          </Link>
+        </div>
       </section>
       <section className="card">
         <h2>Add an experiment</h2>

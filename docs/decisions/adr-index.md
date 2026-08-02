@@ -19,3 +19,4 @@
 - ADR-017 Network required for conversational reflection capture (amends ADR-012)
 - ADR-018 AI-derived memory proposal candidates (amends ADR-006)
 - ADR-019 Hard delete, whole-app scope, for data deletion (amends ADR-015)
+- ADR-020 Knowledge graph as a relational, user-governed projection over authoritative domain records (Phase 11, status: Proposed — pending sign-off)

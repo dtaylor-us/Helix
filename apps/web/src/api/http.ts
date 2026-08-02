@@ -14,6 +14,11 @@ import type {
   CreateTransformationRequest,
   Evidence,
   Experiment,
+  GraphEdge,
+  GraphView,
+  KnowledgeGraphRebuildResponse,
+  KnowledgeGraphStatusResponse,
+  KnowledgeNodeType,
   MemoryProposal,
   MemoryProposalDetail,
   MemoryProposalDraft,
@@ -205,6 +210,16 @@ export const api = {
       body: JSON.stringify({ replacementText }),
     }),
   exportData: () => request<DataExportResponse>('/api/v1/data/export'),
+  getGraphByTransformation: (transformationId: string) =>
+    request<GraphView>(`/api/v1/knowledge-graph/transformation/${transformationId}`),
+  getGraphByBelief: (beliefId: string) => request<GraphView>(`/api/v1/knowledge-graph/belief/${beliefId}`),
+  getGraphFocus: (nodeType: KnowledgeNodeType, sourceRecordId: string) =>
+    request<GraphView>(`/api/v1/knowledge-graph/focus/${nodeType}/${sourceRecordId}`),
+  getGraphStatus: () => request<KnowledgeGraphStatusResponse>('/api/v1/knowledge-graph/status'),
+  rebuildGraph: () => request<KnowledgeGraphRebuildResponse>('/api/v1/knowledge-graph/rebuild', { method: 'POST' }),
+  confirmGraphEdge: (edgeId: string) => request<GraphEdge>(`/api/v1/knowledge-graph/edges/${edgeId}/confirm`, { method: 'POST' }),
+  rejectGraphEdge: (edgeId: string) => request<GraphEdge>(`/api/v1/knowledge-graph/edges/${edgeId}/reject`, { method: 'POST' }),
+  hideGraphEdge: (edgeId: string) => request<GraphEdge>(`/api/v1/knowledge-graph/edges/${edgeId}/hide`, { method: 'POST' }),
   // Backend requires an explicit confirm: true body (ADR-019) — not a security control, just
   // protection against a reflexive, no-body DELETE destroying everything by accident.
   deleteAllData: () =>

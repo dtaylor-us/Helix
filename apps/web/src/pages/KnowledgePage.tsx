@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import type { BeliefDetail, CreateEvidenceRequest, TodayResponse } from '../../../../packages/contracts/src'
 import { api } from '../api/http'
@@ -197,6 +198,15 @@ function BeliefDetailPanel({ beliefDetail, todayData }: { beliefDetail: BeliefDe
         <p><strong>Current belief:</strong> {beliefDetail.belief.statement}</p>
         <p className="muted">Type: {beliefDetail.belief.type.toLowerCase()}</p>
         <p>{beliefDetail.narrative}</p>
+        <div className="row">
+          <Link
+            to="/knowledge-graph/$nodeType/$sourceRecordId"
+            params={{ nodeType: 'BELIEF', sourceRecordId: beliefDetail.belief.id }}
+            className="secondary-button"
+          >
+            Explore connections
+          </Link>
+        </div>
       </div>
 
       <div className="stack split-grid">
