@@ -68,7 +68,7 @@ describe('KnowledgeGraphPage', () => {
           label: 'I fall apart under pressure',
           summary: undefined,
           sourceRecordId: 'b-1',
-          sourceRoute: '/knowledge',
+          sourceRoute: '/knowledge?beliefId=b-1',
           status: undefined,
           visualCategory: 'belief',
         },
@@ -102,6 +102,43 @@ describe('KnowledgeGraphPage', () => {
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Belief' }))
     await waitFor(() => expect(screen.queryByText(/Includes belief/i)).not.toBeInTheDocument())
+  })
+
+  it('deep-links "View full record" through the query string, not just the base path', async () => {
+    // Regression test for QA finding KG-3: a sourceRoute like "/knowledge?beliefId=b-1" must
+    // resolve to a real link carrying that query string, not just "/knowledge".
+    vi.mocked(api.getGraphFocus).mockResolvedValue({
+      title: 'Connections for this transformation',
+      focusNodeId: 'n-1',
+      nodes: [
+        {
+          id: 'n-1', type: 'TRANSFORMATION', label: 'Become steadier under pressure',
+          sourceRecordId: 't-1', sourceRoute: '/transformations/t-1', visualCategory: 'transformation',
+        },
+        {
+          id: 'n-2', type: 'BELIEF', label: 'I fall apart under pressure',
+          sourceRecordId: 'b-1', sourceRoute: '/knowledge?beliefId=b-1', visualCategory: 'belief',
+        },
+      ],
+      edges: [
+        {
+          id: 'e-1', sourceNodeId: 'n-1', targetNodeId: 'n-2', relationshipType: 'TRANSFORMATION_CONTAINS_BELIEF',
+          displayLabel: 'Includes belief', origin: 'EXPLICIT_DOMAIN_RELATIONSHIP', status: 'CONFIRMED',
+          confidence: 'EXPLICIT', explanation: 'This belief belongs to this transformation.', sourceReferences: [],
+          history: { createdAt: '2026-08-01T00:00:00Z', confirmedAt: '2026-08-01T00:00:00Z' },
+        },
+      ],
+      truncated: false,
+    })
+
+    renderGraphPage()
+
+    // Match the exact truncated label text, not a substring regex — the node's <title> tooltip
+    // ("Belief: I fall apart under pressure") also contains that substring and would make the
+    // query ambiguous.
+    fireEvent.click(await screen.findByText('I fall apart under pr…'))
+    const link = await screen.findByRole('link', { name: 'View full record' })
+    expect(link.getAttribute('href')).toBe('/knowledge?beliefId=b-1')
   })
 
   it('shows a build-connections action when the projection has not been built yet', async () => {

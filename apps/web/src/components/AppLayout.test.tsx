@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createRootRoute, createRoute, createRouter, RouterProvider } from '@tanstack/react-router'
 import { AppLayout } from './AppLayout'
 
@@ -22,5 +22,29 @@ describe('AppLayout', () => {
     const moreSummary = screen.getByText('More')
     fireEvent.click(moreSummary)
     expect(screen.getByRole('link', { name: 'Settings' })).toBeInTheDocument()
+  })
+
+  it('closes the More menu when focus moves outside it', async () => {
+    renderShell()
+
+    const moreSummary = await screen.findByText('More')
+    const menu = moreSummary.closest('details')
+    fireEvent.click(moreSummary)
+    expect(menu).toHaveAttribute('open')
+
+    fireEvent.focusIn(screen.getByRole('link', { name: 'Library' }))
+    await waitFor(() => expect(menu).not.toHaveAttribute('open'))
+  })
+
+  it('closes the More menu with Escape', async () => {
+    renderShell()
+
+    const moreSummary = await screen.findByText('More')
+    const menu = moreSummary.closest('details')
+    fireEvent.click(moreSummary)
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    await waitFor(() => expect(menu).not.toHaveAttribute('open'))
+    expect(moreSummary).toHaveFocus()
   })
 })

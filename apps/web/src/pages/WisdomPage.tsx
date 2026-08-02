@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import type { WeeklyRetrospective, WisdomSourceLinkRequest } from '../../../../packages/contracts/src'
 import { api } from '../api/http'
+import { TermHint } from '../components/TermHint'
 
 type SourceMode = 'REFLECTION' | 'RETROSPECTIVE'
 
@@ -130,35 +131,31 @@ export function WisdomPage() {
         <p role="status" aria-live="polite" className="muted">
           {retrospectiveStatusText}
         </p>
-        <h3>Reflection summaries</h3>
-        {draftQuery.data.reflectionSummaries.length > 0 ? (
-          <ul>
-            {draftQuery.data.reflectionSummaries.map((summary) => (
-              <li key={summary.reflectionId}>{summary.summary}</li>
-            ))}
-          </ul>
-        ) : (
-          <p>No reflections recorded in the past week yet.</p>
-        )}
-        <h3>Saved snapshots</h3>
-        {retrospectivesQuery.data.length > 0 ? (
-          <ul>
-            {retrospectivesQuery.data.map((retrospective) => (
-              <li key={retrospective.id}>
-                <strong>
-                  {retrospective.periodStart} to {retrospective.periodEnd}
-                </strong>
-                : {retrospective.summary}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>No snapshots saved yet.</p>
-        )}
+        <details className="nested-disclosure">
+          <summary>Reflection summaries ({draftQuery.data.reflectionSummaries.length})</summary>
+          <div className="disclosure-content">
+            {draftQuery.data.reflectionSummaries.length > 0 ? (
+              <ul>{draftQuery.data.reflectionSummaries.map((summary) => <li key={summary.reflectionId}>{summary.summary}</li>)}</ul>
+            ) : <p>No reflections recorded in the past week yet.</p>}
+          </div>
+        </details>
+        <details className="nested-disclosure">
+          <summary>Saved snapshots ({retrospectivesQuery.data.length})</summary>
+          <div className="disclosure-content">
+            {retrospectivesQuery.data.length > 0 ? (
+              <ul>{retrospectivesQuery.data.map((retrospective) => <li key={retrospective.id}><strong>{retrospective.periodStart} to {retrospective.periodEnd}</strong>: {retrospective.summary}</li>)}</ul>
+            ) : <p>No snapshots saved yet.</p>}
+          </div>
+        </details>
       </section>
 
       <section className="card stack">
         <h2>Accepted wisdom</h2>
+        <p className="muted">Keep a lesson only when it feels useful to carry forward. It will remain linked to the experience that shaped it.</p>
+        <TermHint term="Wisdom" />
+        <details className="disclosure">
+          <summary>Add wisdom manually</summary>
+          <div className="stack disclosure-content">
         <label htmlFor="wisdom-statement">Wisdom statement</label>
         <textarea id="wisdom-statement" rows={3} value={statement} onChange={(event) => setStatement(event.target.value)} />
 
@@ -174,6 +171,8 @@ export function WisdomPage() {
         <button disabled={!canCreateWisdom || createWisdom.isPending} onClick={() => createWisdom.mutate()}>
           Save wisdom
         </button>
+          </div>
+        </details>
       </section>
 
       <section className="card stack">
@@ -197,17 +196,18 @@ export function WisdomPage() {
             <div className="stack">
               {selectedDetail && (
                 <>
-                  <h3>Sources</h3>
-                  <ul>
-                    {selectedDetail.sources.map((source) => (
-                      <li key={source.id}>
-                        {source.sourceType.toLowerCase()} - {source.sourceRecordId}
-                        {source.note ? ` (${source.note})` : ''}
-                      </li>
-                    ))}
-                  </ul>
+                  <details className="nested-disclosure" open>
+                    <summary>Sources ({selectedDetail.sources.length})</summary>
+                    <ul className="disclosure-content">
+                      {selectedDetail.sources.map((source) => (
+                        <li key={source.id}>{source.sourceType.toLowerCase()} - {source.sourceRecordId}{source.note ? ` (${source.note})` : ''}</li>
+                      ))}
+                    </ul>
+                  </details>
 
-                  <h3>Revise wisdom</h3>
+                  <details className="disclosure">
+                    <summary>Revise this wisdom</summary>
+                    <div className="stack disclosure-content">
                   <label htmlFor="revision-statement">Updated statement</label>
                   <textarea
                     id="revision-statement"
@@ -228,19 +228,21 @@ export function WisdomPage() {
                   >
                     Save revision
                   </button>
+                    </div>
+                  </details>
 
-                  <h3>Revision history</h3>
-                  {selectedDetail.revisions.length > 0 ? (
-                    <ul>
-                      {selectedDetail.revisions.map((revision) => (
-                        <li key={revision.id}>
-                          {revision.previousStatement} {'->'} {revision.newStatement}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p>No revisions yet.</p>
-                  )}
+                  <details className="nested-disclosure">
+                    <summary>Revision history ({selectedDetail.revisions.length})</summary>
+                    <div className="disclosure-content">
+                      {selectedDetail.revisions.length > 0 ? (
+                        <ul>
+                          {selectedDetail.revisions.map((revision) => (
+                            <li key={revision.id}>{revision.previousStatement} {'->'} {revision.newStatement}</li>
+                          ))}
+                        </ul>
+                      ) : <p>No revisions yet.</p>}
+                    </div>
+                  </details>
                 </>
               )}
             </div>

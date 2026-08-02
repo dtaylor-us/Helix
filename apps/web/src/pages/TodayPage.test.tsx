@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider, createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
 import { TodayPage } from './TodayPage'
 import { api } from '../api/http'
-import type { Reflection, Suggestion } from '../../../../packages/contracts/src'
+import type { Experiment, Reflection, Suggestion } from '../../../../packages/contracts/src'
 
 vi.mock('../api/http', () => ({
   api: {
@@ -44,7 +44,7 @@ const BASE_ACTIVE_EXPERIMENT = {
 
 /** A Today/current-focus response for a user who has already completed onboarding (Phase 7) with an active experiment. */
 function activeExperimentFocus(overrides: Partial<{
-  activeExperiment: typeof BASE_ACTIVE_EXPERIMENT
+  activeExperiment: Experiment
   reflectionHistory: Reflection[]
   suggestionHistory: Suggestion[]
   transformations: typeof BASE_TRANSFORMATIONS
@@ -79,6 +79,11 @@ function renderTodayPage() {
     path: '/knowledge',
     component: () => null,
   })
+  const experimentRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/experiments/$id',
+    component: () => null,
+  })
   const libraryRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/library',
@@ -91,6 +96,7 @@ function renderTodayPage() {
       transformationDetailRoute,
       knowledgeRoute,
       libraryRoute,
+      experimentRoute,
     ]),
   })
 
@@ -227,7 +233,7 @@ describe('TodayPage', () => {
   })
 
   it.each([
-    ['I’ll try this', 'acceptSuggestion', 'ACCEPTED', /this is your next small action/i],
+    ['I’ll try this', 'acceptSuggestion', 'ACCEPTED', /Smallest next action on your active experiment/i],
     ['Not this one', 'dismissSuggestion', 'DISMISSED', /Passed on this action/i],
   ] as const)('immediately reflects the %s suggestion choice', async (buttonName, apiMethod, status, confirmation) => {
     const suggestion = {
@@ -238,13 +244,17 @@ describe('TodayPage', () => {
       createdAt: '2026-01-01T00:00:00Z',
       source: 'DETERMINISTIC' as const,
     }
-    vi.mocked(api.getCurrentFocus).mockResolvedValue(activeExperimentFocus({ suggestionHistory: [suggestion] }))
-    vi.mocked(api.getWeeklyRetrospectiveDraft).mockResolvedValue(EMPTY_RETROSPECTIVE_DRAFT)
-    vi.mocked(api[apiMethod]).mockResolvedValue({
+    const respondedSuggestion = {
       ...suggestion,
       status,
       respondedAt: '2026-01-01T00:05:00Z',
-    })
+    }
+    const initialFocus = activeExperimentFocus({ suggestionHistory: [suggestion] })
+    vi.mocked(api.getCurrentFocus)
+      .mockResolvedValueOnce(initialFocus)
+      .mockResolvedValue({ ...initialFocus, suggestionHistory: [respondedSuggestion] })
+    vi.mocked(api.getWeeklyRetrospectiveDraft).mockResolvedValue(EMPTY_RETROSPECTIVE_DRAFT)
+    vi.mocked(api[apiMethod]).mockResolvedValue(respondedSuggestion)
 
     renderTodayPage()
     fireEvent.click(await screen.findByRole('button', { name: buttonName }))
@@ -252,6 +262,44 @@ describe('TodayPage', () => {
     expect(await screen.findByText(confirmation)).toBeInTheDocument()
     expect(screen.getByText(new RegExp(`Status: ${status}`, 'i'))).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: buttonName })).not.toBeInTheDocument()
+  })
+
+  it('shows the accepted small action as the experiment\'s next action, both on Today and via the Journey link', async () => {
+    const suggestion = {
+      id: 's-1',
+      experimentId: 'e-1',
+      text: 'Take one breath before replying',
+      status: 'PROPOSED' as const,
+      createdAt: '2026-01-01T00:00:00Z',
+      source: 'DETERMINISTIC' as const,
+    }
+    const initialFocus = activeExperimentFocus({ suggestionHistory: [suggestion] })
+    // After accepting, the backend now also revises the experiment's own nextAction (see
+    // SuggestionService.accept) -- the refetched current-focus response reflects that.
+    const refetchedFocus = activeExperimentFocus({
+      activeExperiment: { ...BASE_ACTIVE_EXPERIMENT, nextAction: 'Take one breath before replying' },
+      suggestionHistory: [{ ...suggestion, status: 'ACCEPTED' as const, respondedAt: '2026-01-01T00:05:00Z' }],
+    })
+    vi.mocked(api.getCurrentFocus).mockResolvedValueOnce(initialFocus).mockResolvedValue(refetchedFocus)
+    vi.mocked(api.getWeeklyRetrospectiveDraft).mockResolvedValue(EMPTY_RETROSPECTIVE_DRAFT)
+    vi.mocked(api.acceptSuggestion).mockResolvedValue({
+      ...suggestion, status: 'ACCEPTED', respondedAt: '2026-01-01T00:05:00Z',
+    })
+
+    renderTodayPage()
+
+    expect(await screen.findByText(/Not set yet — accept a suggested action below/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'See this experiment in your Journey' })).toHaveAttribute(
+      'href', '/experiments/e-1',
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: 'I’ll try this' }))
+
+    expect(await screen.findByText(/Smallest next action on your active experiment/i)).toBeInTheDocument()
+    await waitFor(() => {
+      const nextAction = screen.getByText('Smallest next action').closest('.direction-next-action')
+      expect(nextAction).toHaveTextContent('Take one breath before replying')
+    })
   })
 
   it('captures reflection via chat, allows review edits, and saves the edited structured payload', async () => {

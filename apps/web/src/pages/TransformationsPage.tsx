@@ -41,7 +41,10 @@ export function TransformationsPage() {
 
       <section className="card">
         <h2>Start a transformation</h2>
-        <div className="stack">
+        <p className="muted">Create one when you are ready to begin exploring a new direction.</p>
+        <details className="disclosure" open={transformations.data?.length === 0 || undefined}>
+          <summary>Start a new transformation</summary>
+          <div className="stack disclosure-content">
           <label htmlFor="title">What would you love to become or experience?</label>
           <input
             id="title"
@@ -59,28 +62,34 @@ export function TransformationsPage() {
           )}
           <label htmlFor="purpose">Why does this matter to you right now?</label>
           <textarea id="purpose" rows={3} value={purpose} onChange={(e) => setPurpose(e.target.value)} />
-          <label htmlFor="desired-identity">Who are you becoming through this? (optional)</label>
-          <textarea
-            id="desired-identity"
-            rows={2}
-            value={desiredIdentity}
-            onChange={(e) => setDesiredIdentity(e.target.value)}
-            placeholder="e.g. Someone who can hear feedback without spiraling"
-          />
-          <label htmlFor="obstacle">What currently gets in the way? (optional)</label>
-          <textarea
-            id="obstacle"
-            rows={2}
-            value={obstacle}
-            onChange={(e) => setObstacle(e.target.value)}
-            placeholder="e.g. I treat feedback as a verdict on who I am, not on what I did"
-          />
+          <details className="nested-disclosure">
+            <summary>Add identity and obstacle details <span className="muted">(optional)</span></summary>
+            <div className="stack disclosure-content">
+              <label htmlFor="desired-identity">Who are you becoming through this?</label>
+              <textarea
+                id="desired-identity"
+                rows={2}
+                value={desiredIdentity}
+                onChange={(e) => setDesiredIdentity(e.target.value)}
+                placeholder="e.g. Someone who can hear feedback without spiraling"
+              />
+              <label htmlFor="obstacle">What currently gets in the way?</label>
+              <textarea
+                id="obstacle"
+                rows={2}
+                value={obstacle}
+                onChange={(e) => setObstacle(e.target.value)}
+                placeholder="e.g. I treat feedback as a verdict on who I am, not on what I did"
+              />
+            </div>
+          </details>
           <div>
             <button disabled={isTitleBlank || createMutation.isPending} onClick={() => createMutation.mutate()}>
               Save transformation
             </button>
           </div>
-        </div>
+          </div>
+        </details>
       </section>
 
       <section className="card">

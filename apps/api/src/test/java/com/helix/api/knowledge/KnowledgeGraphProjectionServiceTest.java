@@ -156,7 +156,38 @@ class KnowledgeGraphProjectionServiceTest {
         List<KnowledgeNodeEntity> savedNodes = nodeCaptor.getValue();
         assertEquals(1, savedNodes.stream().filter(n -> n.getNodeType() == KnowledgeNodeType.MEMORY).count());
 
+        // Direction matters: the frontend renders "{source label} {displayLabel} {target label}" as
+        // a plain-English sentence, so a swapped source/target produces a directionally false claim
+        // even though the relationship type itself is "present." Assert (source type, target type)
+        // for every edge type, not just that the type exists somewhere in the saved list.
+        var nodeTypeById = savedNodes.stream().collect(java.util.stream.Collectors.toMap(KnowledgeNodeEntity::getId, KnowledgeNodeEntity::getNodeType));
+        for (KnowledgeEdgeEntity edge : savedEdges) {
+            var sourceType = nodeTypeById.get(edge.getSourceNodeId());
+            var targetType = nodeTypeById.get(edge.getTargetNodeId());
+            switch (edge.getRelationshipType()) {
+                case TRANSFORMATION_CONTAINS_BELIEF -> assertEdgeDirection(KnowledgeNodeType.TRANSFORMATION, KnowledgeNodeType.BELIEF, sourceType, targetType);
+                case TRANSFORMATION_CONTAINS_EXPERIMENT -> assertEdgeDirection(KnowledgeNodeType.TRANSFORMATION, KnowledgeNodeType.EXPERIMENT, sourceType, targetType);
+                case TRANSFORMATION_PRODUCED_WISDOM -> assertEdgeDirection(KnowledgeNodeType.TRANSFORMATION, KnowledgeNodeType.WISDOM, sourceType, targetType);
+                case BELIEF_SUPPORTED_BY_EVIDENCE, BELIEF_CHALLENGED_BY_EVIDENCE -> assertEdgeDirection(KnowledgeNodeType.BELIEF, KnowledgeNodeType.EVIDENCE, sourceType, targetType);
+                case BELIEF_EXPLORED_BY_EXPERIMENT -> assertEdgeDirection(KnowledgeNodeType.BELIEF, KnowledgeNodeType.EXPERIMENT, sourceType, targetType);
+                case EXPERIMENT_PRODUCED_EVIDENCE -> assertEdgeDirection(KnowledgeNodeType.EXPERIMENT, KnowledgeNodeType.EVIDENCE, sourceType, targetType);
+                case EXPERIMENT_INFORMED_WISDOM -> assertEdgeDirection(KnowledgeNodeType.EXPERIMENT, KnowledgeNodeType.WISDOM, sourceType, targetType);
+                case REFLECTION_PRODUCED_EVIDENCE -> assertEdgeDirection(KnowledgeNodeType.REFLECTION, KnowledgeNodeType.EVIDENCE, sourceType, targetType);
+                case REFLECTION_REFERENCES_EXPERIMENT -> assertEdgeDirection(KnowledgeNodeType.REFLECTION, KnowledgeNodeType.EXPERIMENT, sourceType, targetType);
+                case REFLECTION_REFERENCES_TRANSFORMATION -> assertEdgeDirection(KnowledgeNodeType.REFLECTION, KnowledgeNodeType.TRANSFORMATION, sourceType, targetType);
+                case WISDOM_SUPPORTED_BY_EVIDENCE -> assertEdgeDirection(KnowledgeNodeType.WISDOM, KnowledgeNodeType.EVIDENCE, sourceType, targetType);
+                case WISDOM_EMERGED_FROM_REFLECTION -> assertEdgeDirection(KnowledgeNodeType.WISDOM, KnowledgeNodeType.REFLECTION, sourceType, targetType);
+                case MEMORY_DERIVED_FROM -> assertEquals(KnowledgeNodeType.MEMORY, sourceType, "MEMORY_DERIVED_FROM must have MEMORY as source");
+                case BELIEF_RELATED_TO_BELIEF -> { /* symmetric -- no fixed direction to assert */ }
+            }
+        }
+
         Mockito.verify(checkpointRepository, Mockito.times(7)).save(any());
+    }
+
+    private static void assertEdgeDirection(KnowledgeNodeType expectedSource, KnowledgeNodeType expectedTarget, KnowledgeNodeType actualSource, KnowledgeNodeType actualTarget) {
+        assertEquals(expectedSource, actualSource, "expected source " + expectedSource + " but was " + actualSource);
+        assertEquals(expectedTarget, actualTarget, "expected target " + expectedTarget + " but was " + actualTarget);
     }
 
     @Test

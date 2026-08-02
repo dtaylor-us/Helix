@@ -1,4 +1,5 @@
 import { Link, Outlet } from '@tanstack/react-router'
+import { useEffect, useRef, useState } from 'react'
 
 const primaryLinks = [
   { to: '/today', label: 'Today', description: 'Your current focus and next step' },
@@ -17,6 +18,34 @@ const secondaryLinks = [
 const activeLinkProps = { className: 'nav-link nav-link-active', 'aria-current': 'page' as const }
 
 export function AppLayout() {
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false)
+  const moreMenuRef = useRef<HTMLDetailsElement>(null)
+
+  useEffect(() => {
+    if (!isMoreMenuOpen) return
+
+    const closeWhenOutside = (event: Event) => {
+      if (!moreMenuRef.current?.contains(event.target as Node)) {
+        setIsMoreMenuOpen(false)
+      }
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsMoreMenuOpen(false)
+        moreMenuRef.current?.querySelector<HTMLElement>('summary')?.focus()
+      }
+    }
+
+    document.addEventListener('pointerdown', closeWhenOutside)
+    document.addEventListener('focusin', closeWhenOutside)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeWhenOutside)
+      document.removeEventListener('focusin', closeWhenOutside)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [isMoreMenuOpen])
+
   return (
     <div className="shell">
       <a href="#main-content" className="skip-link">
@@ -25,7 +54,7 @@ export function AppLayout() {
       <header className="shell-header">
         <div>
           <h1>Helix</h1>
-          <p className="subtitle">A private place to turn who you want to become into small, tested steps.</p>
+          <p className="subtitle">Discover. Practice. Become.</p>
         </div>
         <nav aria-label="Primary">
           <ul className="nav-list">
@@ -37,12 +66,29 @@ export function AppLayout() {
               </li>
             ))}
             <li>
-              <details className="more-menu">
-                <summary className="nav-link more-menu-trigger">More</summary>
+              <details
+                ref={moreMenuRef}
+                className="more-menu"
+                open={isMoreMenuOpen}
+              >
+                <summary
+                  className="nav-link more-menu-trigger"
+                  onClick={(event) => {
+                    event.preventDefault()
+                    setIsMoreMenuOpen((isOpen) => !isOpen)
+                  }}
+                >
+                  More
+                </summary>
                 <ul className="more-menu-list">
                   {secondaryLinks.map((item) => (
                     <li key={item.to}>
-                      <Link to={item.to} className="nav-link" activeProps={activeLinkProps}>
+                      <Link
+                        to={item.to}
+                        className="nav-link"
+                        activeProps={activeLinkProps}
+                        onClick={() => setIsMoreMenuOpen(false)}
+                      >
                         {item.label}
                       </Link>
                     </li>

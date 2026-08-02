@@ -2,6 +2,201 @@
 
 This log is updated at the end of significant delivery sessions.
 
+## 2026-08-02 Session - Progressive Disclosure and Contextual Help
+
+Summary:
+- Added a consistent, keyboard-native disclosure pattern for optional and advanced UI across
+  transformation creation, experiment planning, belief/evidence work, reflection review, memory
+  governance, wisdom creation/revision, and historical detail.
+- Kept primary context and decisions visible while moving manual creation forms, optional planning
+  fields, revision forms, provenance/history, and secondary reflection prompts behind explicit,
+  descriptive controls.
+- Expanded every contextual term explanation from a one-line definition into a plain-language
+  definition, practical guidance, and concrete example. Updated the canonical product glossary to
+  match and added Evidence, Memory, and Wisdom help where those concepts are acted upon.
+- Audited free-form content rendering across Today, Journey, Knowledge, Search, graph inspection,
+  Memory, and Wisdom. User-authored titles, statements, reflections, evidence, provenance IDs, and
+  button labels now wrap safely; record split panes collapse based on available content width rather
+  than relying only on a fixed device breakpoint.
+
+Requirements and decisions:
+- Affects `HELIX-UX-001` and `HELIX-UX-002`; remains consistent with `ADR-001` and `ADR-002`.
+
+Verification:
+- Full web suite: 40/40 tests passed.
+- Typecheck, ESLint, production build, and `scripts/check-docs`: passed.
+
+## 2026-08-02 Session - Belief List Alignment
+
+Summary:
+- Replaced the Knowledge belief list's inconsistently aligned generic buttons with a consistently
+  left-aligned selector. Statements now share one reading edge and belief types use compact category
+  badges; the rest of the application card system is unchanged.
+
+Requirements and decisions:
+- Affects `HELIX-UX-002`; remains consistent with `ADR-002`.
+
+Verification:
+- `npm run test -- KnowledgePage.test.tsx TodayPage.test.tsx`: 15/15 tests passed.
+- `npm run typecheck`, targeted ESLint, production build, and `scripts/check-docs`: passed.
+
+## 2026-08-02 Session - Knowledge Graph Diagram Readability Pass
+
+Summary:
+- User feedback on the diagram view screenshot: every non-focus node rendered with the same beige
+  fill regardless of type, so the only way to tell a Belief from a Reflection from an Evidence node
+  apart was reading small truncated labels crossed by connector lines — hard to scan at a glance.
+  This session redesigns the diagram's visual encoding without introducing a new charting library or
+  breaking the "calm, no hairballs" design principle from the original scoping doc.
+
+Changes:
+- `apps/web/src/styles/main.css`: added a 7-color node-type palette (`--node-transformation`
+  through `--node-memory`, each with a `-soft` fill tint), chosen to stay within the app's existing
+  warm/muted "calm editorial" tokens rather than introducing a bright categorical chart palette.
+- `KnowledgeGraphPage.tsx` / `GraphDiagram`:
+  - Every node now fills with its type's soft color and strokes with its solid color — a Belief
+    always looks like a Belief everywhere in the app, including the filter checkboxes (each now has
+    a matching color swatch) and a new legend row rendered under the diagram (only shows the types
+    actually present in the current view, to avoid a 7-item legend for a 3-node graph).
+  - The focus node no longer overrides its type color to solid orange (which made it look like a
+    Transformation node even when it wasn't) — it now keeps its own type color, plus a solid accent
+    ring around it and a slightly larger radius, so "this is the focus" is legible independent of
+    node type. Selection uses a dashed accent ring instead of an opaque color swap, for the same
+    reason.
+  - Edges now have arrowheads (a `<marker>` def, muted color) showing relationship direction — this
+    also makes the KG-1/KG-2 direction fix from the previous session visibly checkable in the UI,
+    not just correct in the data. Arrowheads are computed to stop at the target node's edge (not its
+    center) so they're actually visible instead of hidding under the circle.
+  - Labels now render with a canvas-colored halo (SVG `paint-order: stroke` trick) so text stays
+    legible where a connector line crosses behind it, without needing to measure text width.
+  - Ring radius now grows modestly with neighbor count (capped) instead of staying fixed, so a
+    9-neighbor view has more breathing room between labels than a 3-neighbor view.
+  - Each node gained an SVG `<title>` (hover tooltip) with its full, untruncated label and type.
+- `KnowledgeGraphPage.test.tsx`: updated the node-click test to target the exact truncated label
+  text instead of a substring regex, since the new `<title>` tooltip also contains that substring
+  and made the query ambiguous.
+
+Verification:
+- `npm run typecheck`, `npm run lint`, `npx vitest run`: all clean, 36/36 tests passing.
+- Purely a visual/CSS/SVG change to one already-tested component — no backend touched, so the
+  backend compile/test gap noted in prior sessions is unaffected by this change specifically.
+
+## 2026-08-02 Session - Knowledge Graph QA Fixes (KG-1 through KG-4)
+
+Summary:
+- An independent Codex QA pass ran the full app (backend, frontend, Postgres) end to end for the
+  first time this engagement — the previous sandbox could never compile or run the backend. The
+  report's verdict was "do not ship" on two grounds: several projected edges had source/target
+  endpoints reversed relative to their relationship type, producing false sentences in the
+  accessible list view (e.g. an evidence-challenges-belief edge rendering as if the belief
+  challenged the evidence); and graph "View full record" links for belief/evidence nodes didn't
+  identify which record to show, landing on an arbitrary one. This session fixes all four bugs the
+  report raised (KG-1 through KG-4) and adds regression coverage for each.
+- This is the first time in the engagement a QA pass actually exercised the running app rather than
+  relying on code review plus unit tests — it caught a real, user-visible correctness bug (wrong
+  edge direction) that no amount of "does this edge type exist" unit testing would have caught,
+  because the original tests checked presence, not direction. That gap is closed below.
+
+Bugs fixed:
+- **KG-1 / KG-2 (High): five edge types had source/target reversed.** `BELIEF_SUPPORTED_BY_EVIDENCE`,
+  `BELIEF_CHALLENGED_BY_EVIDENCE`, `BELIEF_EXPLORED_BY_EXPERIMENT`, `WISDOM_SUPPORTED_BY_EVIDENCE`,
+  `WISDOM_EMERGED_FROM_REFLECTION`, and `MEMORY_DERIVED_FROM` all had the "producing"/"supporting"
+  record as the graph source and the belief/wisdom/memory record as the target — the opposite of
+  what each edge's display label implies when read as "{source label} {display label} {target
+  label}". Fixed in `KnowledgeGraphProjectionService.java` by swapping the endpoints on all six
+  `addEdge(...)` calls (comments added at each call site explaining the expected reading direction).
+  Verified the other eight edge types (`TRANSFORMATION_CONTAINS_BELIEF`,
+  `TRANSFORMATION_CONTAINS_EXPERIMENT`, `TRANSFORMATION_PRODUCED_WISDOM`,
+  `EXPERIMENT_PRODUCED_EVIDENCE`, `EXPERIMENT_INFORMED_WISDOM`, `REFLECTION_PRODUCED_EVIDENCE`,
+  `REFLECTION_REFERENCES_EXPERIMENT`, `REFLECTION_REFERENCES_TRANSFORMATION`) were already correct
+  by re-deriving the expected reading direction for each and checking it wasn't flagged in the
+  report — no change needed there.
+- **KG-3 (Medium): graph node links for BELIEF/EVIDENCE didn't identify a specific record.**
+  `KnowledgeGraphController.sourceRoute` returned a bare `/knowledge` for every belief and evidence
+  node, so the Knowledge page fell back to whatever belief loaded first — the QA repro showed
+  clicking one belief's node and landing on a different belief's detail. Fixed by: (1) BELIEF nodes
+  now route to `/knowledge?beliefId={id}`; (2) EVIDENCE nodes look up their owning belief via a
+  newly injected `EvidenceRepository` and route to that belief's `?beliefId=...` (evidence doesn't
+  have its own standalone page, so landing on its parent belief with its evidence timeline visible
+  is the correct target); (3) `KnowledgePage.tsx`'s `selectedBeliefId` state now lazily initializes
+  from `?beliefId=` in the URL instead of always defaulting to the first belief in the list; (4)
+  `KnowledgeGraphPage.tsx`'s node-detail "View full record" link now splits a `sourceRoute` on `?`
+  and passes the query as TanStack Router's `search` prop via a new `RecordLink` component, instead
+  of passing the raw `"path?query"` string straight into `Link`'s `to` prop (which would have
+  treated the `?...` as a literal, unencoded path segment rather than search params).
+- **KG-4 (Low): missing-focus error took ~10 seconds to appear.** A focus node that doesn't exist is
+  a deterministic 404, not a transient failure, but TanStack Query's default retry behavior kept
+  retrying it before showing the "Build connections" recovery action. Fixed by setting `retry: false`
+  on `KnowledgeGraphPage`'s graph query.
+
+Regression coverage added:
+- `KnowledgeGraphProjectionServiceTest`: the main rebuild test now asserts `(source type, target
+  type)` for every saved edge against a per-relationship-type expectation table, not just that the
+  relationship type is present somewhere in the saved list — this is the specific gap that let
+  KG-1/KG-2 ship undetected the first time.
+- `KnowledgeGraphControllerTest`: new test asserting BELIEF and EVIDENCE nodes both resolve to
+  `/knowledge?beliefId={the belief's id}` (EVIDENCE via the injected `EvidenceRepository` lookup).
+- `KnowledgeGraphPage.test.tsx`: new test clicking a belief node in the diagram and asserting the
+  resulting "View full record" link's actual `href` carries the query string.
+
+Verification:
+- Frontend: `npm run typecheck`, `npm run lint`, `npx vitest run` all clean — 36/36 tests passing
+  (2 new, 1 existing test's fixture updated to include a query string in a `sourceRoute`).
+- Backend: still not compiled in this sandbox (same constraint as the rest of this engagement) —
+  the QA report's own successful `./gradlew build` run is the only real compilation this feature has
+  had, and it predates these fixes. **This should be re-run against the fixed code before merging**;
+  the edits here are mechanical (swap two constructor arguments, add one repository dependency) and
+  were checked carefully against the actual `KnowledgeEdgeEntity`/`EvidenceEntity`/`EvidenceRepository`
+  signatures already in the codebase, but "carefully reviewed" is not the same guarantee as "compiled."
+
+## 2026-08-02 Session - Today Page: Connect Suggested Small Action to the Journey
+
+Summary:
+- User-reported UX gap: "It's not apparent how selecting a small action step on the Today screen
+  impacts the journey or how that is used." Investigation confirmed the gap was real, not just a
+  discoverability problem: accepting or replacing a "Suggested Small Action" only flipped a status
+  flag on the `Suggestion` row itself — it had no effect on the active `Experiment`, and nothing in
+  the UI connected the two. `ExperimentEntity.nextAction` could only be set once at creation and had
+  no mutator at all. This session makes acceptance actually update the experiment's next action and
+  surfaces that connection visibly on the Today page.
+
+Changes:
+- `ExperimentEntity.java`: added `reviseNextAction(String)`, the entity's first mutator.
+- `ExperimentService.java`: added `reviseNextAction(UUID, String)` — loads, mutates, and explicitly
+  saves the experiment (this service's other methods aren't `@Transactional`, so an explicit
+  `repository.save()` is used here rather than relying on ambient dirty-checking).
+- `SuggestionService.java`: now takes `ExperimentService` as a constructor dependency (one-directional
+  `suggestions -> experiments`, no cycle). `accept()` and `replace()` each call
+  `experimentService.reviseNextAction(...)` after mutating the suggestion, so committing to a
+  suggestion — original or replaced — becomes the experiment's actual next action. `dismiss()` is
+  intentionally unchanged; passing on a suggestion shouldn't touch the experiment.
+- `SuggestionServiceTest.java` (new): covers accept and replace both revising the experiment,
+  dismiss leaving it untouched, and `ExperimentService.reviseNextAction` persisting via `save()`.
+- `TodayPage.tsx`:
+  - "Current Direction" card now shows "Smallest next action: {experiment.nextAction}" (with an
+    explanatory empty state before anything's been accepted) and a "See this experiment in your
+    Journey" link to `/experiments/$id`.
+  - The Suggested Small Action card's "Why this" line gains a trailing sentence once a suggestion is
+    ACCEPTED or REPLACED, pointing back at the Current Direction card above.
+  - The accept/replace mutation's `onSuccess` now invalidates both `['current-focus']` and
+    `['experiment', id]` queries (in addition to the existing optimistic local patch) so the refetch
+    picks up the server-side `nextAction` change; dismiss still only does the local patch, since it
+    has no experiment-side effect.
+- `TodayPage.test.tsx`: added a test asserting the empty state, the Journey link's `href`, and that
+  accepting a suggestion updates "Smallest next action" after refetch. Updated the existing shared
+  `it.each` accept/dismiss test to provide a second `getCurrentFocus` mock value reflecting the
+  post-action state — its original single static mock always returned the suggestion as PROPOSED,
+  which the new `invalidateQueries` call exposed as a stale-mock false failure (refetch silently
+  reverted the optimistic ACCEPTED status back to PROPOSED in the test, not in real usage).
+
+Verification:
+- Frontend: `npm run typecheck`, `npm run lint`, `npx vitest run` all clean — 39/39 tests passing.
+- Backend: still not compiled in this sandbox (same standing constraint as the rest of this
+  engagement — JDK 11 only, no Gradle network access). The `ExperimentEntity`/`ExperimentService`/
+  `SuggestionService` changes and the new `SuggestionServiceTest` were checked carefully against the
+  actual entity/repository signatures already in the codebase, but this is not a substitute for a
+  real `./gradlew build`/test run, which should happen before merging.
+
 ## 2026-08-02 Session - Roadmap Phase 11E/11F: AI Relationship Discovery and Temporal History (Knowledge Graph completion)
 
 Summary:

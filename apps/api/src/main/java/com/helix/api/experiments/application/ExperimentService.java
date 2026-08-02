@@ -64,6 +64,17 @@ public class ExperimentService {
         return repository.findById(id).orElseThrow(() -> new NoSuchElementException("Experiment not found"));
     }
 
+    /**
+     * Called when a user accepts (or replaces) a "Suggested Small Action" for this experiment on the
+     * Today page, so that commitment becomes visible on the experiment/journey itself rather than
+     * only existing as a status flag on an isolated suggestion row. See {@code SuggestionService}.
+     */
+    public ExperimentEntity reviseNextAction(UUID id, String nextAction) {
+        var experiment = get(id);
+        experiment.reviseNextAction(nextAction);
+        return repository.save(experiment);
+    }
+
     public Optional<ExperimentEntity> activeExperiment() {
         return repository.findFirstByStatusOrderByCreatedAtDesc(ExperimentStatus.ACTIVE);
     }

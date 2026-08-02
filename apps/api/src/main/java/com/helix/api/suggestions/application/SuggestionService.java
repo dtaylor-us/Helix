@@ -1,5 +1,6 @@
 package com.helix.api.suggestions.application;
 
+import com.helix.api.experiments.application.ExperimentService;
 import com.helix.api.suggestions.adapter.out.persistence.SuggestionRepository;
 import com.helix.api.suggestions.domain.SuggestionEntity;
 import com.helix.api.suggestions.domain.SuggestionSource;
@@ -16,9 +17,11 @@ import java.util.UUID;
 public class SuggestionService {
 
     private final SuggestionRepository repository;
+    private final ExperimentService experimentService;
 
-    public SuggestionService(SuggestionRepository repository) {
+    public SuggestionService(SuggestionRepository repository, ExperimentService experimentService) {
         this.repository = repository;
+        this.experimentService = experimentService;
     }
 
     public SuggestionEntity createDeterministic(UUID experimentId, UUID reflectionId, String nextAction, int previousAttempts) {
@@ -72,10 +75,17 @@ public class SuggestionService {
         return repository.findByExperimentIdOrderByCreatedAtDesc(experimentId);
     }
 
+    /**
+     * Accepting commits the user to this action, so it now also becomes the experiment's actual
+     * next action ({@link ExperimentService#reviseNextAction}) -- previously acceptance only flipped
+     * a status flag on the suggestion row itself, with no visible effect anywhere else in the app
+     * (not on the experiment, not on any journey-facing page).
+     */
     @Transactional
     public SuggestionEntity accept(UUID id) {
         var suggestion = get(id);
         suggestion.accept();
+        experimentService.reviseNextAction(suggestion.getExperimentId(), suggestion.getText());
         return suggestion;
     }
 
@@ -86,10 +96,16 @@ public class SuggestionService {
         return suggestion;
     }
 
+    /**
+     * Replacing is itself a form of acceptance -- the user is committing to their own smaller
+     * version of the action instead of the proposed one -- so it updates the experiment's next
+     * action the same way {@link #accept} does, using the user's replacement text.
+     */
     @Transactional
     public SuggestionEntity replace(UUID id, String replacementText) {
         var suggestion = get(id);
         suggestion.replaceWith(replacementText);
+        experimentService.reviseNextAction(suggestion.getExperimentId(), replacementText);
         return suggestion;
     }
 

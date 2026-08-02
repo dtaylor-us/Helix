@@ -85,7 +85,7 @@ describe('WisdomPage', () => {
     renderWisdomPage()
 
     expect(await screen.findByText(/A calmer week overall\./i)).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /Saved snapshots/i })).toBeInTheDocument()
+    fireEvent.click(screen.getByText(/Saved snapshots \(1\)/i))
     expect(screen.getByText(/2025-12-25 to 2025-12-31/i)).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /Save weekly snapshot/i }))

@@ -14,6 +14,19 @@ const NODE_TYPE_LABELS: Record<KnowledgeNodeType, string> = {
   MEMORY: 'Memory',
 }
 
+// One color per node type so the diagram, the legend, and the filter checkboxes all agree on what
+// each type looks like — previously every non-focus node shared the same fill, so the only way to
+// tell a belief from a reflection was reading truncated label text under overlapping lines.
+const NODE_TYPE_COLORS: Record<KnowledgeNodeType, { solid: string; soft: string }> = {
+  TRANSFORMATION: { solid: 'var(--node-transformation)', soft: 'var(--node-transformation-soft)' },
+  BELIEF: { solid: 'var(--node-belief)', soft: 'var(--node-belief-soft)' },
+  EXPERIMENT: { solid: 'var(--node-experiment)', soft: 'var(--node-experiment-soft)' },
+  EVIDENCE: { solid: 'var(--node-evidence)', soft: 'var(--node-evidence-soft)' },
+  REFLECTION: { solid: 'var(--node-reflection)', soft: 'var(--node-reflection-soft)' },
+  WISDOM: { solid: 'var(--node-wisdom)', soft: 'var(--node-wisdom-soft)' },
+  MEMORY: { solid: 'var(--node-memory)', soft: 'var(--node-memory-soft)' },
+}
+
 const ALL_NODE_TYPES = Object.keys(NODE_TYPE_LABELS) as KnowledgeNodeType[]
 
 /**
@@ -35,6 +48,10 @@ export function KnowledgeGraphPage() {
   const graphQuery = useQuery({
     queryKey: ['knowledge-graph', focusType, sourceRecordId],
     queryFn: () => api.getGraphFocus(focusType, sourceRecordId),
+    // Bug fix (QA finding KG-4): a missing/stale focus node is a deterministic 404, not a transient
+    // failure -- retrying it just delays the "Build connections" recovery action by several seconds
+    // for no benefit.
+    retry: false,
   })
 
   const rebuild = useMutation({
@@ -99,15 +116,17 @@ export function KnowledgeGraphPage() {
 
   return (
     <div className="stack">
-      <section className="card">
-        <h2>{view?.title ?? 'Connections'}</h2>
-        {view?.description && <p className="muted">{view.description}</p>}
+      <section className="card kg-header">
+        <div className="kg-header-copy">
+          <h2>{view?.title ?? 'Connections'}</h2>
+          {view?.description && <p className="muted">{view.description}</p>}
+        </div>
         {view?.truncated && (
           <p className="muted" role="status">
             This view is limited to the closest connections. There may be more than what&rsquo;s shown here.
           </p>
         )}
-        <div className="row">
+        <div className="row kg-actions">
           <button
             type="button"
             className={viewMode === 'diagram' ? 'secondary-button active-item' : 'secondary-button'}
@@ -139,6 +158,22 @@ export function KnowledgeGraphPage() {
             {discoveryStatusText}
           </p>
         )}
+        {view && (
+          <div className="kg-filter" role="group" aria-label="Filter connections by type">
+            <span className="kg-filter-label">Show</span>
+            {ALL_NODE_TYPES.map((type) => (
+              <label key={type} className="kg-filter-option">
+                <input
+                  type="checkbox"
+                  checked={!hiddenTypes.has(type)}
+                  onChange={() => toggleType(type)}
+                />
+                <ColorSwatch type={type} />
+                {NODE_TYPE_LABELS[type]}
+              </label>
+            ))}
+          </div>
+        )}
       </section>
 
       {graphQuery.isLoading && (
@@ -160,22 +195,6 @@ export function KnowledgeGraphPage() {
 
       {view && (
         <>
-          <section className="card">
-            <h3>Filter by type</h3>
-            <div className="row" role="group" aria-label="Filter connections by type">
-              {ALL_NODE_TYPES.map((type) => (
-                <label key={type} className="muted" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                  <input
-                    type="checkbox"
-                    checked={!hiddenTypes.has(type)}
-                    onChange={() => toggleType(type)}
-                  />
-                  {NODE_TYPE_LABELS[type]}
-                </label>
-              ))}
-            </div>
-          </section>
-
           {visibleNodes.length <= 1 && (
             <section className="card">
               <p>No connections yet for this record.</p>
@@ -183,15 +202,18 @@ export function KnowledgeGraphPage() {
           )}
 
           {visibleNodes.length > 1 && viewMode === 'diagram' && (
-            <section className="card">
-              <GraphDiagram
-                nodes={visibleNodes}
-                edges={visibleEdges}
-                focusNodeId={view.focusNodeId}
-                selectedNodeId={selectedNodeId}
-                onSelectNode={setSelectedNodeId}
-              />
-            </section>
+            <div className="kg-workspace">
+              <section className="card kg-canvas-card">
+                <GraphDiagram
+                  nodes={visibleNodes}
+                  edges={visibleEdges}
+                  focusNodeId={view.focusNodeId}
+                  selectedNodeId={selectedNodeId}
+                  onSelectNode={setSelectedNodeId}
+                />
+              </section>
+              <NodeInspector node={selectedNode} />
+            </div>
           )}
 
           {visibleNodes.length > 1 && viewMode === 'list' && (
@@ -222,22 +244,34 @@ export function KnowledgeGraphPage() {
             </section>
           )}
 
-          {selectedNode && (
-            <section className="card">
-              <h3>{selectedNode.label}</h3>
-              <p className="muted">{NODE_TYPE_LABELS[selectedNode.type]}</p>
-              {selectedNode.summary && <p>{selectedNode.summary}</p>}
-              {selectedNode.status && <p className="muted">Status: {selectedNode.status.toLowerCase()}</p>}
-              {selectedNode.sourceRoute && (
-                <Link to={selectedNode.sourceRoute} className="secondary-button">
-                  View full record
-                </Link>
-              )}
-            </section>
-          )}
         </>
       )}
     </div>
+  )
+}
+
+function NodeInspector({ node }: { node: GraphNode | null }) {
+  return (
+    <aside className="card kg-inspector" aria-live="polite" aria-label="Selected connection details">
+      {node ? (
+        <>
+          <div className="kg-inspector-heading">
+            <ColorSwatch type={node.type} />
+            <p className="kg-eyebrow">{NODE_TYPE_LABELS[node.type]}</p>
+          </div>
+          <h3>{node.label}</h3>
+          {node.summary && <p>{node.summary}</p>}
+          {node.status && <p className="muted">Status: {node.status.toLowerCase()}</p>}
+          {node.sourceRoute && <RecordLink route={node.sourceRoute} />}
+        </>
+      ) : (
+        <>
+          <p className="kg-eyebrow">Details</p>
+          <h3>Select a connection</h3>
+          <p className="muted">Choose any node to see its summary, status, and link to the full record.</p>
+        </>
+      )}
+    </aside>
   )
 }
 
@@ -305,16 +339,19 @@ function GraphDiagram({
   selectedNodeId: string | null
   onSelectNode: (id: string) => void
 }) {
-  const size = 480
+  const size = 520
   const center = size / 2
-  const radius = size / 2 - 64
+  // More neighbors need more room to keep labels from colliding — grow the ring radius (capped)
+  // rather than keeping it fixed regardless of how crowded the view is.
+  const others = nodes.length - 1
+  const radius = Math.min(size / 2 - 70, 130 + Math.max(0, others - 6) * 10)
 
   const positions = useMemo(() => {
-    const others = nodes.filter((n) => n.id !== focusNodeId)
+    const otherNodes = nodes.filter((n) => n.id !== focusNodeId)
     const map = new Map<string, { x: number; y: number }>()
     map.set(focusNodeId, { x: center, y: center })
-    others.forEach((node, index) => {
-      const angle = (2 * Math.PI * index) / Math.max(others.length, 1) - Math.PI / 2
+    otherNodes.forEach((node, index) => {
+      const angle = (2 * Math.PI * index) / Math.max(otherNodes.length, 1) - Math.PI / 2
       map.set(node.id, {
         x: center + radius * Math.cos(angle),
         y: center + radius * Math.sin(angle),
@@ -323,60 +360,159 @@ function GraphDiagram({
     return map
   }, [nodes, focusNodeId, center, radius])
 
+  const typesPresent = useMemo(() => Array.from(new Set(nodes.map((n) => n.type))), [nodes])
+
+  function nodeRadius(node: GraphNode) {
+    return node.id === focusNodeId ? 22 : 15
+  }
+
   return (
-    <svg
-      role="img"
-      aria-label="Diagram of connections. Use the List view above for a fully accessible version of this information."
-      viewBox={`0 0 ${size} ${size}`}
-      width="100%"
-      style={{ maxWidth: `${size}px`, display: 'block', margin: '0 auto' }}
-    >
-      {edges.map((edge) => {
-        const from = positions.get(edge.sourceNodeId)
-        const to = positions.get(edge.targetNodeId)
-        if (!from || !to) return null
-        return (
-          <line
-            key={edge.id}
-            x1={from.x}
-            y1={from.y}
-            x2={to.x}
-            y2={to.y}
-            stroke="var(--border)"
-            strokeWidth={2}
-          />
-        )
-      })}
-      {nodes.map((node) => {
-        const position = positions.get(node.id)
-        if (!position) return null
-        const isFocus = node.id === focusNodeId
-        const isSelected = node.id === selectedNodeId
-        return (
-          <g
-            key={node.id}
-            transform={`translate(${position.x}, ${position.y})`}
-            onClick={() => onSelectNode(node.id)}
-            style={{ cursor: 'pointer' }}
-          >
-            <circle
-              r={isFocus ? 20 : 14}
-              fill={isFocus ? 'var(--accent)' : isSelected ? 'var(--provenance)' : 'var(--surface-soft)'}
-              stroke={isSelected ? 'var(--provenance)' : 'var(--border)'}
-              strokeWidth={isSelected ? 3 : 1.5}
+    <div className="kg-diagram">
+      <svg
+        role="img"
+        aria-label="Diagram of connections. Use the List view above for a fully accessible version of this information."
+        viewBox={`0 0 ${size} ${size}`}
+        width="100%"
+        className="kg-diagram-svg"
+      >
+        <defs>
+          <marker id="kg-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--muted)" />
+          </marker>
+        </defs>
+        {edges.map((edge) => {
+          const from = positions.get(edge.sourceNodeId)
+          const to = positions.get(edge.targetNodeId)
+          const targetNode = nodes.find((n) => n.id === edge.targetNodeId)
+          if (!from || !to || !targetNode) return null
+          // Stop the line (and its arrowhead) at the target circle's edge, not its center, so the
+          // arrow is actually visible instead of hiding under the node.
+          const end = shortenToEdge(from, to, nodeRadius(targetNode) + 4)
+          return (
+            <line
+              key={edge.id}
+              x1={from.x}
+              y1={from.y}
+              x2={end.x}
+              y2={end.y}
+              stroke="var(--border)"
+              strokeWidth={2}
+              markerEnd="url(#kg-arrow)"
             />
-            <text
-              y={isFocus ? 36 : 30}
-              textAnchor="middle"
-              fontSize="11"
-              fill="var(--ink)"
+          )
+        })}
+        {nodes.map((node) => {
+          const position = positions.get(node.id)
+          if (!position) return null
+          const isFocus = node.id === focusNodeId
+          const isSelected = node.id === selectedNodeId
+          const colors = NODE_TYPE_COLORS[node.type]
+          const r = nodeRadius(node)
+          return (
+            <g
+              key={node.id}
+              transform={`translate(${position.x}, ${position.y})`}
+              role="button"
+              tabIndex={0}
+              aria-label={`${isFocus ? 'Focus, ' : ''}${NODE_TYPE_LABELS[node.type]}: ${node.label}`}
+              aria-pressed={isSelected}
+              onClick={() => onSelectNode(node.id)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  onSelectNode(node.id)
+                }
+              }}
+              style={{ cursor: 'pointer' }}
             >
-              {truncateLabel(node.label)}
-            </text>
-          </g>
-        )
-      })}
-    </svg>
+              <title>{`${isFocus ? 'Focus — ' : ''}${NODE_TYPE_LABELS[node.type]}: ${node.label}`}</title>
+              {isFocus && <circle r={r + 6} fill="none" stroke="var(--accent)" strokeWidth={2} />}
+              {isSelected && <circle r={r + (isFocus ? 11 : 5)} fill="none" stroke="var(--accent)" strokeWidth={2} strokeDasharray="3 3" />}
+              <circle
+                r={r}
+                fill={colors.soft}
+                stroke={colors.solid}
+                strokeWidth={isFocus ? 3 : 2}
+              />
+              {/* Text drawn with a canvas-colored halo (paint-order trick) so labels stay legible
+                  where an edge line crosses behind them, without needing to measure text width. */}
+              <text
+                y={r + 16}
+                textAnchor="middle"
+                fontSize={isFocus ? 12 : 11}
+                fontWeight={isFocus ? 650 : 550}
+                fill="var(--ink)"
+                stroke="var(--surface)"
+                strokeWidth={4}
+                strokeLinejoin="round"
+                paintOrder="stroke"
+              >
+                {truncateLabel(node.label)}
+              </text>
+            </g>
+          )
+        })}
+      </svg>
+      <div className="kg-legend" aria-hidden="true">
+        {typesPresent.map((type) => (
+          <span key={type} className="kg-legend-item">
+            <ColorSwatch type={type} />
+            {NODE_TYPE_LABELS[type]}
+          </span>
+        ))}
+        <span className="kg-legend-item">
+          <span style={{ width: '0.75rem', height: '0.75rem', flex: '0 0 0.75rem', borderRadius: '50%', border: '2px solid var(--accent)', display: 'inline-block' }} />
+          Focus
+        </span>
+        <span className="kg-legend-item">
+          <span style={{ width: '0.75rem', height: '0.75rem', flex: '0 0 0.75rem', borderRadius: '50%', border: '2px dashed var(--accent)', display: 'inline-block' }} />
+          Selected
+        </span>
+      </div>
+    </div>
+  )
+}
+
+// Moves the line's endpoint back along the source→target vector so it stops at the target node's
+// visible edge (plus a small gap for the arrowhead) instead of running under the circle.
+function shortenToEdge(from: { x: number; y: number }, to: { x: number; y: number }, pullback: number) {
+  const dx = to.x - from.x
+  const dy = to.y - from.y
+  const distance = Math.sqrt(dx * dx + dy * dy) || 1
+  const ratio = Math.max(0, (distance - pullback) / distance)
+  return { x: from.x + dx * ratio, y: from.y + dy * ratio }
+}
+
+function ColorSwatch({ type }: { type: KnowledgeNodeType }) {
+  const colors = NODE_TYPE_COLORS[type]
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        display: 'inline-block',
+        width: '0.75rem',
+        height: '0.75rem',
+        flex: '0 0 0.75rem',
+        borderRadius: '50%',
+        background: colors.soft,
+        border: `2px solid ${colors.solid}`,
+      }}
+    />
+  )
+}
+
+// Bug fix (QA finding KG-3): sourceRoute can carry a query string (e.g. "/knowledge?beliefId=...")
+// so the target page can select the specific record the graph meant. Passing that raw string
+// straight into Link's `to` prop would treat the "?..." as a literal, unencoded path segment
+// instead of search params, so it's split here and passed via Link's `search` prop instead.
+function RecordLink({ route }: { route: string }) {
+  const [pathname, search] = route.split('?')
+  const searchParams = search ? Object.fromEntries(new URLSearchParams(search)) : undefined
+
+  return (
+    <Link to={pathname} search={searchParams} className="secondary-button">
+      View full record
+    </Link>
   )
 }
 

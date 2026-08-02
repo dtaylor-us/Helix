@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { api } from '../api/http'
+import { TermHint } from '../components/TermHint'
 
 const SOURCE_KINDS = ['AI_DERIVED', 'REFLECTION', 'MANUAL_ENTRY'] as const
 const SOURCE_RECORD_TYPES = ['REFLECTION', 'EXPERIMENT', 'BELIEF', 'EVIDENCE', 'WISDOM', 'RETROSPECTIVE'] as const
@@ -104,10 +105,15 @@ export function MemoryPage() {
         <h2>Memory governance</h2>
         <p>AI-derived memory stays proposed until you review it. Every memory proposal keeps source provenance attached.</p>
         <p className="muted">Accepted memories remain editable, but edits return the item to proposed status for re-review.</p>
+        <TermHint term="Memory" />
       </section>
 
       <section className="card stack">
         <h2>Propose memory</h2>
+        <p className="muted">Most memories begin as suggestions during reflection. Use this form when you intentionally want to add one yourself.</p>
+        <details className="disclosure">
+          <summary>Create a memory proposal</summary>
+          <div className="stack disclosure-content">
         <label htmlFor="memory-statement">Memory statement</label>
         <textarea id="memory-statement" rows={3} value={statement} onChange={(event) => setStatement(event.target.value)} />
 
@@ -148,6 +154,8 @@ export function MemoryPage() {
           Save proposed memory
         </button>
         {createMemoryError ? <p role="alert">{createMemoryError}</p> : null}
+          </div>
+        </details>
       </section>
 
       <section className="card stack">
@@ -195,7 +203,9 @@ export function MemoryPage() {
                     </button>
                   </div>
 
-                  <h3>Edit proposal</h3>
+                  <details className="disclosure">
+                    <summary>Edit this proposal</summary>
+                    <div className="stack disclosure-content">
                   <label htmlFor="memory-revision-statement">Updated statement</label>
                   <textarea
                     id="memory-revision-statement"
@@ -223,19 +233,21 @@ export function MemoryPage() {
                   >
                     Save revision
                   </button>
+                    </div>
+                  </details>
 
-                  <h3>Revision history</h3>
-                  {selectedDetail.revisions.length > 0 ? (
-                    <ul>
-                      {selectedDetail.revisions.map((revision) => (
-                        <li key={revision.id}>
-                          {revision.previousStatus} to {revision.newStatus}: {revision.reason}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p>No revisions yet.</p>
-                  )}
+                  <details className="nested-disclosure">
+                    <summary>Revision history ({selectedDetail.revisions.length})</summary>
+                    <div className="disclosure-content">
+                      {selectedDetail.revisions.length > 0 ? (
+                        <ul>
+                          {selectedDetail.revisions.map((revision) => (
+                            <li key={revision.id}>{revision.previousStatus} to {revision.newStatus}: {revision.reason}</li>
+                          ))}
+                        </ul>
+                      ) : <p>No revisions yet.</p>}
+                    </div>
+                  </details>
                 </>
               )}
             </div>

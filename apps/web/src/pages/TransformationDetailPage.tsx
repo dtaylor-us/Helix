@@ -83,7 +83,7 @@ export function TransformationDetailPage() {
           <p className="muted">What gets in the way: {transformation.data.obstacle}</p>
         )}
         <div className="row">
-          <Link to="/knowledge-graph/$nodeType/$sourceRecordId" params={{ nodeType: 'TRANSFORMATION', sourceRecordId: id }} className="secondary-button">
+          <Link to="/knowledge-graph/$nodeType/$sourceRecordId" params={{ nodeType: 'TRANSFORMATION', sourceRecordId: id }} className="cta-button">
             Explore connections
           </Link>
         </div>
@@ -94,6 +94,9 @@ export function TransformationDetailPage() {
           A small, time-bounded attempt that helps you learn what actually moves this transformation forward.
         </p>
         <TermHint term="Experiment" />
+        <details className="disclosure">
+          <summary>Create an experiment</summary>
+          <div className="stack disclosure-content">
         <div className="row">
           <button type="button" className="secondary-button" onClick={() => proposeDraft.mutate()} disabled={proposeDraft.isPending}>
             {proposeDraft.isPending ? 'Drafting…' : 'Draft this for me'}
@@ -110,23 +113,17 @@ export function TransformationDetailPage() {
         <textarea id="exp-hypothesis" rows={3} value={hypothesis} onChange={(e) => setHypothesis(e.target.value)} />
         <label htmlFor="exp-next">Smallest next action</label>
         <input id="exp-next" value={nextAction} onChange={(e) => setNextAction(e.target.value)} />
-        <label htmlFor="exp-cadence">How often will you try this? (optional)</label>
-        <input
-          id="exp-cadence"
-          value={cadence}
-          onChange={(e) => setCadence(e.target.value)}
-          placeholder="e.g. Whenever I feel criticized"
-        />
-        <label htmlFor="exp-evidence">What would count as useful evidence? (optional)</label>
-        <textarea
-          id="exp-evidence"
-          rows={2}
-          value={evidenceOfSuccess}
-          onChange={(e) => setEvidenceOfSuccess(e.target.value)}
-          placeholder="e.g. Fewer moments of regretting how I responded"
-        />
-        <label htmlFor="exp-review">When will you review this? (optional)</label>
-        <input id="exp-review" type="date" value={reviewAt} onChange={(e) => setReviewAt(e.target.value)} />
+        <details className="nested-disclosure">
+          <summary>Plan cadence, evidence, and review <span className="muted">(optional)</span></summary>
+          <div className="stack disclosure-content">
+            <label htmlFor="exp-cadence">How often will you try this?</label>
+            <input id="exp-cadence" value={cadence} onChange={(e) => setCadence(e.target.value)} placeholder="e.g. Whenever I feel criticized" />
+            <label htmlFor="exp-evidence">What would count as useful evidence?</label>
+            <textarea id="exp-evidence" rows={2} value={evidenceOfSuccess} onChange={(e) => setEvidenceOfSuccess(e.target.value)} placeholder="e.g. Fewer moments of regretting how I responded" />
+            <label htmlFor="exp-review">When will you review this?</label>
+            <input id="exp-review" type="date" value={reviewAt} onChange={(e) => setReviewAt(e.target.value)} />
+          </div>
+        </details>
         <div>
           <button disabled={!title.trim() || createExperiment.isPending} onClick={() => createExperiment.mutate()}>
             Save experiment
@@ -143,6 +140,8 @@ export function TransformationDetailPage() {
             {savedExperiment.nextAction && <p className="muted">Next action: {savedExperiment.nextAction}</p>}
           </div>
         )}
+          </div>
+        </details>
       </section>
     </div>
   )

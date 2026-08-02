@@ -194,8 +194,11 @@ public class KnowledgeGraphProjectionService {
             var relType = e.getDirection() == EvidenceDirection.SUPPORTS
                 ? KnowledgeEdgeType.BELIEF_SUPPORTED_BY_EVIDENCE : KnowledgeEdgeType.BELIEF_CHALLENGED_BY_EVIDENCE;
             var verb = e.getDirection() == EvidenceDirection.SUPPORTS ? "supports" : "challenges";
+            // Source=BELIEF, target=EVIDENCE: the display label ("Supported by"/"Challenged by") is
+            // read as "{source} {label} {target}", so the belief must be the source for the sentence
+            // to read correctly ("Belief X supported by Evidence Y"), not the reverse.
             addEdge(edgesToSave, edgeSourcesToSave, nodeIndex,
-                KnowledgeNodeType.EVIDENCE, e.getId(), KnowledgeNodeType.BELIEF, e.getBeliefId(),
+                KnowledgeNodeType.BELIEF, e.getBeliefId(), KnowledgeNodeType.EVIDENCE, e.getId(),
                 relType, KnowledgeEdgeOrigin.EXPLICIT_DOMAIN_RELATIONSHIP,
                 "This evidence " + verb + " this belief.", now,
                 List.of(sourceRef(KnowledgeNodeType.EVIDENCE, e.getId())));
@@ -207,9 +210,10 @@ public class KnowledgeGraphProjectionService {
                     "This experiment produced this evidence.", now,
                     List.of(sourceRef(KnowledgeNodeType.EVIDENCE, e.getId())));
 
-                // Category B: same evidence row links both a belief and an experiment.
+                // Category B: same evidence row links both a belief and an experiment. Source=BELIEF,
+                // target=EXPERIMENT so "Tested through" reads "Belief X tested through Experiment Y".
                 addEdge(edgesToSave, edgeSourcesToSave, nodeIndex,
-                    KnowledgeNodeType.EXPERIMENT, e.getExperimentId(), KnowledgeNodeType.BELIEF, e.getBeliefId(),
+                    KnowledgeNodeType.BELIEF, e.getBeliefId(), KnowledgeNodeType.EXPERIMENT, e.getExperimentId(),
                     KnowledgeEdgeType.BELIEF_EXPLORED_BY_EXPERIMENT, KnowledgeEdgeOrigin.DETERMINISTIC_DERIVATION,
                     "This experiment produced evidence about this belief.", now,
                     List.of(sourceRef(KnowledgeNodeType.EVIDENCE, e.getId())));
@@ -230,8 +234,9 @@ public class KnowledgeGraphProjectionService {
                 continue;
             }
             if (link.getSourceType() == WisdomSourceType.EVIDENCE) {
+                // Source=WISDOM, target=EVIDENCE: "Supported by" reads "Wisdom X supported by Evidence Y".
                 addEdge(edgesToSave, edgeSourcesToSave, nodeIndex,
-                    KnowledgeNodeType.EVIDENCE, link.getSourceRecordId(), KnowledgeNodeType.WISDOM, link.getWisdomId(),
+                    KnowledgeNodeType.WISDOM, link.getWisdomId(), KnowledgeNodeType.EVIDENCE, link.getSourceRecordId(),
                     KnowledgeEdgeType.WISDOM_SUPPORTED_BY_EVIDENCE, KnowledgeEdgeOrigin.EXPLICIT_DOMAIN_RELATIONSHIP,
                     "This wisdom is supported by this evidence.", now,
                     List.of(sourceRef(KnowledgeNodeType.WISDOM, link.getWisdomId())));
@@ -240,8 +245,9 @@ public class KnowledgeGraphProjectionService {
                 deriveWisdomTransformationChain(edgesToSave, edgeSourcesToSave, nodeIndex, experimentById,
                     link.getWisdomId(), evidence != null ? evidence.getExperimentId() : null, link.getWisdomId(), now);
             } else if (link.getSourceType() == WisdomSourceType.REFLECTION) {
+                // Source=WISDOM, target=REFLECTION: "Emerged from" reads "Wisdom X emerged from Reflection Y".
                 addEdge(edgesToSave, edgeSourcesToSave, nodeIndex,
-                    KnowledgeNodeType.REFLECTION, link.getSourceRecordId(), KnowledgeNodeType.WISDOM, link.getWisdomId(),
+                    KnowledgeNodeType.WISDOM, link.getWisdomId(), KnowledgeNodeType.REFLECTION, link.getSourceRecordId(),
                     KnowledgeEdgeType.WISDOM_EMERGED_FROM_REFLECTION, KnowledgeEdgeOrigin.EXPLICIT_DOMAIN_RELATIONSHIP,
                     "This wisdom emerged from this reflection.", now,
                     List.of(sourceRef(KnowledgeNodeType.WISDOM, link.getWisdomId())));
@@ -254,8 +260,9 @@ public class KnowledgeGraphProjectionService {
         for (MemoryProposalEntity m : confirmedMemories) {
             var nodeType = mapMemorySourceToNodeType(m.getSourceRecordType());
             if (nodeType == null) continue; // MANUAL_ENTRY / RETROSPECTIVE have no corresponding graph node
+            // Source=MEMORY, target=<origin record>: "Derived from" reads "Memory X derived from Reflection Y".
             addEdge(edgesToSave, edgeSourcesToSave, nodeIndex,
-                nodeType, m.getSourceRecordId(), KnowledgeNodeType.MEMORY, m.getId(),
+                KnowledgeNodeType.MEMORY, m.getId(), nodeType, m.getSourceRecordId(),
                 KnowledgeEdgeType.MEMORY_DERIVED_FROM, KnowledgeEdgeOrigin.EXPLICIT_DOMAIN_RELATIONSHIP,
                 "This memory was derived from this record.", now,
                 List.of(sourceRef(KnowledgeNodeType.MEMORY, m.getId())));

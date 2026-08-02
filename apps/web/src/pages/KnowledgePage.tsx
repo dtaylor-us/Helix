@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import type { BeliefDetail, CreateEvidenceRequest, TodayResponse } from '../../../../packages/contracts/src'
 import { api } from '../api/http'
+import { TermHint } from '../components/TermHint'
 
 type BeliefType = 'LIMITING' | 'EMPOWERING'
 type EvidenceDirection = 'SUPPORTS' | 'CHALLENGES'
@@ -13,7 +14,12 @@ export function KnowledgePage() {
   const [transformationId, setTransformationId] = useState('')
   const [beliefStatement, setBeliefStatement] = useState('')
   const [beliefType, setBeliefType] = useState<BeliefType>('LIMITING')
-  const [selectedBeliefId, setSelectedBeliefId] = useState<string>('')
+  // Bug fix (QA finding KG-3): graph "View full record" links for BELIEF/EVIDENCE nodes pass
+  // ?beliefId=<id> so this page lands on the record the graph actually meant, instead of falling
+  // back to whatever belief happens to be first in the list.
+  const [selectedBeliefId, setSelectedBeliefId] = useState<string>(
+    () => new URLSearchParams(window.location.search).get('beliefId') ?? '',
+  )
 
   const transformationsQuery = useQuery({
     queryKey: ['transformations'],
@@ -59,7 +65,9 @@ export function KnowledgePage() {
       <section className="card">
         <h2>Beliefs</h2>
         <p className="muted">Track beliefs as hypotheses you can challenge, update, and ground in evidence.</p>
-        <div className="stack">
+        <details className="disclosure">
+          <summary>Add a belief</summary>
+          <div className="stack disclosure-content">
           <label htmlFor="belief-transformation">Transformation</label>
           <select id="belief-transformation" value={activeTransformationId} onChange={(event) => setTransformationId(event.target.value)}>
             {transformationsQuery.data?.map((item) => (
@@ -86,22 +94,26 @@ export function KnowledgePage() {
           <button disabled={!activeTransformationId || !beliefStatement.trim() || createBelief.isPending} onClick={() => createBelief.mutate()}>
             Save belief
           </button>
-        </div>
+          </div>
+        </details>
       </section>
 
-      <section className="card">
+      <section className="card belief-list-card">
         <h2>Belief list</h2>
         {beliefsQuery.data && beliefsQuery.data.length > 0 ? (
-          <div className="stack">
+          <div className="belief-list" role="list" aria-label="Beliefs">
             {beliefsQuery.data.map((belief) => (
               <button
                 key={belief.id}
                 type="button"
-                className={belief.id === activeBeliefId ? 'secondary-button active-item' : 'secondary-button'}
+                role="listitem"
+                className={belief.id === activeBeliefId ? 'belief-list-item active-item' : 'belief-list-item'}
                 onClick={() => setSelectedBeliefId(belief.id)}
               >
-                <span>{belief.statement}</span>
-                <span className="muted">{belief.type.toLowerCase()}</span>
+                <span className="belief-list-statement">{belief.statement}</span>
+                <span className={`belief-type belief-type-${belief.type.toLowerCase()}`}>
+                  {belief.type.toLowerCase()}
+                </span>
               </button>
             ))}
           </div>
@@ -112,6 +124,7 @@ export function KnowledgePage() {
 
       <section className="card knowledge-detail">
         <h2>Evidence and revision trail</h2>
+        <TermHint term="Evidence" />
         {!activeBeliefId && <p>Select a belief to inspect its evidence and revisions.</p>}
         {selectedBelief && (
           <BeliefDetailPanel
@@ -202,7 +215,7 @@ function BeliefDetailPanel({ beliefDetail, todayData }: { beliefDetail: BeliefDe
           <Link
             to="/knowledge-graph/$nodeType/$sourceRecordId"
             params={{ nodeType: 'BELIEF', sourceRecordId: beliefDetail.belief.id }}
-            className="secondary-button"
+            className="cta-button"
           >
             Explore connections
           </Link>
@@ -210,8 +223,9 @@ function BeliefDetailPanel({ beliefDetail, todayData }: { beliefDetail: BeliefDe
       </div>
 
       <div className="stack split-grid">
-        <div className="stack">
-          <h3>Revise belief</h3>
+        <details className="disclosure">
+          <summary>Revise this belief</summary>
+          <div className="stack disclosure-content">
           <label htmlFor="revision-statement">Updated statement</label>
           <textarea
             id="revision-statement"
@@ -246,10 +260,12 @@ function BeliefDetailPanel({ beliefDetail, todayData }: { beliefDetail: BeliefDe
           >
             Save revision
           </button>
-        </div>
+          </div>
+        </details>
 
-        <div className="stack">
-          <h3>Add evidence</h3>
+        <details className="disclosure">
+          <summary>Add evidence</summary>
+          <div className="stack disclosure-content">
           <label htmlFor="evidence-summary">Observation</label>
           <textarea
             id="evidence-summary"
@@ -312,7 +328,8 @@ function BeliefDetailPanel({ beliefDetail, todayData }: { beliefDetail: BeliefDe
           >
             Save evidence
           </button>
-        </div>
+          </div>
+        </details>
       </div>
 
       <div className="stack split-grid">

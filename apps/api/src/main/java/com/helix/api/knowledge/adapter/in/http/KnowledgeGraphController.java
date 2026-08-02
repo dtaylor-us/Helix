@@ -1,5 +1,6 @@
 package com.helix.api.knowledge.adapter.in.http;
 
+import com.helix.api.evidence.adapter.out.persistence.EvidenceRepository;
 import com.helix.api.knowledge.application.KnowledgeEdgeGovernanceService;
 import com.helix.api.knowledge.application.KnowledgeGraphProjectionService;
 import com.helix.api.knowledge.application.KnowledgeGraphQueryService;
@@ -51,15 +52,18 @@ public class KnowledgeGraphController {
     private final KnowledgeGraphQueryService queryService;
     private final KnowledgeEdgeGovernanceService governanceService;
     private final KnowledgeGraphRelationshipDiscoveryService discoveryService;
+    private final EvidenceRepository evidenceRepository;
 
     public KnowledgeGraphController(
         KnowledgeGraphProjectionService projectionService, KnowledgeGraphQueryService queryService,
-        KnowledgeEdgeGovernanceService governanceService, KnowledgeGraphRelationshipDiscoveryService discoveryService
+        KnowledgeEdgeGovernanceService governanceService, KnowledgeGraphRelationshipDiscoveryService discoveryService,
+        EvidenceRepository evidenceRepository
     ) {
         this.projectionService = projectionService;
         this.queryService = queryService;
         this.governanceService = governanceService;
         this.discoveryService = discoveryService;
+        this.evidenceRepository = evidenceRepository;
     }
 
     @PostMapping("/rebuild")
@@ -162,12 +166,19 @@ public class KnowledgeGraphController {
         );
     }
 
+    // Bug fix (QA finding KG-3): the Knowledge page can only select a specific belief, not a specific
+    // evidence row, so every EVIDENCE node routes to that evidence's parent belief instead -- landing
+    // on the belief and evidence timeline the graph actually meant, rather than on the Knowledge page's
+    // arbitrary default selection.
     private String sourceRoute(KnowledgeNodeType type, UUID sourceRecordId) {
         return switch (type) {
             case TRANSFORMATION -> "/transformations/" + sourceRecordId;
             case EXPERIMENT -> "/experiments/" + sourceRecordId;
             case REFLECTION -> "/reflections/" + sourceRecordId;
-            case BELIEF, EVIDENCE -> "/knowledge";
+            case BELIEF -> "/knowledge?beliefId=" + sourceRecordId;
+            case EVIDENCE -> evidenceRepository.findById(sourceRecordId)
+                .map(evidence -> "/knowledge?beliefId=" + evidence.getBeliefId())
+                .orElse("/knowledge");
             case WISDOM -> "/wisdom";
             case MEMORY -> "/settings/memory";
         };

@@ -260,12 +260,21 @@ export function TodayPage() {
       } : current)
       setSuggestionStatusText(
         variables.action === 'accept'
-          ? 'Got it — this is your next small action.'
+          ? 'Got it — this is now the Smallest next action on your active experiment, shown above and on its Journey page.'
           : variables.action === 'dismiss'
             ? 'Passed on this action.'
-            : 'Your small action was updated.',
+            : 'Done — this is now the Smallest next action on your active experiment, shown above and on its Journey page.',
       )
       setReplacementText('')
+      if (variables.action === 'accept' || variables.action === 'replace') {
+        // Accepting/replacing now updates the experiment's own nextAction on the backend (see
+        // SuggestionService.accept/replace) — refetch so "Current Direction" above and the
+        // experiment's own Journey page both reflect it, not just this card.
+        queryClient.invalidateQueries({ queryKey: ['current-focus'] })
+        if (activeExperimentId) {
+          queryClient.invalidateQueries({ queryKey: ['experiment', activeExperimentId] })
+        }
+      }
     },
     onError: () => setSuggestionStatusText('Could not update this action. Please try again.'),
   })
@@ -337,20 +346,37 @@ export function TodayPage() {
 
   return (
     <div className="stack">
-      <section className="card">
-        <h2>Current Direction</h2>
-        <p>Active experiment: {data.activeExperiment.title}</p>
-        <p className="muted">Hypothesis: {data.activeExperiment.hypothesis || 'No hypothesis yet.'}</p>
-        {data.activeExperiment.cadence && (
-          <p className="muted">How often: {data.activeExperiment.cadence}</p>
-        )}
-        {data.activeExperiment.evidenceOfSuccess && (
-          <p className="muted">Evidence to watch for: {data.activeExperiment.evidenceOfSuccess}</p>
-        )}
-        {data.activeExperiment.reviewAt && (
-          <p className="muted">Review by: {data.activeExperiment.reviewAt}</p>
-        )}
-        <TermHint term="Experiment" />
+      <section className="card direction-card">
+        <header className="direction-header">
+          <h2>Current Direction</h2>
+          <p className="direction-eyebrow">Active experiment</p>
+          <h3>{data.activeExperiment.title}</h3>
+        </header>
+
+        <dl className="direction-details">
+          <div className="direction-next-action">
+            <dt>Smallest next action</dt>
+            <dd>
+            {data.activeExperiment.nextAction || (
+              <span className="muted">Not set yet — accept a suggested action below and it&rsquo;ll show up here.</span>
+            )}
+            </dd>
+          </div>
+          <div>
+            <dt>Hypothesis</dt>
+            <dd>{data.activeExperiment.hypothesis || 'No hypothesis yet.'}</dd>
+          </div>
+          {data.activeExperiment.cadence && <div><dt>How often</dt><dd>{data.activeExperiment.cadence}</dd></div>}
+          {data.activeExperiment.evidenceOfSuccess && <div><dt>Evidence to watch for</dt><dd>{data.activeExperiment.evidenceOfSuccess}</dd></div>}
+          {data.activeExperiment.reviewAt && <div><dt>Review by</dt><dd>{data.activeExperiment.reviewAt}</dd></div>}
+        </dl>
+
+        <footer className="direction-footer">
+          <Link to="/experiments/$id" params={{ id: data.activeExperiment.id }} className="secondary-button">
+            See this experiment in your Journey
+          </Link>
+          <TermHint term="Experiment" />
+        </footer>
       </section>
 
       <section className="card">
@@ -368,6 +394,8 @@ export function TodayPage() {
             <p className="muted">
               Why this: part of your active experiment, &ldquo;{data.activeExperiment.title}&rdquo;. Status:{' '}
               {latestSuggestion.status}.
+              {(latestSuggestion.status === 'ACCEPTED' || latestSuggestion.status === 'REPLACED') &&
+                ' Accepting made this the experiment’s Smallest next action, above — it’ll stay there until you accept a new one.'}
             </p>
             {latestSuggestion.status === 'PROPOSED' && (
               <>
@@ -522,27 +550,17 @@ export function TodayPage() {
               <option value="yes">Yes</option>
               <option value="no">Not yet</option>
             </select>
-            <label htmlFor="reflection-review-noticed">What did you notice internally?</label>
-            <textarea
-              id="reflection-review-noticed"
-              rows={2}
-              value={reflectionReview.noticed ?? ''}
-              onChange={(e) => setReflectionReview({ ...reflectionReview, noticed: e.target.value })}
-            />
-            <label htmlFor="reflection-review-evidence">What evidence did this give you?</label>
-            <textarea
-              id="reflection-review-evidence"
-              rows={2}
-              value={reflectionReview.evidenceNoted ?? ''}
-              onChange={(e) => setReflectionReview({ ...reflectionReview, evidenceNoted: e.target.value })}
-            />
-            <label htmlFor="reflection-review-surprise">What surprised you?</label>
-            <textarea
-              id="reflection-review-surprise"
-              rows={2}
-              value={reflectionReview.surprise ?? ''}
-              onChange={(e) => setReflectionReview({ ...reflectionReview, surprise: e.target.value })}
-            />
+            <details className="nested-disclosure">
+              <summary>Add what you noticed, evidence, or surprises <span className="muted">(optional)</span></summary>
+              <div className="stack disclosure-content">
+                <label htmlFor="reflection-review-noticed">What did you notice internally?</label>
+                <textarea id="reflection-review-noticed" rows={2} value={reflectionReview.noticed ?? ''} onChange={(e) => setReflectionReview({ ...reflectionReview, noticed: e.target.value })} />
+                <label htmlFor="reflection-review-evidence">What evidence did this give you?</label>
+                <textarea id="reflection-review-evidence" rows={2} value={reflectionReview.evidenceNoted ?? ''} onChange={(e) => setReflectionReview({ ...reflectionReview, evidenceNoted: e.target.value })} />
+                <label htmlFor="reflection-review-surprise">What surprised you?</label>
+                <textarea id="reflection-review-surprise" rows={2} value={reflectionReview.surprise ?? ''} onChange={(e) => setReflectionReview({ ...reflectionReview, surprise: e.target.value })} />
+              </div>
+            </details>
             <div className="row">
               <button
                 onClick={() =>
@@ -664,7 +682,9 @@ export function TodayPage() {
 
       <section className="card">
         <h2>History</h2>
-        <h3>Recent reflections</h3>
+        <details className="disclosure">
+          <summary>Recent reflections ({data.reflectionHistory.length})</summary>
+          <div className="disclosure-content">
         {data.reflectionHistory.length > 0 ? (
           <ul>
             {data.reflectionHistory.slice(0, 5).map((item) => (
@@ -679,6 +699,8 @@ export function TodayPage() {
         ) : (
           <p className="muted">Nothing recorded yet.</p>
         )}
+          </div>
+        </details>
       </section>
     </div>
   )

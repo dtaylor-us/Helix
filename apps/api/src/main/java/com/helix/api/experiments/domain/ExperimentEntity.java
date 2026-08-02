@@ -63,6 +63,16 @@ public class ExperimentEntity {
         this.createdAt = createdAt;
     }
 
+    /**
+     * Sets what the experiment's next small action actually is. Previously this could only be set
+     * once at creation and never changed — accepting a "Suggested Small Action" on the Today page
+     * had no way to update it, so committing to a suggested action had no visible effect on the
+     * experiment/journey. See {@code SuggestionService.accept}/{@code replace}.
+     */
+    public void reviseNextAction(String nextAction) {
+        this.nextAction = nextAction;
+    }
+
     public UUID getId() { return id; }
     public UUID getTransformationId() { return transformationId; }
     public String getTitle() { return title; }

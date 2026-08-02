@@ -19,6 +19,24 @@
   --focus: #8c3b22;
   --disabled: #877f74;
   --white: #fffefb;
+  /* Knowledge graph node-type palette (Phase 11C) -- kept within the existing warm/muted family so
+     the graph reads as part of the app, not a bolted-on categorical chart. Each color is paired
+     with a `-soft` tint for the node fill (accessible at small sizes) and the solid tone for the
+     legend swatch / stroke. */
+  --node-transformation: #b5502f;
+  --node-transformation-soft: #f4e4dc;
+  --node-belief: #8c6b2f;
+  --node-belief-soft: #efe6d3;
+  --node-experiment: #3f6e8c;
+  --node-experiment-soft: #dfe9ef;
+  --node-evidence: #7a5a94;
+  --node-evidence-soft: #e8e1ee;
+  --node-reflection: #b06a2e;
+  --node-reflection-soft: #f2e3d3;
+  --node-wisdom: #3e5c46;
+  --node-wisdom-soft: #e4ece5;
+  --node-memory: #5c6470;
+  --node-memory-soft: #e6e8eb;
   --space-1: .25rem;
   --space-2: .5rem;
   --space-3: .75rem;
@@ -116,6 +134,14 @@ h3 { margin-top: var(--space-2); font-size: var(--text-lg); font-weight: var(--w
 .card > * + * { margin-top: var(--space-4); }
 .card > .stack, .card.stack { gap: var(--space-4); }
 .card.stack > * { margin-top: 0; }
+/* Most record text is user-authored. Long words, pasted URLs, IDs, and prose must shrink inside
+   cards and grid columns instead of widening the page or clipping actions. */
+.card :where(h2, h3, p, li, dd, a, button),
+.timeline-item,
+.kg-inspector {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .intro-card {
   position: relative;
   overflow: hidden;
@@ -158,6 +184,7 @@ input[aria-invalid="true"] { border-color: var(--accent); }
 button, .cta-button {
   display: inline-flex;
   width: fit-content;
+  max-width: 100%;
   align-items: center;
   justify-content: center;
   min-height: 2.75rem;
@@ -168,6 +195,8 @@ button, .cta-button {
   color: var(--white);
   font-weight: var(--weight-semibold);
   line-height: 1.25;
+  overflow-wrap: anywhere;
+  text-align: left;
   text-decoration: none;
   cursor: pointer;
   box-shadow: 0 .2rem .6rem rgba(132, 52, 29, .16);
@@ -182,7 +211,9 @@ button:active:not(:disabled), .cta-button:active { transform: translateY(0); }
 button:disabled { background: var(--disabled); color: var(--white); cursor: not-allowed; box-shadow: none; opacity: .72; }
 .secondary-button {
   display: grid;
+  justify-items: start;
   width: fit-content;
+  max-width: 100%;
   min-height: 2.75rem;
   gap: var(--space-1);
   padding: .65rem 1rem;
@@ -192,6 +223,7 @@ button:disabled { background: var(--disabled); color: var(--white); cursor: not-
   color: var(--ink);
   box-shadow: none;
   text-align: left;
+  overflow-wrap: anywhere;
   text-decoration: none;
   transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
 }
@@ -199,9 +231,125 @@ button:disabled { background: var(--disabled); color: var(--white); cursor: not-
 .stack > .secondary-button, .split-grid .secondary-button { width: 100%; }
 .active-item { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset .22rem 0 0 var(--accent); }
 
-.knowledge-grid, .split-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+/* Current Direction prioritizes the next behavior, then reveals the experiment's learning context
+   in a compact, scan-friendly metadata layout. */
+.direction-card { overflow: hidden; }
+.direction-card > * + * { margin-top: var(--space-6); }
+.direction-header { display: grid; gap: var(--space-2); }
+.direction-header h3 { min-width: 0; margin: 0; max-width: 48rem; overflow-wrap: anywhere; font-size: clamp(1.15rem, 2vw, 1.35rem); }
+.direction-eyebrow {
+  color: var(--accent-hover);
+  font-size: .75rem;
+  font-weight: var(--weight-bold);
+  letter-spacing: .08em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+.direction-eyebrow { margin-top: var(--space-3); }
+.direction-details { display: grid; max-width: 56rem; gap: 0; margin: 0; }
+.direction-header + .direction-details { margin-top: var(--space-8); }
+.direction-details > div {
+  display: grid;
+  grid-template-columns: minmax(9rem, 12rem) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-3) var(--space-6);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--border);
+}
+.direction-details dt { color: var(--muted); font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+.direction-details dd { min-width: 0; margin: 0; overflow-wrap: anywhere; line-height: 1.5; }
+.direction-details > .direction-next-action {
+  margin-bottom: var(--space-8);
+  padding: var(--space-4);
+  border-top: 0;
+  border-left: .2rem solid var(--accent);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  background: rgba(244, 228, 220, .58);
+}
+.direction-next-action dt { color: var(--accent-hover); }
+.direction-next-action dd { max-width: 42rem; font-size: var(--text-lg); font-weight: var(--weight-medium); }
+.direction-footer { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3) var(--space-6); padding-top: var(--space-4); border-top: 1px solid var(--border); }
+.direction-footer .term-hint { margin-top: 0; }
+
+/* Beliefs are a selector, not a pile of generic buttons. Keep every item anchored to one
+   reading edge and separate the statement from its categorical metadata. */
+.belief-list { display: grid; gap: var(--space-3); }
+.belief-list-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  justify-items: start;
+  width: 100%;
+  min-height: 4.25rem;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  background: var(--surface-soft);
+  color: var(--ink);
+  box-shadow: none;
+  text-align: left;
+}
+.belief-list-item:hover:not(:disabled) { border-color: var(--border); background: #eee5d9; box-shadow: none; transform: none; }
+.belief-list-item.active-item { border-color: rgba(181, 80, 47, .45); background: var(--accent-soft); }
+.belief-list-statement { font-weight: var(--weight-semibold); line-height: 1.35; }
+.belief-type {
+  display: inline-flex;
+  width: fit-content;
+  padding: .25rem .6rem;
+  border-radius: var(--radius-pill);
+  font-size: .72rem;
+  font-weight: var(--weight-bold);
+  letter-spacing: .045em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.belief-type-empowering { background: var(--provenance-soft); color: #304a38; }
+.belief-type-limiting { background: var(--node-transformation-soft); color: #7d351f; }
+
+/* Knowledge graph: one compact control surface above a graph + persistent inspector workspace. */
+.kg-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--space-4) var(--space-6); }
+.kg-header > * { margin-top: 0 !important; }
+.kg-header-copy { display: grid; gap: var(--space-2); }
+.kg-actions { justify-content: flex-end; }
+.kg-actions .secondary-button { min-height: 2.5rem; padding-block: .5rem; }
+.kg-header > [role="status"] { grid-column: 1 / -1; }
+.kg-filter {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+.kg-filter-label { color: var(--ink); font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+.kg-filter-option {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.kg-filter-option input { width: auto; margin: 0; accent-color: var(--accent); }
+.kg-workspace { display: grid; grid-template-columns: minmax(0, 1.85fr) minmax(15rem, .75fr); align-items: start; gap: var(--space-6); }
+.kg-canvas-card { min-height: 0; padding: var(--space-4) var(--space-6) var(--space-6); }
+.kg-diagram { display: grid; justify-items: center; }
+.kg-diagram-svg { display: block; width: min(100%, 32rem); height: auto; }
+.kg-legend { display: flex; justify-content: center; flex-wrap: wrap; gap: var(--space-2) var(--space-3); margin-top: var(--space-2); }
+.kg-legend-item { display: inline-flex; align-items: center; gap: .4rem; color: var(--muted); font-size: .78rem; white-space: nowrap; }
+.kg-inspector { position: sticky; top: var(--space-4); display: grid; gap: var(--space-4); min-height: 12rem; }
+.kg-inspector > * { margin-top: 0 !important; }
+.kg-inspector-heading { display: flex; align-items: center; gap: var(--space-2); }
+.kg-eyebrow { color: var(--muted); font-size: .75rem; font-weight: var(--weight-bold); letter-spacing: .08em; line-height: 1.2; text-transform: uppercase; }
+.kg-inspector .cta-button, .kg-inspector .secondary-button { width: 100%; }
+
+.knowledge-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+.split-grid { grid-template-columns: repeat(auto-fit, minmax(min(22rem, 100%), 1fr)); align-items: start; }
 .knowledge-detail { grid-column: 1 / -1; }
-.timeline-item { padding-left: var(--space-4); border-left: .2rem solid var(--provenance); }
+.timeline-item { max-width: 100%; padding-left: var(--space-4); border-left: .2rem solid var(--provenance); }
 .emphasis-block { padding: var(--space-6); border-radius: var(--radius-lg); background: var(--surface-soft); }
 .journey-loop { display: grid; gap: var(--space-2); margin: var(--space-6) 0; padding-left: var(--space-8); }
 .journey-loop li::marker { color: var(--accent); font-weight: var(--weight-bold); }
@@ -242,6 +390,30 @@ button:disabled { background: var(--disabled); color: var(--white); cursor: not-
 .term-hint { margin-top: var(--space-4); }
 .term-hint summary { width: fit-content; color: var(--accent-hover); font-size: var(--text-sm); font-weight: var(--weight-semibold); cursor: pointer; }
 .term-hint[open] summary { margin-bottom: var(--space-2); }
+.term-hint-content { display: grid; max-width: 48rem; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-left: .2rem solid var(--accent); background: rgba(244, 228, 220, .45); }
+.term-example { color: var(--ink); font-size: var(--text-sm); font-style: italic; }
+
+/* Progressive disclosure keeps optional creation and editing controls available without making
+   every page begin as a wall of form fields. */
+.disclosure, .nested-disclosure { border: 1px solid var(--border); border-radius: var(--radius-md); background: rgba(255, 254, 251, .55); }
+.disclosure > summary, .nested-disclosure > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: .8rem 1rem;
+  color: var(--ink);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  list-style: none;
+}
+.disclosure > summary::after, .nested-disclosure > summary::after { color: var(--accent); content: "+"; font-size: 1.25rem; line-height: 1; }
+.disclosure[open] > summary::after, .nested-disclosure[open] > summary::after { content: "−"; }
+.disclosure > summary::-webkit-details-marker, .nested-disclosure > summary::-webkit-details-marker { display: none; }
+.disclosure[open] > summary, .nested-disclosure[open] > summary { border-bottom: 1px solid var(--border); }
+.disclosure-content { margin: 0; padding: var(--space-4); }
+.nested-disclosure { background: var(--surface-soft); }
+.nested-disclosure .disclosure-content { background: var(--surface); border-radius: 0 0 var(--radius-md) var(--radius-md); }
 .skip-link {
   position: absolute;
   z-index: 100;
@@ -263,6 +435,14 @@ button:disabled { background: var(--disabled); color: var(--white); cursor: not-
   .nav-link { padding-inline: .7rem; }
   .more-menu-list { right: auto; left: 0; }
   .knowledge-grid, .split-grid { grid-template-columns: 1fr; }
+  .direction-details > div { grid-template-columns: 1fr; gap: var(--space-1); }
+  .belief-list-item { grid-template-columns: 1fr; gap: var(--space-2); }
+  .kg-header { grid-template-columns: 1fr; }
+  .kg-actions { justify-content: flex-start; }
+  .kg-filter { overflow-x: auto; flex-wrap: nowrap; padding-bottom: var(--space-2); }
+  .kg-workspace { grid-template-columns: 1fr; }
+  .kg-inspector { position: static; order: -1; min-height: 0; }
+  .kg-canvas-card { padding-inline: var(--space-3); }
   .card { padding: var(--space-6); border-radius: var(--radius-lg); }
   .row > button, .row > .cta-button, .row > .secondary-button { flex: 1 1 auto; }
 }
