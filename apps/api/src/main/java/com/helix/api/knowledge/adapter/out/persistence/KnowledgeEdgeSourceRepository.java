@@ -7,5 +7,6 @@ import java.util.List;
 import java.util.UUID;
 
 public interface KnowledgeEdgeSourceRepository extends JpaRepository<KnowledgeEdgeSourceEntity, UUID> {
-    List<KnowledgeEdgeSourceEntity> findByKnowledgeEdgeIdIn(List<UUID> knowledgeEdgeIds);
+    List<KnowledgeEdgeSourceEntity> findByOwnerIdAndKnowledgeEdgeIdIn(UUID ownerId, List<UUID> knowledgeEdgeIds);
+    void deleteAllByOwnerId(UUID ownerId);
 }

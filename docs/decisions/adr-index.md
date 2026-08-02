@@ -20,3 +20,5 @@
 - ADR-018 AI-derived memory proposal candidates (amends ADR-006)
 - ADR-019 Hard delete, whole-app scope, for data deletion (amends ADR-015)
 - ADR-020 Knowledge graph as a relational, user-governed projection over authoritative domain records (Phase 11, status: Proposed — pending sign-off)
+- ADR-021 Google SSO authentication and owner-scoped data isolation (supersedes ADR-013, amends ADR-001)
+- ADR-022 Azure production deployment architecture (amends ADR-021)

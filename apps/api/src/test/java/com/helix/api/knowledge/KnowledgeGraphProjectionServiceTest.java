@@ -11,6 +11,7 @@ import com.helix.api.evidence.domain.ProvenanceSourceKind;
 import com.helix.api.experiments.adapter.out.persistence.ExperimentRepository;
 import com.helix.api.experiments.domain.ExperimentEntity;
 import com.helix.api.experiments.domain.ExperimentStatus;
+import com.helix.api.identity.application.CurrentUserProvider;
 import com.helix.api.knowledge.adapter.out.persistence.KnowledgeEdgeRepository;
 import com.helix.api.knowledge.adapter.out.persistence.KnowledgeEdgeSourceRepository;
 import com.helix.api.knowledge.adapter.out.persistence.KnowledgeNodeRepository;
@@ -48,6 +49,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 class KnowledgeGraphProjectionServiceTest {
@@ -64,12 +66,18 @@ class KnowledgeGraphProjectionServiceTest {
     private final KnowledgeEdgeRepository knowledgeEdgeRepository = Mockito.mock(KnowledgeEdgeRepository.class);
     private final KnowledgeEdgeSourceRepository knowledgeEdgeSourceRepository = Mockito.mock(KnowledgeEdgeSourceRepository.class);
     private final KnowledgeProjectionCheckpointRepository checkpointRepository = Mockito.mock(KnowledgeProjectionCheckpointRepository.class);
+    private final CurrentUserProvider currentUserProvider = Mockito.mock(CurrentUserProvider.class);
 
     private final KnowledgeGraphProjectionService service = new KnowledgeGraphProjectionService(
         transformationRepository, experimentRepository, reflectionRepository, evidenceRepository,
         beliefRepository, wisdomEntryRepository, wisdomSourceLinkRepository, memoryProposalRepository,
-        knowledgeNodeRepository, knowledgeEdgeRepository, knowledgeEdgeSourceRepository, checkpointRepository
+        knowledgeNodeRepository, knowledgeEdgeRepository, knowledgeEdgeSourceRepository, checkpointRepository,
+        currentUserProvider
     );
+
+    {
+        when(currentUserProvider.currentUserId()).thenReturn(UUID.randomUUID());
+    }
 
     @Test
     void rebuildDerivesNodesAndEdgesAcrossTheFullDomainChain() {
@@ -82,38 +90,38 @@ class KnowledgeGraphProjectionServiceTest {
         var wisdomId = UUID.randomUUID();
         var memoryId = UUID.randomUUID();
 
-        when(transformationRepository.findAll()).thenReturn(List.of(
+        when(transformationRepository.findAllByOwnerId(any())).thenReturn(List.of(
             new TransformationEntity(transformationId, "Become steadier under pressure", "Stay calm in conflict", now.minusDays(10))
         ));
-        when(beliefRepository.findAll()).thenReturn(List.of(
+        when(beliefRepository.findAllByOwnerIdOrderByRevisedAtDesc(any())).thenReturn(List.of(
             new BeliefEntity(beliefId, transformationId, "I fall apart under pressure", BeliefType.LIMITING, now.minusDays(9), now.minusDays(9))
         ));
-        when(experimentRepository.findAll()).thenReturn(List.of(
+        when(experimentRepository.findAllByOwnerId(any())).thenReturn(List.of(
             new ExperimentEntity(experimentId, transformationId, "Pause before responding", "Pausing helps",
                 "Breathe once", ExperimentStatus.ACTIVE, now.minusDays(8))
         ));
-        when(reflectionRepository.findAll()).thenReturn(List.of(
+        when(reflectionRepository.findByOwnerIdOrderByCreatedAtDesc(any())).thenReturn(List.of(
             new ReflectionEntity(reflectionId, experimentId, "I paused and felt steadier", now.minusDays(7))
         ));
-        when(evidenceRepository.findAll()).thenReturn(List.of(
+        when(evidenceRepository.findAllByOwnerId(any())).thenReturn(List.of(
             new EvidenceEntity(evidenceId, beliefId, experimentId, reflectionId, "Stayed calm during a hard conversation",
                 "Pausing worked", EvidenceDirection.CHALLENGES, ProvenanceSourceKind.REFLECTION,
                 ProvenanceRecordType.REFLECTION, reflectionId, "excerpt", now.minusDays(6))
         ));
-        when(wisdomEntryRepository.findAll()).thenReturn(List.of(
+        when(wisdomEntryRepository.findAllByOwnerId(any())).thenReturn(List.of(
             new WisdomEntryEntity(wisdomId, "Pausing before reacting reduces conflict", WisdomStatus.ACCEPTED, null, now.minusDays(5), now.minusDays(5))
         ));
-        when(wisdomSourceLinkRepository.findAll()).thenReturn(List.of(
+        when(wisdomSourceLinkRepository.findAllByOwnerId(any())).thenReturn(List.of(
             new WisdomSourceLinkEntity(UUID.randomUUID(), wisdomId, WisdomSourceType.EVIDENCE, evidenceId, "note", now.minusDays(4)),
             new WisdomSourceLinkEntity(UUID.randomUUID(), wisdomId, WisdomSourceType.REFLECTION, reflectionId, "note", now.minusDays(4))
         ));
-        when(memoryProposalRepository.findAll()).thenReturn(List.of(
+        when(memoryProposalRepository.findAllByOwnerId(any())).thenReturn(List.of(
             new MemoryProposalEntity(memoryId, "Pausing helps me stay grounded", MemoryProposalStatus.CONFIRMED,
                 MemorySourceKind.REFLECTION, MemorySourceRecordType.REFLECTION, reflectionId, "excerpt", now.minusDays(3), now.minusDays(3)),
             new MemoryProposalEntity(UUID.randomUUID(), "Draft not yet reviewed", MemoryProposalStatus.PROPOSED,
                 MemorySourceKind.REFLECTION, MemorySourceRecordType.REFLECTION, reflectionId, "excerpt", now.minusDays(3), now.minusDays(3))
         ));
-        when(checkpointRepository.findBySourceModule(any())).thenReturn(Optional.empty());
+        when(checkpointRepository.findByOwnerIdAndSourceModule(any(), any())).thenReturn(Optional.empty());
         when(knowledgeNodeRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
         when(knowledgeEdgeRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
         when(knowledgeEdgeSourceRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -126,9 +134,9 @@ class KnowledgeGraphProjectionServiceTest {
         assertEquals(7, summary.nodeCount());
         assertTrue(summary.edgeCount() > 0);
 
-        Mockito.verify(knowledgeEdgeSourceRepository).deleteAllInBatch();
-        Mockito.verify(knowledgeEdgeRepository).deleteAllInBatch();
-        Mockito.verify(knowledgeNodeRepository).deleteAllInBatch();
+        Mockito.verify(knowledgeEdgeSourceRepository).deleteAllByOwnerId(any());
+        Mockito.verify(knowledgeEdgeRepository).deleteAllByOwnerId(any());
+        Mockito.verify(knowledgeNodeRepository).deleteAllByOwnerId(any());
 
         var edgeCaptor = org.mockito.ArgumentCaptor.forClass(List.class);
         Mockito.verify(knowledgeEdgeRepository).saveAll(edgeCaptor.capture());
@@ -196,19 +204,19 @@ class KnowledgeGraphProjectionServiceTest {
         var wisdomId = UUID.randomUUID();
         var retrospectiveId = UUID.randomUUID();
 
-        when(transformationRepository.findAll()).thenReturn(List.of());
-        when(beliefRepository.findAll()).thenReturn(List.of());
-        when(experimentRepository.findAll()).thenReturn(List.of());
-        when(reflectionRepository.findAll()).thenReturn(List.of());
-        when(evidenceRepository.findAll()).thenReturn(List.of());
-        when(wisdomEntryRepository.findAll()).thenReturn(List.of(
+        when(transformationRepository.findAllByOwnerId(any())).thenReturn(List.of());
+        when(beliefRepository.findAllByOwnerIdOrderByRevisedAtDesc(any())).thenReturn(List.of());
+        when(experimentRepository.findAllByOwnerId(any())).thenReturn(List.of());
+        when(reflectionRepository.findByOwnerIdOrderByCreatedAtDesc(any())).thenReturn(List.of());
+        when(evidenceRepository.findAllByOwnerId(any())).thenReturn(List.of());
+        when(wisdomEntryRepository.findAllByOwnerId(any())).thenReturn(List.of(
             new WisdomEntryEntity(wisdomId, "A retrospective-derived lesson", WisdomStatus.ACCEPTED, retrospectiveId, now, now)
         ));
-        when(wisdomSourceLinkRepository.findAll()).thenReturn(List.of(
+        when(wisdomSourceLinkRepository.findAllByOwnerId(any())).thenReturn(List.of(
             new WisdomSourceLinkEntity(UUID.randomUUID(), wisdomId, WisdomSourceType.RETROSPECTIVE, retrospectiveId, "note", now)
         ));
-        when(memoryProposalRepository.findAll()).thenReturn(List.of());
-        when(checkpointRepository.findBySourceModule(any())).thenReturn(Optional.empty());
+        when(memoryProposalRepository.findAllByOwnerId(any())).thenReturn(List.of());
+        when(checkpointRepository.findByOwnerIdAndSourceModule(any(), any())).thenReturn(Optional.empty());
         when(knowledgeNodeRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
         when(knowledgeEdgeRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
         when(knowledgeEdgeSourceRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -228,17 +236,17 @@ class KnowledgeGraphProjectionServiceTest {
         var missingTransformationId = UUID.randomUUID();
         var beliefId = UUID.randomUUID();
 
-        when(transformationRepository.findAll()).thenReturn(List.of());
-        when(beliefRepository.findAll()).thenReturn(List.of(
+        when(transformationRepository.findAllByOwnerId(any())).thenReturn(List.of());
+        when(beliefRepository.findAllByOwnerIdOrderByRevisedAtDesc(any())).thenReturn(List.of(
             new BeliefEntity(beliefId, missingTransformationId, "Orphaned belief", BeliefType.EMPOWERING, now, now)
         ));
-        when(experimentRepository.findAll()).thenReturn(List.of());
-        when(reflectionRepository.findAll()).thenReturn(List.of());
-        when(evidenceRepository.findAll()).thenReturn(List.of());
-        when(wisdomEntryRepository.findAll()).thenReturn(List.of());
-        when(wisdomSourceLinkRepository.findAll()).thenReturn(List.of());
-        when(memoryProposalRepository.findAll()).thenReturn(List.of());
-        when(checkpointRepository.findBySourceModule(any())).thenReturn(Optional.empty());
+        when(experimentRepository.findAllByOwnerId(any())).thenReturn(List.of());
+        when(reflectionRepository.findByOwnerIdOrderByCreatedAtDesc(any())).thenReturn(List.of());
+        when(evidenceRepository.findAllByOwnerId(any())).thenReturn(List.of());
+        when(wisdomEntryRepository.findAllByOwnerId(any())).thenReturn(List.of());
+        when(wisdomSourceLinkRepository.findAllByOwnerId(any())).thenReturn(List.of());
+        when(memoryProposalRepository.findAllByOwnerId(any())).thenReturn(List.of());
+        when(checkpointRepository.findByOwnerIdAndSourceModule(any(), any())).thenReturn(Optional.empty());
         when(knowledgeNodeRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
         when(knowledgeEdgeRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
         when(knowledgeEdgeSourceRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -252,17 +260,17 @@ class KnowledgeGraphProjectionServiceTest {
 
     @Test
     void rebuildTouchesACheckpointForEverySourceModule() {
-        when(transformationRepository.findAll()).thenReturn(List.of());
-        when(beliefRepository.findAll()).thenReturn(List.of());
-        when(experimentRepository.findAll()).thenReturn(List.of());
-        when(reflectionRepository.findAll()).thenReturn(List.of());
-        when(evidenceRepository.findAll()).thenReturn(List.of());
-        when(wisdomEntryRepository.findAll()).thenReturn(List.of());
-        when(wisdomSourceLinkRepository.findAll()).thenReturn(List.of());
-        when(memoryProposalRepository.findAll()).thenReturn(List.of());
+        when(transformationRepository.findAllByOwnerId(any())).thenReturn(List.of());
+        when(beliefRepository.findAllByOwnerIdOrderByRevisedAtDesc(any())).thenReturn(List.of());
+        when(experimentRepository.findAllByOwnerId(any())).thenReturn(List.of());
+        when(reflectionRepository.findByOwnerIdOrderByCreatedAtDesc(any())).thenReturn(List.of());
+        when(evidenceRepository.findAllByOwnerId(any())).thenReturn(List.of());
+        when(wisdomEntryRepository.findAllByOwnerId(any())).thenReturn(List.of());
+        when(wisdomSourceLinkRepository.findAllByOwnerId(any())).thenReturn(List.of());
+        when(memoryProposalRepository.findAllByOwnerId(any())).thenReturn(List.of());
         var existing = new KnowledgeProjectionCheckpointEntity(UUID.randomUUID(), "transformations", OffsetDateTime.now().minusDays(1));
-        when(checkpointRepository.findBySourceModule("transformations")).thenReturn(Optional.of(existing));
-        when(checkpointRepository.findBySourceModule(Mockito.argThat(m -> !"transformations".equals(m)))).thenReturn(Optional.empty());
+        when(checkpointRepository.findByOwnerIdAndSourceModule(any(), eq("transformations"))).thenReturn(Optional.of(existing));
+        when(checkpointRepository.findByOwnerIdAndSourceModule(any(), Mockito.argThat(m -> !"transformations".equals(m)))).thenReturn(Optional.empty());
         when(knowledgeNodeRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
         when(knowledgeEdgeRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
         when(knowledgeEdgeSourceRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));

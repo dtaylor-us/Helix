@@ -1,5 +1,6 @@
 package com.helix.api.knowledge.application;
 
+import com.helix.api.identity.application.CurrentUserProvider;
 import com.helix.api.knowledge.adapter.out.persistence.KnowledgeEdgeRepository;
 import com.helix.api.knowledge.adapter.out.persistence.KnowledgeEdgeSourceRepository;
 import com.helix.api.knowledge.adapter.out.persistence.KnowledgeNodeRepository;
@@ -39,15 +40,18 @@ public class KnowledgeGraphQueryService {
     private final KnowledgeEdgeRepository edgeRepository;
     private final KnowledgeEdgeSourceRepository edgeSourceRepository;
     private final KnowledgeProjectionCheckpointRepository checkpointRepository;
+    private final CurrentUserProvider currentUserProvider;
 
     public KnowledgeGraphQueryService(
         KnowledgeNodeRepository nodeRepository, KnowledgeEdgeRepository edgeRepository,
-        KnowledgeEdgeSourceRepository edgeSourceRepository, KnowledgeProjectionCheckpointRepository checkpointRepository
+        KnowledgeEdgeSourceRepository edgeSourceRepository, KnowledgeProjectionCheckpointRepository checkpointRepository,
+        CurrentUserProvider currentUserProvider
     ) {
         this.nodeRepository = nodeRepository;
         this.edgeRepository = edgeRepository;
         this.edgeSourceRepository = edgeSourceRepository;
         this.checkpointRepository = checkpointRepository;
+        this.currentUserProvider = currentUserProvider;
     }
 
     public GraphView focusView(KnowledgeNodeType nodeType, UUID sourceRecordId) {
@@ -55,12 +59,13 @@ public class KnowledgeGraphQueryService {
     }
 
     public GraphView focusView(KnowledgeNodeType nodeType, UUID sourceRecordId, int maxDepth, int maxNodes) {
-        var focusNode = nodeRepository.findByNodeTypeAndSourceRecordId(nodeType, sourceRecordId)
+        var ownerId = currentUserProvider.currentUserId();
+        var focusNode = nodeRepository.findByOwnerIdAndNodeTypeAndSourceRecordId(ownerId, nodeType, sourceRecordId)
             .orElseThrow(() -> new NoSuchElementException(
                 "No knowledge graph node found for " + nodeType + " " + sourceRecordId
                     + " -- the projection may need to be rebuilt (POST /api/v1/knowledge-graph/rebuild)."));
 
-        var confirmedEdges = edgeRepository.findByStatus(KnowledgeEdgeStatus.CONFIRMED);
+        var confirmedEdges = edgeRepository.findByOwnerIdAndStatus(ownerId, KnowledgeEdgeStatus.CONFIRMED);
         Map<UUID, List<KnowledgeEdgeEntity>> edgesByNode = new HashMap<>();
         for (var edge : confirmedEdges) {
             edgesByNode.computeIfAbsent(edge.getSourceNodeId(), k -> new ArrayList<>()).add(edge);
@@ -96,9 +101,9 @@ public class KnowledgeGraphQueryService {
             depth++;
         }
 
-        var nodes = nodeRepository.findAllById(visitedNodeIds);
+        var nodes = nodeRepository.findByOwnerIdAndIdIn(ownerId, visitedNodeIds);
         var edgeIds = includedEdges.stream().map(KnowledgeEdgeEntity::getId).distinct().toList();
-        var edgeSourcesByEdge = edgeSourceRepository.findByKnowledgeEdgeIdIn(edgeIds).stream()
+        var edgeSourcesByEdge = edgeSourceRepository.findByOwnerIdAndKnowledgeEdgeIdIn(ownerId, edgeIds).stream()
             .collect(java.util.stream.Collectors.groupingBy(KnowledgeEdgeSourceEntity::getKnowledgeEdgeId));
 
         var distinctEdges = includedEdges.stream()
@@ -110,7 +115,7 @@ public class KnowledgeGraphQueryService {
     }
 
     public ProjectionFreshness freshness() {
-        return new ProjectionFreshness(checkpointRepository.findAll());
+        return new ProjectionFreshness(checkpointRepository.findAllByOwnerId(currentUserProvider.currentUserId()));
     }
 
     private static <T> java.util.function.Predicate<T> distinctById(java.util.function.Function<T, UUID> idExtractor) {

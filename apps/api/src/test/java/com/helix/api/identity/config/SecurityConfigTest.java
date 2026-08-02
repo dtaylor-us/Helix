@@ -12,6 +12,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SecurityConfigTest {
 
     @Test
+    void shouldNormalizeAppUrlUsedByOauthRedirects() {
+        assertThat(SecurityConfig.normalizeAppUrl("  http://localhost:5173/  "))
+            .isEqualTo("http://localhost:5173");
+    }
+
+    @Test
     void shouldBuildCorsConfigurationFromAllowedOrigins() {
         SecurityConfig securityConfig = new SecurityConfig();
 

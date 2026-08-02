@@ -15,12 +15,6 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * ADR-021 gap: {@code recentSnapshots}/{@code get}/{@code search} below are NOT YET owner-scoped
- * (they still read across every user's retrospectives) -- only {@code createSnapshot} sets
- * {@code ownerId} on write, which is enough to satisfy the NOT NULL column but not enough for real
- * per-user isolation. See the ADR-021 development log entry's gap list before deploying multi-user.
- */
 @Service
 public class WeeklyRetrospectiveService {
 
@@ -97,15 +91,17 @@ public class WeeklyRetrospectiveService {
     }
 
     public List<WeeklyRetrospectiveEntity> recentSnapshots() {
-        return repository.findTop10ByOrderByCreatedAtDesc();
+        return repository.findTop10ByOwnerIdOrderByCreatedAtDesc(currentUserProvider.currentUserId());
     }
 
     public WeeklyRetrospectiveEntity get(UUID id) {
-        return repository.findById(id).orElseThrow(() -> new IllegalArgumentException("Retrospective not found"));
+        return repository.findByIdAndOwnerId(id, currentUserProvider.currentUserId())
+            .orElseThrow(() -> new IllegalArgumentException("Retrospective not found"));
     }
 
     public List<WeeklyRetrospectiveEntity> search(String query) {
-        return repository.findTop20BySummaryContainingIgnoreCaseOrderByCreatedAtDesc(query.trim());
+        return repository.findTop20ByOwnerIdAndSummaryContainingIgnoreCaseOrderByCreatedAtDesc(
+            currentUserProvider.currentUserId(), query.trim());
     }
 
     private ReflectionSummary toReflectionSummary(ReflectionEntity reflection) {

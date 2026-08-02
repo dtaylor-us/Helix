@@ -1,0 +1,10 @@
+*.tfstate
+*.tfstate.*
+*.tfvars
+!terraform.tfvars.example
+.terraform/
+# .terraform.lock.hcl is intentionally NOT ignored -- commit it for reproducible provider versions
+# across machines/CI, per Terraform's own recommendation.
+crash.log
+override.tf
+override.tf.json

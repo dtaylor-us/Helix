@@ -1,0 +1,101 @@
+name: Terraform Plan
+
+# ADR-022: runs `terraform plan` on any PR touching infra/terraform/, so infra changes get reviewed
+# with the same rigor as application code before merge. Never applies -- see terraform-apply.yml.
+
+on:
+  pull_request:
+    paths:
+      - "infra/terraform/**"
+      - ".github/workflows/terraform-plan.yml"
+      - ".github/workflows/terraform-apply.yml"
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write # to comment the plan output on the PR
+
+concurrency:
+  group: terraform-${{ github.workflow }}
+  cancel-in-progress: false # never cancel a plan/apply against shared state mid-run
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Log in to Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform Init
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=${{ vars.TF_STATE_RESOURCE_GROUP }}" \
+            -backend-config="storage_account_name=${{ vars.TF_STATE_STORAGE_ACCOUNT }}" \
+            -backend-config="container_name=${{ vars.TF_STATE_CONTAINER }}" \
+            -backend-config="key=helix.tfstate"
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        env:
+          TF_VAR_azure_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          TF_VAR_admin_source_cidr: ${{ vars.ADMIN_SOURCE_CIDR }}
+          TF_VAR_vm_admin_username: ${{ vars.VM_ADMIN_USERNAME }}
+          TF_VAR_vm_ssh_public_key: ${{ vars.VM_SSH_PUBLIC_KEY }}
+          TF_VAR_postgres_admin_password: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+          # TF_VAR_api_container_image deliberately NOT set -- see terraform-apply.yml's comment.
+          TF_VAR_ghcr_username: ${{ github.repository_owner }}
+          TF_VAR_ghcr_read_token: ${{ secrets.GHCR_READ_TOKEN }}
+          TF_VAR_google_oauth_client_id: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          TF_VAR_google_oauth_client_secret: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          TF_VAR_web_app_url: ${{ vars.WEB_APP_URL }}
+        run: terraform plan -no-color -input=false -out=tfplan
+        continue-on-error: true
+
+      - name: Render plan as text
+        if: steps.plan.outcome == 'success'
+        id: show
+        run: |
+          terraform show -no-color tfplan > plan.txt
+          # GitHub comment bodies are capped well under 65536 chars; truncate defensively so this
+          # step can't fail the whole job on an unusually large plan (e.g. the very first apply,
+          # which touches every resource at once).
+          {
+            echo "plan<<PLAN_EOF"
+            head -c 60000 plan.txt
+            echo "PLAN_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Comment plan on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const outcome = "${{ steps.plan.outcome }}";
+            const body = outcome === 'success'
+              ? `#### Terraform Plan: success\n<details><summary>Show plan</summary>\n\n\`\`\`\n${{ steps.show.outputs.plan }}\n\`\`\`\n</details>`
+              : `#### Terraform Plan: failed\nSee the workflow run logs for details.`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });
+
+      - name: Fail if plan failed
+        if: steps.plan.outcome == 'failure'
+        run: exit 1

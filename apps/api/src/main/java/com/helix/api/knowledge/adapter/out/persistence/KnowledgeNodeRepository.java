@@ -9,6 +9,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface KnowledgeNodeRepository extends JpaRepository<KnowledgeNodeEntity, UUID> {
-    Optional<KnowledgeNodeEntity> findByNodeTypeAndSourceRecordId(KnowledgeNodeType nodeType, UUID sourceRecordId);
-    List<KnowledgeNodeEntity> findByNodeType(KnowledgeNodeType nodeType);
+    Optional<KnowledgeNodeEntity> findByOwnerIdAndNodeTypeAndSourceRecordId(UUID ownerId, KnowledgeNodeType nodeType, UUID sourceRecordId);
+    List<KnowledgeNodeEntity> findByOwnerIdAndNodeType(UUID ownerId, KnowledgeNodeType nodeType);
+    List<KnowledgeNodeEntity> findByOwnerIdAndIdIn(UUID ownerId, java.util.Collection<UUID> ids);
+    void deleteAllByOwnerId(UUID ownerId);
 }

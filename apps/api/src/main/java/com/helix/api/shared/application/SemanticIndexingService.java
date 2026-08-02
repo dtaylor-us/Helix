@@ -16,11 +16,9 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * ADR-021 gap: {@code rebuild()}'s {@code repository.deleteAllInBatch()} wipes every user's indexed
- * documents, not just the caller's (reflections are owner-scoped going in via
- * {@code ReflectionService.listForRetrieval()}, but {@code WisdomService.list()} is not yet -- see
- * the ADR-021 development log entry). Do not expose a rebuild trigger to non-owner-verified callers
- * until this is fixed.
+ * ADR-021: {@code rebuild()} is fully scoped to the calling user -- both source reads
+ * ({@code ReflectionService.listForRetrieval()} and {@code WisdomService.list()}) and the index wipe
+ * ({@code repository.deleteAllByOwnerId}) only ever touch the caller's own documents.
  */
 @Service
 public class SemanticIndexingService {
@@ -71,7 +69,7 @@ public class SemanticIndexingService {
             ownerId
         )));
 
-        repository.deleteAllInBatch();
+        repository.deleteAllByOwnerId(ownerId);
         repository.saveAll(documents);
 
         return new IndexRebuildResult(documents.size(), textEmbeddingPort.modelName(), now.toString());

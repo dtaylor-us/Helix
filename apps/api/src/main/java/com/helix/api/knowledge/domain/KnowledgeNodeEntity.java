@@ -39,9 +39,7 @@ public class KnowledgeNodeEntity {
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
 
-    // ADR-021 gap: NOT YET set by KnowledgeGraphProjectionService (its rebuild reads across every
-    // user's records with no owner parameter at all -- a bigger follow-up than the field-add done
-    // for every other entity in this pass). See the ADR-021 development log entry.
+    // ADR-021: set by KnowledgeGraphProjectionService on every rebuild.
     @Column(name = "owner_id")
     private UUID ownerId;
 

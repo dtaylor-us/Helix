@@ -44,10 +44,6 @@ repository query is `...AndOwnerId(...)`-scoped; every service's `get()` 404s (n
 confirming a record exists) when the row's `owner_id` doesn't match the caller.
 
 ## Alternatives
-- **Copy axiom's per-service JWT pattern.** Rejected: designed for multiple independently-deployable
-  services that can't share a cookie; Helix has one deployable API, so a session cookie is strictly
-  simpler and removes an entire class of self-owned risk (secret rotation, refresh-token theft,
-  password storage) that axiom's architecture requires but Helix's doesn't.
 - **Derive ownership transitively through existing FK chains** (e.g. an `Evidence` row's owner is
   whoever owns the `Belief`/`Experiment`/`Reflection` it points at) instead of denormalizing
   `owner_id`. Rejected: several entities have no clean chain (see Decision), and even where a chain

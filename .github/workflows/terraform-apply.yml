@@ -1,0 +1,76 @@
+name: Terraform Apply
+
+# ADR-022: deliberately manual (workflow_dispatch only, never on push/merge). Infrastructure changes
+# here affect a stateful database VM and real cost -- a human explicitly triggering this, after
+# reading the plan from terraform-plan.yml on the corresponding PR, is the review gate. Configure a
+# required reviewer on the "production" GitHub Environment (Settings -> Environments) for an
+# additional approval step if wanted.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "apply" to confirm you have reviewed the plan for this change.'
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: terraform-${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.event.inputs.confirm == 'apply'
+    runs-on: ubuntu-latest
+    environment: production
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Log in to Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform Init
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=${{ vars.TF_STATE_RESOURCE_GROUP }}" \
+            -backend-config="storage_account_name=${{ vars.TF_STATE_STORAGE_ACCOUNT }}" \
+            -backend-config="container_name=${{ vars.TF_STATE_CONTAINER }}" \
+            -backend-config="key=helix.tfstate"
+
+      - name: Terraform Apply
+        env:
+          TF_VAR_azure_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          TF_VAR_admin_source_cidr: ${{ vars.ADMIN_SOURCE_CIDR }}
+          TF_VAR_vm_admin_username: ${{ vars.VM_ADMIN_USERNAME }}
+          TF_VAR_vm_ssh_public_key: ${{ vars.VM_SSH_PUBLIC_KEY }}
+          TF_VAR_postgres_admin_password: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+          # TF_VAR_api_container_image deliberately NOT set -- falls back to variables.tf's public
+          # placeholder default. Azure validates the image reference exists at Container App
+          # creation time; pointing this at ghcr.io/<owner>/helix-api:latest before an image has
+          # ever been pushed there fails the entire apply with MANIFEST_UNKNOWN, not just a failed
+          # container start. Once deploy-api.yml has run at least once, this variable is irrelevant
+          # anyway -- the running image is managed by `az containerapp update`, which Terraform is
+          # configured to ignore (see lifecycle.ignore_changes in container-apps.tf).
+          TF_VAR_ghcr_username: ${{ github.repository_owner }}
+          TF_VAR_ghcr_read_token: ${{ secrets.GHCR_READ_TOKEN }}
+          TF_VAR_google_oauth_client_id: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          TF_VAR_google_oauth_client_secret: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          TF_VAR_web_app_url: ${{ vars.WEB_APP_URL }}
+        run: terraform apply -input=false -auto-approve
+
+      - name: Show outputs
+        run: terraform output

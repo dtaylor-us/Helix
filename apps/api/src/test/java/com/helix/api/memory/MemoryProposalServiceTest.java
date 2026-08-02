@@ -58,7 +58,8 @@ class MemoryProposalServiceTest {
 
         var aiAssistantPort = Mockito.mock(AiAssistantPort.class);
         var currentUserProvider = Mockito.mock(CurrentUserProvider.class);
-        when(currentUserProvider.currentUserId()).thenReturn(UUID.randomUUID());
+        var ownerId = UUID.randomUUID();
+        when(currentUserProvider.currentUserId()).thenReturn(ownerId);
         var service = new MemoryProposalService(
             repository,
             revisionRepository,
@@ -79,7 +80,7 @@ class MemoryProposalServiceTest {
             sourceRecordId,
             "This line came from the reflection note."
         );
-        when(repository.findById(proposal.getId())).thenReturn(Optional.of(proposal));
+        when(repository.findByIdAndOwnerId(proposal.getId(), ownerId)).thenReturn(Optional.of(proposal));
 
         var revision = service.revise(
             proposal.getId(),

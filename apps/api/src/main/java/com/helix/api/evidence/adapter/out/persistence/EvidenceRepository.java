@@ -14,8 +14,7 @@ public interface EvidenceRepository extends JpaRepository<EvidenceEntity, UUID> 
         UUID ownerIdForSummary, String summaryQuery, UUID ownerIdForInterpretation, String interpretationQuery
     );
 }
-// ADR-021: get(id) is not independently owner-scoped below -- EvidenceEntity has no single owning
-// parent (it can reference a belief, an experiment, and a reflection at once); every existing call
-// site resolves the belief via BeliefService.get() first, which already enforces ownership. This is
-// flagged in the ADR-021 gap list as needing a direct owner_id check on EvidenceService.get() too,
-// since that method is called directly (not always via BeliefService) by EvidenceController.
+// ADR-021: EvidenceEntity has no single owning parent (it can reference a belief, an experiment,
+// and a reflection at once), so there's no findByIdAndOwnerId here -- EvidenceService.get() instead
+// does an explicit ownerId equality check against the loaded row before returning it, since it's
+// called directly (not always via BeliefService) by EvidenceController.

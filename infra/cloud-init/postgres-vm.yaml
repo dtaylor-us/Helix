@@ -1,0 +1,91 @@
+#cloud-config
+# ADR-022: rendered by Terraform's templatefile() in vm-postgres.tf and passed to the VM as
+# base64-encoded custom_data. Installs Docker + Azure CLI, starts Postgres in a memory-constrained
+# container, enables unattended OS security patching, and schedules the backup script.
+#
+# Variables substituted by Terraform: postgres_db_name, postgres_admin_user,
+# postgres_admin_password, postgres_private_ip, backup_storage_account, backup_container_name,
+# backup_script_b64.
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - unattended-upgrades
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - gnupg
+
+write_files:
+  - path: /etc/helix/backup.env
+    permissions: '0600'
+    owner: root:root
+    content: |
+      POSTGRES_DB=${postgres_db_name}
+      BACKUP_STORAGE_ACCOUNT=${backup_storage_account}
+      BACKUP_CONTAINER_NAME=${backup_container_name}
+
+  - path: /opt/helix/backup-postgres.sh
+    permissions: '0755'
+    owner: root:root
+    encoding: b64
+    content: ${backup_script_b64}
+
+  - path: /etc/cron.d/helix-postgres-backup
+    permissions: '0644'
+    owner: root:root
+    content: |
+      # Daily at 03:00 UTC -- low-traffic window for a single-user app in most timezones.
+      0 3 * * * root /opt/helix/backup-postgres.sh >> /var/log/helix-backup.log 2>&1
+
+  - path: /etc/apt/apt.conf.d/51unattended-upgrades-security-only
+    permissions: '0644'
+    owner: root:root
+    content: |
+      // Security patches only, applied automatically -- feature/version upgrades still require a
+      // manual `apt upgrade`, since those are more likely to need a restart or behavior review.
+      Unattended-Upgrade::Allowed-Origins {
+          "$${distro_id}:$${distro_codename}-security";
+      };
+      Unattended-Upgrade::Automatic-Reboot "true";
+      Unattended-Upgrade::Automatic-Reboot-Time "04:00";
+
+runcmd:
+  # --- Docker ---------------------------------------------------------------------------------
+  - curl -fsSL https://get.docker.com | sh
+  - systemctl enable --now docker
+
+  # --- Azure CLI (used by the backup/restore scripts to authenticate via managed identity) -----
+  - curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+
+  # --- unattended-upgrades ----------------------------------------------------------------------
+  - systemctl enable --now unattended-upgrades
+
+  # --- Postgres ---------------------------------------------------------------------------------
+  # Bound to the VM's private IP only (defense-in-depth on top of the NSG, which is the primary
+  # control -- see network.tf). --memory caps the container well under the VM's 1GiB total, leaving
+  # headroom for the OS, the Azure CLI during backups, and cron. The -c flags are conservative
+  # tuning for a 1GiB-RAM host; Postgres' own defaults assume much more memory is available.
+  - >
+    docker run -d
+    --name helix-postgres
+    --restart unless-stopped
+    --memory=700m
+    --memory-swap=700m
+    -e POSTGRES_DB=${postgres_db_name}
+    -e POSTGRES_USER=${postgres_admin_user}
+    -e POSTGRES_PASSWORD=${postgres_admin_password}
+    -v helix-pgdata:/var/lib/postgresql/data
+    -p ${postgres_private_ip}:5432:5432
+    postgres:16
+    -c shared_buffers=128MB
+    -c max_connections=50
+    -c work_mem=4MB
+    -c effective_cache_size=400MB
+    -c maintenance_work_mem=64MB
+
+  # --- Verify cron will actually find the backup script executable, fail loudly at boot if not --
+  - test -x /opt/helix/backup-postgres.sh || (echo "FATAL: backup script not installed correctly" | tee /dev/stderr)
+
+final_message: "Helix Postgres VM cloud-init complete after $UPTIME seconds."

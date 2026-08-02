@@ -44,7 +44,8 @@ class WisdomServiceTest {
         when(revisionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         var currentUserProvider = Mockito.mock(CurrentUserProvider.class);
-        when(currentUserProvider.currentUserId()).thenReturn(UUID.randomUUID());
+        var ownerId = UUID.randomUUID();
+        when(currentUserProvider.currentUserId()).thenReturn(ownerId);
         var service = new WisdomService(repository, revisionRepository, sourceRepository, retrospectiveService, reflectionService, evidenceService, currentUserProvider);
 
         var entry = service.create(
@@ -52,7 +53,7 @@ class WisdomServiceTest {
             null,
             List.of(new WisdomService.WisdomSourceInput(WisdomSourceType.REFLECTION, reflectionId, "Weekly theme"))
         );
-        when(repository.findById(entry.getId())).thenReturn(java.util.Optional.of(entry));
+        when(repository.findByIdAndOwnerId(entry.getId(), ownerId)).thenReturn(java.util.Optional.of(entry));
 
         var revision = service.revise(entry.getId(), "Small steps create compounding progress.", "Week over week evidence");
 

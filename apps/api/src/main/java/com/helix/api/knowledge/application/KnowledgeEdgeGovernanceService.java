@@ -1,5 +1,6 @@
 package com.helix.api.knowledge.application;
 
+import com.helix.api.identity.application.CurrentUserProvider;
 import com.helix.api.knowledge.adapter.out.persistence.KnowledgeEdgeRepository;
 import com.helix.api.knowledge.domain.KnowledgeEdgeEntity;
 import org.springframework.stereotype.Service;
@@ -19,9 +20,11 @@ import java.util.UUID;
 public class KnowledgeEdgeGovernanceService {
 
     private final KnowledgeEdgeRepository edgeRepository;
+    private final CurrentUserProvider currentUserProvider;
 
-    public KnowledgeEdgeGovernanceService(KnowledgeEdgeRepository edgeRepository) {
+    public KnowledgeEdgeGovernanceService(KnowledgeEdgeRepository edgeRepository, CurrentUserProvider currentUserProvider) {
         this.edgeRepository = edgeRepository;
+        this.currentUserProvider = currentUserProvider;
     }
 
     public KnowledgeEdgeEntity confirm(UUID edgeId) {
@@ -43,7 +46,7 @@ public class KnowledgeEdgeGovernanceService {
     }
 
     private KnowledgeEdgeEntity get(UUID edgeId) {
-        return edgeRepository.findById(edgeId)
+        return edgeRepository.findByIdAndOwnerId(edgeId, currentUserProvider.currentUserId())
             .orElseThrow(() -> new NoSuchElementException("Knowledge graph edge not found"));
     }
 }

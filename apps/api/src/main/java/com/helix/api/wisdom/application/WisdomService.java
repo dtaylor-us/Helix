@@ -20,11 +20,6 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
-/**
- * ADR-021 gap: {@code list}/{@code get}/{@code search} below are NOT YET owner-scoped -- ownerId is
- * set on every write (satisfies the NOT NULL column) but reads still cross every user's wisdom.
- * See the ADR-021 development log entry's gap list before deploying multi-user.
- */
 @Service
 public class WisdomService {
 
@@ -90,11 +85,12 @@ public class WisdomService {
     }
 
     public List<WisdomEntryEntity> list() {
-        return repository.findAllByOrderByRevisedAtDesc();
+        return repository.findAllByOwnerIdOrderByRevisedAtDesc(currentUserProvider.currentUserId());
     }
 
     public WisdomEntryEntity get(UUID id) {
-        return repository.findById(id).orElseThrow(() -> new NoSuchElementException("Wisdom entry not found"));
+        return repository.findByIdAndOwnerId(id, currentUserProvider.currentUserId())
+            .orElseThrow(() -> new NoSuchElementException("Wisdom entry not found"));
     }
 
     public List<WisdomRevisionEntity> revisionHistory(UUID wisdomId) {
@@ -126,7 +122,8 @@ public class WisdomService {
     }
 
     public List<WisdomEntryEntity> search(String query) {
-        return repository.findTop20ByStatementContainingIgnoreCaseOrderByRevisedAtDesc(query.trim());
+        return repository.findTop20ByOwnerIdAndStatementContainingIgnoreCaseOrderByRevisedAtDesc(
+            currentUserProvider.currentUserId(), query.trim());
     }
 
     private void validateSource(WisdomSourceType sourceType, UUID sourceRecordId) {

@@ -1,0 +1,44 @@
+# Copy this to terraform.tfvars and fill in real values, OR (recommended) supply the sensitive ones
+# via TF_VAR_* environment variables / GitHub Actions secrets instead of a file at all -- see the
+# runbook. If you do create terraform.tfvars, it is gitignored; double check `git status` before ever
+# committing anything in this directory.
+
+azure_subscription_id = "00000000-0000-0000-0000-000000000000"
+
+project     = "helix"
+environment = "prod"
+location    = "eastus"
+
+# Your own IP address as a /32 -- find it with `curl -s https://ifconfig.me`. Never set this to
+# 0.0.0.0/0 (enforced by a validation block in variables.tf, but stated here too as a reminder).
+admin_source_cidr = "203.0.113.4/32"
+
+# NOTE: some Azure subscriptions/regions reject ed25519 VM SSH keys outright ("Only RSA SSH keys are
+# supported by Azure") -- if `terraform apply` fails on this with a decoding/unsupported-key error,
+# generate an RSA key instead (`ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa_helix_vm`) and use that.
+vm_admin_username = "helixadmin"
+vm_ssh_public_key = "ssh-ed25519 AAAA... you@yourmachine"
+
+postgres_db_name    = "helix"
+postgres_admin_user = "helix"
+# postgres_admin_password: set via TF_VAR_postgres_admin_password, not here.
+
+# api_container_image: leave this unset entirely for the first apply -- it defaults to Microsoft's
+# public placeholder image (see variables.tf), which lets Container Apps create successfully before
+# any real image has been pushed to ghcr.io. Azure validates the image actually exists (a manifest
+# GET) at creation time, so pointing this at a ghcr.io tag that hasn't been pushed yet FAILS THE
+# WHOLE APPLY, not just the container's startup -- don't set this to your real ghcr.io image until
+# after you've pushed at least one image there (either by running deploy-api.yml once, or by building
+# and pushing manually). The Container App's image is excluded from Terraform's change tracking after
+# first apply (see container-apps.tf), so CI takes over updating it from that point on regardless of
+# what this variable is set to.
+
+ghcr_username = "your-github-username"
+# ghcr_read_token: set via TF_VAR_ghcr_read_token, not here.
+
+# google_oauth_client_id / google_oauth_client_secret: set via TF_VAR_*, not here.
+
+# web_app_url: leave unset (or a placeholder) on the very first apply -- the Static Web App's
+# hostname isn't known until after it's created. Set it to the real
+# static_web_app_default_hostname output and re-apply once. See the runbook.
+web_app_url = "https://REPLACE-AFTER-FIRST-APPLY.azurestaticapps.net"

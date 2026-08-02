@@ -2,6 +2,116 @@
 
 This log is updated at the end of significant delivery sessions.
 
+## 2026-08-02 Session - Phase 12 fix #4: forced Container App environment replacement
+
+A fourth bug from the same real-world `terraform apply` run: `azurerm_container_app_environment.main`
+didn't set `infrastructure_resource_group_name` (Azure auto-generates one, the
+`ME_<env>_<rg>_<region>` resource group backing a VNet-integrated environment's networking). Because
+that attribute is `ForceNew` in the provider, every plan after the first apply saw "config wants
+null, real state has Azure's generated value" and forced a full destroy/recreate of the environment
+-- which is slow (VNet-integrated environment deletion commonly takes 20-40 minutes) and would have
+recurred on *every single future apply* if left unfixed, not just this one. Fixed with
+`lifecycle { ignore_changes = [infrastructure_resource_group_name] }`.
+
+## 2026-08-02 Session - Phase 12 fixes from a real first `terraform apply`
+
+Running the runbook against a real Azure subscription for the first time surfaced three bugs the
+unvalidated-Terraform caveat had warned about -- all now fixed:
+
+1. **`azurerm_storage_container.postgres_backups` used `storage_account_id`**, an argument only
+   supported by AzureRM provider v4.x; `versions.tf` pins `~> 3.116`. Fixed to `storage_account_name`
+   (the 3.x-compatible argument) and left a comment flagging this as a thing to re-check if the
+   provider is ever bumped to 4.x.
+2. **This specific subscription rejects `ed25519` VM SSH keys** ("Only RSA SSH keys are supported by
+   Azure") -- the runbook now generates and uses an RSA key for the Postgres VM instead, with a
+   troubleshooting note for anyone who already generated ed25519 before hitting this.
+3. **The real bug, not just a typo:** `api_container_image` had no default and the runbook's guidance
+   to point it at `ghcr.io/<owner>/helix-api:latest` before any image had ever been pushed there was
+   simply wrong -- Azure Container Apps validates the image reference exists (a manifest GET) at
+   *resource-creation* time, not container-startup time, so this failed the entire `terraform apply`
+   with `MANIFEST_UNKNOWN` rather than creating the app in a not-yet-started state as the runbook
+   claimed. Fixed by giving `api_container_image` a default of Microsoft's public placeholder image
+   (`mcr.microsoft.com/azuredocs/containerapps-helloworld:latest`), removing the incorrect
+   `TF_VAR_api_container_image` overrides from both `terraform-plan.yml` and `terraform-apply.yml`,
+   and rewriting the runbook's step 4/7 to explain the real sequence (placeholder image on first
+   apply, real image pushed and swapped in afterward via `az containerapp update`, which Terraform's
+   `lifecycle.ignore_changes` already protects from being reverted by a later apply).
+
+Also caught mid-session: real secrets (Postgres password, a GitHub PAT, a Google OAuth client secret,
+an Azure subscription id) ended up pasted directly into the runbook markdown on disk while the user
+was following it interactively. `git status` confirmed the file was still untracked (nothing pushed),
+and the file was immediately redacted back to placeholder values. Worth calling out as a standing risk
+of runbook-as-scratchpad usage, not something the automation itself caused.
+
+## 2026-08-02 Session - Phase 12: Azure production deployment (ADR-022)
+
+Summary: user asked to deploy on Azure, cost-optimized (hard $15/mo ceiling), single user to start,
+cold starts acceptable. Priced the real options against current Azure pricing rather than assumed
+figures (managed Postgres Flexible Server Burstable B1ms alone runs ~$17+/mo, over budget by itself)
+and landed on: Static Web Apps (Free) for the frontend, Container Apps Consumption (scale-to-zero)
+for the API, and Postgres self-hosted in Docker on a B1s VM rather than the managed service — full
+rationale, alternatives considered, and the operational risks this trades in (self-managed patching,
+backups, no automatic failover) are in **ADR-022**.
+
+**Split-origin auth fix (resolves an ADR-021 open risk).** Static Web Apps and Container Apps land on
+different Azure domains — genuinely cross-site, not just cross-port like local dev. ADR-021 had
+flagged this exact scenario as untested and requiring `SameSite=None`. Made
+`server.servlet.session.cookie.same-site` configurable via `HELIX_SESSION_COOKIE_SAMESITE` (default
+`lax` for local dev; set to `none` in the Container App's Terraform config), and updated
+`SecurityConfig`'s CSRF-disabled javadoc to rely on the CORS-allowlist + JSON-content-type-preflight
+control as the load-bearing reason it's safe to leave CSRF disabled, rather than `SameSite` (which is
+no longer constant across environments).
+
+**Delivered, all under `infra/`:**
+- `apps/api/Dockerfile` — multi-stage build using Spring Boot's layered-jar support so unchanged
+  dependency layers cache across builds.
+- `infra/terraform/` — full IaC: resource group, VNet with a VM subnet (NSG: SSH from one admin IP
+  only, Postgres from the VNet only, no public 5432 exposure at all) and a delegated Container Apps
+  subnet, the Postgres VM (system-assigned managed identity, no storage key ever stored on it),
+  Blob Storage for backups with a lifecycle-managed retention policy, Log Analytics, the
+  VNet-integrated Container Apps environment + API Container App (secrets for DB/OAuth config,
+  `min_replicas = 0` for scale-to-zero, image intentionally excluded from Terraform's change
+  tracking after first apply since `deploy-api.yml` owns that going forward), and the Static Web App.
+  Remote state in Azure Storage, bootstrapped once via a plain script since Terraform can't create
+  the backend it stores its own state in.
+- `infra/cloud-init/postgres-vm.yaml` — installs Docker + Azure CLI + `unattended-upgrades`, runs
+  Postgres in a memory-capped container (tuned `shared_buffers`/`work_mem` for the VM's 1GiB RAM),
+  installs the backup cron job.
+- `infra/scripts/` — `bootstrap-terraform-state.sh` (one-time, explicitly documented as NOT
+  idempotent since the storage account name is randomized per run), `backup-postgres.sh` (daily
+  `pg_dump` to Blob Storage via the VM's managed identity, refuses to upload a suspiciously small
+  dump rather than silently backing up nothing), `restore-postgres.sh` (manual-only, requires typing
+  the database name to confirm before doing anything destructive).
+- `.github/workflows/deploy-api.yml` / `deploy-web.yml` — triggered by `CI` succeeding on `main`
+  (never deploy code that hasn't passed tests), build+push to `ghcr.io` (not Azure Container Registry
+  — ACR's Basic tier alone would cost ~$5/mo, a third of the entire budget, for something GitHub
+  already provides free) and update the Container App / redeploy the Static Web App respectively.
+- `.github/workflows/terraform-plan.yml` (runs on PRs touching `infra/terraform/`, comments the plan
+  on the PR) / `terraform-apply.yml` (`workflow_dispatch` only — deliberately not automatic on merge,
+  since infra changes here affect a stateful database VM).
+- `docs/deployment/azure-runbook.md` — the full bootstrap sequence (including the two genuinely
+  two-phase steps: the Static Web App's and Container App's URLs aren't known until after they're
+  first created, but each needs the other's URL) plus day-2 ops (restore, password rotation, spend
+  monitoring, patching).
+
+**Estimated steady-state cost: ~$10-13/mo**, under the $15/mo ceiling.
+
+**Not done / explicitly flagged as unverified:** this sandbox had neither Azure credentials nor a
+working `terraform` binary (no network access to download one), so none of the Terraform or GitHub
+Actions here have been run against a real subscription. Every resource definition was checked
+carefully against the `azurerm` provider's documented schema, but `terraform validate`/`plan` against
+a live subscription — the first step in the runbook — should be treated as the actual first
+correctness check, not a formality.
+
+## 2026-08-02 Session - Google OAuth redirect whitespace fix (ADR-021)
+
+- Diagnosed a successful Google callback failing during Spring Security's post-login redirect with
+  `InvalidUrlException: Bad authority`: trailing spaces loaded verbatim from `HELIX_WEB_APP_URL` in
+  `.env` made the configured frontend URL invalid.
+- Normalized surrounding whitespace and trailing slashes before building OAuth success/failure
+  redirect URLs, added a regression test, documented the single-URL setting separately from the
+  comma-separated CORS allowlist, and cleaned the affected local `.env` values.
+
 ## 2026-08-02 Session - Authentication & Authorization Foundation (ADR-021)
 
 Summary:
@@ -89,7 +199,8 @@ Verification:
   the Phase 11 knowledge graph bugs is strongly recommended before deploying, not just before
   merging** — that pass is what caught real bugs a careful manual review missed last time.
 
-Remaining before this is safe to deploy with real multi-user data:
+Remaining before this is safe to deploy with real multi-user data (at the time of the original
+session):
 1. Owner-scope the read paths (list/get/search) for Wisdom, Weekly Retrospectives, and Memory
    Proposals — same pattern as the core loop, smaller in scope than it sounds since the entity/
    write-path work is already done.
@@ -98,6 +209,58 @@ Remaining before this is safe to deploy with real multi-user data:
 3. Fix `SemanticIndexingService.rebuild()`'s global index wipe to be owner-scoped.
 4. A real backend build/test run, plus a fresh end-to-end QA pass exercising login, the allowlist
    rejection path, and cross-user isolation with two real invited accounts.
+
+## 2026-08-02 Session (follow-up) - ADR-021 read-scoping and knowledge graph owner threading
+
+Closes items 1–3 above (item 4, a real `./gradlew build` and Codex-driven end-to-end QA pass, remains
+outstanding — this sandbox still cannot compile the backend).
+
+- **Wisdom/Memory/Retrospective read paths, now fully owner-scoped.** `WisdomService.list()/get()/
+  search()`, `WeeklyRetrospectiveService.recentSnapshots()/get()/search()`, and
+  `MemoryProposalService.list()/get()` all resolve the caller via `CurrentUserProvider` and scope
+  through new repository finders (`findAllByOwnerIdOrderByRevisedAtDesc`,
+  `findByIdAndOwnerId`, `findTop20ByOwnerIdAnd...ContainingIgnoreCaseOrderBy...`, etc.) instead of the
+  old unscoped `findAllByOrderBy...`/`findById`. `get()` 404s (not 403) on a cross-owner lookup,
+  consistent with the core loop's existing pattern. Removed the now-stale "ADR-021 gap" class javadocs
+  on all three services and updated `WisdomServiceTest`/`MemoryProposalServiceTest` to stub the new
+  finder methods with a captured `ownerId`.
+- **`KnowledgeGraphProjectionService`, redesigned around a caller's `ownerId`.** `rebuild()` now reads
+  every domain repository through its owner-scoped finder (`findAllByOwnerId`,
+  `findByOwnerIdOrderByCreatedAtDesc`, etc.), deletes only the caller's own prior projection
+  (`deleteAllByOwnerId` on all three knowledge tables instead of `deleteAllInBatch()`), and stamps
+  every created node/edge/edge-source/checkpoint with `ownerId` via the constructor overloads that
+  were already sitting unused on those entities. This closes the "rebuild fails with a NOT NULL
+  violation" bug flagged in the prior session.
+- **The other three knowledge-graph services scoped to match**: `KnowledgeGraphQueryService.focusView()`
+  and `.freshness()` now resolve the focus node, edges, nodes, and checkpoints through new
+  owner-scoped repository finders (`findByOwnerIdAndNodeTypeAndSourceRecordId`,
+  `findByOwnerIdAndStatus`, `findByOwnerIdAndIdIn`, `findByOwnerIdAndKnowledgeEdgeIdIn`,
+  `findAllByOwnerId`) — previously a focus-node lookup or graph walk could return another user's
+  nodes/edges outright. `KnowledgeEdgeGovernanceService.confirm/reject/hide` now 404 on a
+  cross-owner edge id (`findByIdAndOwnerId`). `KnowledgeGraphRelationshipDiscoveryService
+  .discoverBeliefRelationships()` only compares belief-node pairs within the caller's own graph
+  (`findByOwnerIdAndNodeType`, `findByOwnerIdAndRelationshipType`) and stamps proposed AI edges/edge
+  sources with the caller's `ownerId`. All four services' unit tests updated accordingly (new
+  `CurrentUserProvider` mocks, matcher-based stubs for the owner-scoped finders).
+- **`SemanticIndexingService.rebuild()`'s global index wipe fixed.** `repository.deleteAllInBatch()`
+  → `repository.deleteAllByOwnerId(ownerId)`; combined with `WisdomService.list()` now being
+  owner-scoped (previous bullet), both the read side and the wipe are fully scoped to the caller — a
+  rebuild by one user can no longer delete or leak another user's indexed documents. Removed the
+  matching "ADR-021 gap" comments in `SemanticSearchDocumentEntity` and `DataDeletionService`.
+- Also corrected a stale comment on `EvidenceRepository`: it described `EvidenceService.get()`'s
+  direct `ownerId` equality check as still-needed follow-up work, when that check was in fact already
+  implemented in the original session — this was a documentation-only fix, no behavior change.
+
+Verification: same standing constraint as the prior session — the backend cannot be compiled in this
+sandbox (JDK 11 only, no Gradle network access), so every change here was checked by careful manual
+review against actual entity/repository/service signatures and existing test fixtures, not a passing
+build. **A real `./gradlew build`/test run, plus the Codex-driven end-to-end QA pass recommended in the
+prior entry (login, allowlist rejection, and cross-user isolation with two real invited accounts,
+including a knowledge-graph rebuild and semantic search rebuild under two accounts), is still required
+before deploying multi-user.**
+
+With this session's changes, every module now enforces per-owner data isolation on both write and read
+paths. No known outstanding authorization gaps remain in the codebase at the time of writing.
 
 ## 2026-08-02 Session - Progressive Disclosure and Contextual Help
 

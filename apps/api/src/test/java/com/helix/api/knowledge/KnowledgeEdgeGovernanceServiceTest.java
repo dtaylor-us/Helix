@@ -1,5 +1,6 @@
 package com.helix.api.knowledge;
 
+import com.helix.api.identity.application.CurrentUserProvider;
 import com.helix.api.knowledge.adapter.out.persistence.KnowledgeEdgeRepository;
 import com.helix.api.knowledge.application.KnowledgeEdgeGovernanceService;
 import com.helix.api.knowledge.domain.KnowledgeEdgeConfidence;
@@ -18,12 +19,19 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 class KnowledgeEdgeGovernanceServiceTest {
 
     private final KnowledgeEdgeRepository edgeRepository = Mockito.mock(KnowledgeEdgeRepository.class);
-    private final KnowledgeEdgeGovernanceService service = new KnowledgeEdgeGovernanceService(edgeRepository);
+    private final CurrentUserProvider currentUserProvider = Mockito.mock(CurrentUserProvider.class);
+    private final KnowledgeEdgeGovernanceService service = new KnowledgeEdgeGovernanceService(edgeRepository, currentUserProvider);
+
+    {
+        when(currentUserProvider.currentUserId()).thenReturn(UUID.randomUUID());
+    }
 
     private KnowledgeEdgeEntity proposedEdge() {
         return new KnowledgeEdgeEntity(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
@@ -34,7 +42,7 @@ class KnowledgeEdgeGovernanceServiceTest {
     @Test
     void confirmMarksTheEdgeConfirmedAndSetsConfirmedAt() {
         var edge = proposedEdge();
-        when(edgeRepository.findById(edge.getId())).thenReturn(Optional.of(edge));
+        when(edgeRepository.findByIdAndOwnerId(eq(edge.getId()), any())).thenReturn(Optional.of(edge));
         when(edgeRepository.save(edge)).thenReturn(edge);
 
         var result = service.confirm(edge.getId());
@@ -47,7 +55,7 @@ class KnowledgeEdgeGovernanceServiceTest {
     @Test
     void rejectMarksTheEdgeRejectedAndSetsRejectedAt() {
         var edge = proposedEdge();
-        when(edgeRepository.findById(edge.getId())).thenReturn(Optional.of(edge));
+        when(edgeRepository.findByIdAndOwnerId(eq(edge.getId()), any())).thenReturn(Optional.of(edge));
         when(edgeRepository.save(edge)).thenReturn(edge);
 
         var result = service.reject(edge.getId());
@@ -59,7 +67,7 @@ class KnowledgeEdgeGovernanceServiceTest {
     @Test
     void hideMarksTheEdgeHidden() {
         var edge = proposedEdge();
-        when(edgeRepository.findById(edge.getId())).thenReturn(Optional.of(edge));
+        when(edgeRepository.findByIdAndOwnerId(eq(edge.getId()), any())).thenReturn(Optional.of(edge));
         when(edgeRepository.save(edge)).thenReturn(edge);
 
         var result = service.hide(edge.getId());
@@ -70,7 +78,7 @@ class KnowledgeEdgeGovernanceServiceTest {
     @Test
     void confirmThrowsWhenEdgeDoesNotExist() {
         var missingId = UUID.randomUUID();
-        when(edgeRepository.findById(missingId)).thenReturn(Optional.empty());
+        when(edgeRepository.findByIdAndOwnerId(eq(missingId), any())).thenReturn(Optional.empty());
 
         assertThrows(NoSuchElementException.class, () -> service.confirm(missingId));
     }

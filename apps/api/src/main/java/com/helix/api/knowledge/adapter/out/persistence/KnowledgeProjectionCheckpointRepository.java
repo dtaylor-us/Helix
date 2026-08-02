@@ -7,5 +7,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface KnowledgeProjectionCheckpointRepository extends JpaRepository<KnowledgeProjectionCheckpointEntity, UUID> {
-    Optional<KnowledgeProjectionCheckpointEntity> findBySourceModule(String sourceModule);
+    Optional<KnowledgeProjectionCheckpointEntity> findByOwnerIdAndSourceModule(UUID ownerId, String sourceModule);
+    java.util.List<KnowledgeProjectionCheckpointEntity> findAllByOwnerId(UUID ownerId);
 }

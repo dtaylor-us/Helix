@@ -26,7 +26,7 @@ public class KnowledgeProjectionCheckpointEntity {
     @Column(name = "last_projected_at", nullable = false)
     private OffsetDateTime lastProjectedAt;
 
-    // ADR-021 gap: NOT YET set by KnowledgeGraphProjectionService -- see KnowledgeNodeEntity.ownerId.
+    // ADR-021: set by KnowledgeGraphProjectionService on every rebuild.
     @Column(name = "owner_id")
     private UUID ownerId;
 

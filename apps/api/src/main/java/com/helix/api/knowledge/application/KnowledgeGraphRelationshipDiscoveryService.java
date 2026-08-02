@@ -1,6 +1,7 @@
 package com.helix.api.knowledge.application;
 
 import com.helix.api.ai.application.AiAssistantPort;
+import com.helix.api.identity.application.CurrentUserProvider;
 import com.helix.api.knowledge.adapter.out.persistence.KnowledgeEdgeRepository;
 import com.helix.api.knowledge.adapter.out.persistence.KnowledgeEdgeSourceRepository;
 import com.helix.api.knowledge.adapter.out.persistence.KnowledgeNodeRepository;
@@ -40,21 +41,25 @@ public class KnowledgeGraphRelationshipDiscoveryService {
     private final KnowledgeEdgeRepository edgeRepository;
     private final KnowledgeEdgeSourceRepository edgeSourceRepository;
     private final AiAssistantPort aiAssistantPort;
+    private final CurrentUserProvider currentUserProvider;
 
     public KnowledgeGraphRelationshipDiscoveryService(
         KnowledgeNodeRepository nodeRepository, KnowledgeEdgeRepository edgeRepository,
-        KnowledgeEdgeSourceRepository edgeSourceRepository, AiAssistantPort aiAssistantPort
+        KnowledgeEdgeSourceRepository edgeSourceRepository, AiAssistantPort aiAssistantPort,
+        CurrentUserProvider currentUserProvider
     ) {
         this.nodeRepository = nodeRepository;
         this.edgeRepository = edgeRepository;
         this.edgeSourceRepository = edgeSourceRepository;
         this.aiAssistantPort = aiAssistantPort;
+        this.currentUserProvider = currentUserProvider;
     }
 
     @Transactional
     public DiscoveryRunSummary discoverBeliefRelationships() {
-        var beliefNodes = nodeRepository.findByNodeType(KnowledgeNodeType.BELIEF);
-        var alreadyConnected = existingBeliefRelationPairs();
+        var ownerId = currentUserProvider.currentUserId();
+        var beliefNodes = nodeRepository.findByOwnerIdAndNodeType(ownerId, KnowledgeNodeType.BELIEF);
+        var alreadyConnected = existingBeliefRelationPairs(ownerId);
 
         int pairsEvaluated = 0;
         int proposalsCreated = 0;
@@ -85,11 +90,11 @@ public class KnowledgeGraphRelationshipDiscoveryService {
                 var edge = new KnowledgeEdgeEntity(
                     UUID.randomUUID(), nodeA.getId(), nodeB.getId(), KnowledgeEdgeType.BELIEF_RELATED_TO_BELIEF,
                     KnowledgeEdgeOrigin.AI_PROPOSED, KnowledgeEdgeStatus.PROPOSED, KnowledgeEdgeConfidence.MODERATE,
-                    explanation, now
+                    explanation, now, ownerId
                 );
                 edgeRepository.save(edge);
-                edgeSourceRepository.save(new KnowledgeEdgeSourceEntity(UUID.randomUUID(), edge.getId(), KnowledgeNodeType.BELIEF, nodeA.getSourceRecordId()));
-                edgeSourceRepository.save(new KnowledgeEdgeSourceEntity(UUID.randomUUID(), edge.getId(), KnowledgeNodeType.BELIEF, nodeB.getSourceRecordId()));
+                edgeSourceRepository.save(new KnowledgeEdgeSourceEntity(UUID.randomUUID(), edge.getId(), KnowledgeNodeType.BELIEF, nodeA.getSourceRecordId(), ownerId));
+                edgeSourceRepository.save(new KnowledgeEdgeSourceEntity(UUID.randomUUID(), edge.getId(), KnowledgeNodeType.BELIEF, nodeB.getSourceRecordId(), ownerId));
                 proposalsCreated++;
             }
         }
@@ -97,9 +102,9 @@ public class KnowledgeGraphRelationshipDiscoveryService {
         return new DiscoveryRunSummary(pairsEvaluated, proposalsCreated);
     }
 
-    private Set<String> existingBeliefRelationPairs() {
+    private Set<String> existingBeliefRelationPairs(UUID ownerId) {
         Set<String> pairs = new HashSet<>();
-        for (KnowledgeEdgeEntity edge : edgeRepository.findByRelationshipType(KnowledgeEdgeType.BELIEF_RELATED_TO_BELIEF)) {
+        for (KnowledgeEdgeEntity edge : edgeRepository.findByOwnerIdAndRelationshipType(ownerId, KnowledgeEdgeType.BELIEF_RELATED_TO_BELIEF)) {
             pairs.add(pairKey(edge.getSourceNodeId(), edge.getTargetNodeId()));
         }
         return pairs;

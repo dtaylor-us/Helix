@@ -7,6 +7,7 @@ import com.helix.api.evidence.domain.EvidenceDirection;
 import com.helix.api.evidence.domain.EvidenceEntity;
 import com.helix.api.experiments.adapter.out.persistence.ExperimentRepository;
 import com.helix.api.experiments.domain.ExperimentEntity;
+import com.helix.api.identity.application.CurrentUserProvider;
 import com.helix.api.knowledge.adapter.out.persistence.KnowledgeEdgeRepository;
 import com.helix.api.knowledge.adapter.out.persistence.KnowledgeEdgeSourceRepository;
 import com.helix.api.knowledge.adapter.out.persistence.KnowledgeNodeRepository;
@@ -51,6 +52,10 @@ import java.util.UUID;
  * document's Section 4 for the exact reasoning behind every edge type below. Nothing in this class
  * writes to any authoritative domain table -- it only reads them and writes to the knowledge_*
  * tables it owns.
+ *
+ * ADR-021: the whole rebuild is scoped to the calling user's owner_id -- every read filters by it,
+ * every deleted row is scoped to it, and every created node/edge/edge-source/checkpoint is stamped
+ * with it. A rebuild only ever touches the caller's own graph.
  */
 @Service
 public class KnowledgeGraphProjectionService {
@@ -71,6 +76,7 @@ public class KnowledgeGraphProjectionService {
     private final KnowledgeEdgeRepository knowledgeEdgeRepository;
     private final KnowledgeEdgeSourceRepository knowledgeEdgeSourceRepository;
     private final KnowledgeProjectionCheckpointRepository checkpointRepository;
+    private final CurrentUserProvider currentUserProvider;
 
     public KnowledgeGraphProjectionService(
         TransformationRepository transformationRepository, ExperimentRepository experimentRepository,
@@ -79,7 +85,8 @@ public class KnowledgeGraphProjectionService {
         WisdomSourceLinkRepository wisdomSourceLinkRepository, MemoryProposalRepository memoryProposalRepository,
         KnowledgeNodeRepository knowledgeNodeRepository, KnowledgeEdgeRepository knowledgeEdgeRepository,
         KnowledgeEdgeSourceRepository knowledgeEdgeSourceRepository,
-        KnowledgeProjectionCheckpointRepository checkpointRepository
+        KnowledgeProjectionCheckpointRepository checkpointRepository,
+        CurrentUserProvider currentUserProvider
     ) {
         this.transformationRepository = transformationRepository;
         this.experimentRepository = experimentRepository;
@@ -93,26 +100,29 @@ public class KnowledgeGraphProjectionService {
         this.knowledgeEdgeRepository = knowledgeEdgeRepository;
         this.knowledgeEdgeSourceRepository = knowledgeEdgeSourceRepository;
         this.checkpointRepository = checkpointRepository;
+        this.currentUserProvider = currentUserProvider;
     }
 
     @Transactional
     public RebuildSummary rebuild() {
         var now = OffsetDateTime.now();
+        var ownerId = currentUserProvider.currentUserId();
 
-        // Full rebuild: wipe and re-derive. Node/edge ids are not stable across rebuilds by design
-        // -- (nodeType, sourceRecordId) is the stable key callers should use.
-        knowledgeEdgeSourceRepository.deleteAllInBatch();
-        knowledgeEdgeRepository.deleteAllInBatch();
-        knowledgeNodeRepository.deleteAllInBatch();
+        // Full rebuild: wipe and re-derive, scoped to the caller's own graph only. Node/edge ids are
+        // not stable across rebuilds by design -- (nodeType, sourceRecordId) is the stable key
+        // callers should use.
+        knowledgeEdgeSourceRepository.deleteAllByOwnerId(ownerId);
+        knowledgeEdgeRepository.deleteAllByOwnerId(ownerId);
+        knowledgeNodeRepository.deleteAllByOwnerId(ownerId);
 
-        var transformations = transformationRepository.findAll();
-        var experiments = experimentRepository.findAll();
-        var reflections = reflectionRepository.findAll();
-        var evidenceList = evidenceRepository.findAll();
-        var beliefs = beliefRepository.findAll();
-        var wisdomEntries = wisdomEntryRepository.findAll();
-        var wisdomSourceLinks = wisdomSourceLinkRepository.findAll();
-        var confirmedMemories = memoryProposalRepository.findAll().stream()
+        var transformations = transformationRepository.findAllByOwnerId(ownerId);
+        var experiments = experimentRepository.findAllByOwnerId(ownerId);
+        var reflections = reflectionRepository.findByOwnerIdOrderByCreatedAtDesc(ownerId);
+        var evidenceList = evidenceRepository.findAllByOwnerId(ownerId);
+        var beliefs = beliefRepository.findAllByOwnerIdOrderByRevisedAtDesc(ownerId);
+        var wisdomEntries = wisdomEntryRepository.findAllByOwnerId(ownerId);
+        var wisdomSourceLinks = wisdomSourceLinkRepository.findAllByOwnerId(ownerId);
+        var confirmedMemories = memoryProposalRepository.findAllByOwnerId(ownerId).stream()
             .filter(m -> m.getStatus() == MemoryProposalStatus.CONFIRMED)
             .toList();
 
@@ -273,8 +283,8 @@ public class KnowledgeGraphProjectionService {
         knowledgeEdgeSourceRepository.saveAll(edgeSourcesToSave);
 
         for (String module : SOURCE_MODULES) {
-            var checkpoint = checkpointRepository.findBySourceModule(module)
-                .orElseGet(() -> new KnowledgeProjectionCheckpointEntity(UUID.randomUUID(), module, now));
+            var checkpoint = checkpointRepository.findByOwnerIdAndSourceModule(ownerId, module)
+                .orElseGet(() -> new KnowledgeProjectionCheckpointEntity(UUID.randomUUID(), module, now, ownerId));
             checkpoint.touch(now);
             checkpointRepository.save(checkpoint);
         }
@@ -322,7 +332,7 @@ public class KnowledgeGraphProjectionService {
         OffsetDateTime createdAt, OffsetDateTime now
     ) {
         var node = new KnowledgeNodeEntity(UUID.randomUUID(), type, sourceRecordId, label, summary,
-            lifecycleStatus, createdAt, now);
+            lifecycleStatus, createdAt, now, currentUserProvider.currentUserId());
         nodeIndex.put(key(type, sourceRecordId), node);
         nodesToSave.add(node);
     }
@@ -338,11 +348,13 @@ public class KnowledgeGraphProjectionService {
         var targetNode = nodeIndex.get(key(targetType, targetRecordId));
         if (sourceNode == null || targetNode == null) return; // referenced record wasn't projected (e.g. filtered out)
 
+        var ownerId = currentUserProvider.currentUserId();
         var edge = new KnowledgeEdgeEntity(UUID.randomUUID(), sourceNode.getId(), targetNode.getId(),
-            relationshipType, origin, KnowledgeEdgeStatus.CONFIRMED, KnowledgeEdgeConfidence.EXPLICIT, explanation, now);
+            relationshipType, origin, KnowledgeEdgeStatus.CONFIRMED, KnowledgeEdgeConfidence.EXPLICIT, explanation, now,
+            ownerId);
         edgesToSave.add(edge);
         for (SourceRef ref : sourceRefs) {
-            edgeSourcesToSave.add(new KnowledgeEdgeSourceEntity(UUID.randomUUID(), edge.getId(), ref.type(), ref.id()));
+            edgeSourcesToSave.add(new KnowledgeEdgeSourceEntity(UUID.randomUUID(), edge.getId(), ref.type(), ref.id(), ownerId));
         }
     }
 

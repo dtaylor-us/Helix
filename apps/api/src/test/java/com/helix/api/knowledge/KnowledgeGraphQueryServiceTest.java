@@ -1,5 +1,6 @@
 package com.helix.api.knowledge;
 
+import com.helix.api.identity.application.CurrentUserProvider;
 import com.helix.api.knowledge.adapter.out.persistence.KnowledgeEdgeRepository;
 import com.helix.api.knowledge.adapter.out.persistence.KnowledgeEdgeSourceRepository;
 import com.helix.api.knowledge.adapter.out.persistence.KnowledgeNodeRepository;
@@ -26,6 +27,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 class KnowledgeGraphQueryServiceTest {
@@ -34,10 +37,15 @@ class KnowledgeGraphQueryServiceTest {
     private final KnowledgeEdgeRepository edgeRepository = Mockito.mock(KnowledgeEdgeRepository.class);
     private final KnowledgeEdgeSourceRepository edgeSourceRepository = Mockito.mock(KnowledgeEdgeSourceRepository.class);
     private final KnowledgeProjectionCheckpointRepository checkpointRepository = Mockito.mock(KnowledgeProjectionCheckpointRepository.class);
+    private final CurrentUserProvider currentUserProvider = Mockito.mock(CurrentUserProvider.class);
 
     private final KnowledgeGraphQueryService service = new KnowledgeGraphQueryService(
-        nodeRepository, edgeRepository, edgeSourceRepository, checkpointRepository
+        nodeRepository, edgeRepository, edgeSourceRepository, checkpointRepository, currentUserProvider
     );
+
+    {
+        when(currentUserProvider.currentUserId()).thenReturn(UUID.randomUUID());
+    }
 
     private KnowledgeNodeEntity node(KnowledgeNodeType type, UUID sourceRecordId) {
         return new KnowledgeNodeEntity(UUID.randomUUID(), type, sourceRecordId, "label", "summary", null,
@@ -54,7 +62,7 @@ class KnowledgeGraphQueryServiceTest {
     @Test
     void focusViewThrowsActionableErrorWhenFocusNodeIsNotProjected() {
         var sourceRecordId = UUID.randomUUID();
-        when(nodeRepository.findByNodeTypeAndSourceRecordId(KnowledgeNodeType.TRANSFORMATION, sourceRecordId))
+        when(nodeRepository.findByOwnerIdAndNodeTypeAndSourceRecordId(any(), eq(KnowledgeNodeType.TRANSFORMATION), eq(sourceRecordId)))
             .thenReturn(Optional.empty());
 
         var error = assertThrows(NoSuchElementException.class,
@@ -72,11 +80,11 @@ class KnowledgeGraphQueryServiceTest {
         var confirmedEdge = edge(focus.getId(), neighbor1.getId(), KnowledgeEdgeStatus.CONFIRMED);
         var rejectedEdge = edge(focus.getId(), neighbor2.getId(), KnowledgeEdgeStatus.REJECTED);
 
-        when(nodeRepository.findByNodeTypeAndSourceRecordId(KnowledgeNodeType.TRANSFORMATION, sourceRecordId))
+        when(nodeRepository.findByOwnerIdAndNodeTypeAndSourceRecordId(any(), eq(KnowledgeNodeType.TRANSFORMATION), eq(sourceRecordId)))
             .thenReturn(Optional.of(focus));
-        when(edgeRepository.findByStatus(KnowledgeEdgeStatus.CONFIRMED)).thenReturn(List.of(confirmedEdge));
-        when(nodeRepository.findAllById(Mockito.any())).thenAnswer(inv -> List.of(focus, neighbor1));
-        when(edgeSourceRepository.findByKnowledgeEdgeIdIn(Mockito.any())).thenReturn(List.of());
+        when(edgeRepository.findByOwnerIdAndStatus(any(), eq(KnowledgeEdgeStatus.CONFIRMED))).thenReturn(List.of(confirmedEdge));
+        when(nodeRepository.findByOwnerIdAndIdIn(any(), Mockito.any())).thenAnswer(inv -> List.of(focus, neighbor1));
+        when(edgeSourceRepository.findByOwnerIdAndKnowledgeEdgeIdIn(any(), Mockito.any())).thenReturn(List.of());
 
         var view = service.focusView(KnowledgeNodeType.TRANSFORMATION, sourceRecordId);
 
@@ -84,7 +92,7 @@ class KnowledgeGraphQueryServiceTest {
         assertEquals(2, view.nodes().size());
         assertEquals(1, view.edges().size());
         assertFalse(view.truncated());
-        Mockito.verify(edgeRepository, Mockito.never()).findByStatus(KnowledgeEdgeStatus.REJECTED);
+        Mockito.verify(edgeRepository, Mockito.never()).findByOwnerIdAndStatus(any(), eq(KnowledgeEdgeStatus.REJECTED));
     }
 
     @Test
@@ -96,11 +104,11 @@ class KnowledgeGraphQueryServiceTest {
         var edge1 = edge(focus.getId(), neighbor1.getId(), KnowledgeEdgeStatus.CONFIRMED);
         var edge2 = edge(focus.getId(), neighbor2.getId(), KnowledgeEdgeStatus.CONFIRMED);
 
-        when(nodeRepository.findByNodeTypeAndSourceRecordId(KnowledgeNodeType.TRANSFORMATION, sourceRecordId))
+        when(nodeRepository.findByOwnerIdAndNodeTypeAndSourceRecordId(any(), eq(KnowledgeNodeType.TRANSFORMATION), eq(sourceRecordId)))
             .thenReturn(Optional.of(focus));
-        when(edgeRepository.findByStatus(KnowledgeEdgeStatus.CONFIRMED)).thenReturn(List.of(edge1, edge2));
-        when(nodeRepository.findAllById(Mockito.any())).thenAnswer(inv -> List.of(focus, neighbor1));
-        when(edgeSourceRepository.findByKnowledgeEdgeIdIn(Mockito.any())).thenReturn(List.of());
+        when(edgeRepository.findByOwnerIdAndStatus(any(), eq(KnowledgeEdgeStatus.CONFIRMED))).thenReturn(List.of(edge1, edge2));
+        when(nodeRepository.findByOwnerIdAndIdIn(any(), Mockito.any())).thenAnswer(inv -> List.of(focus, neighbor1));
+        when(edgeSourceRepository.findByOwnerIdAndKnowledgeEdgeIdIn(any(), Mockito.any())).thenReturn(List.of());
 
         var view = service.focusView(KnowledgeNodeType.TRANSFORMATION, sourceRecordId, 2, 2);
 
@@ -116,11 +124,11 @@ class KnowledgeGraphQueryServiceTest {
         var edge1 = edge(focus.getId(), oneHop.getId(), KnowledgeEdgeStatus.CONFIRMED);
         var edge2 = edge(oneHop.getId(), twoHop.getId(), KnowledgeEdgeStatus.CONFIRMED);
 
-        when(nodeRepository.findByNodeTypeAndSourceRecordId(KnowledgeNodeType.TRANSFORMATION, sourceRecordId))
+        when(nodeRepository.findByOwnerIdAndNodeTypeAndSourceRecordId(any(), eq(KnowledgeNodeType.TRANSFORMATION), eq(sourceRecordId)))
             .thenReturn(Optional.of(focus));
-        when(edgeRepository.findByStatus(KnowledgeEdgeStatus.CONFIRMED)).thenReturn(List.of(edge1, edge2));
-        when(nodeRepository.findAllById(Mockito.any())).thenAnswer(inv -> List.of(focus, oneHop));
-        when(edgeSourceRepository.findByKnowledgeEdgeIdIn(Mockito.any())).thenReturn(List.of());
+        when(edgeRepository.findByOwnerIdAndStatus(any(), eq(KnowledgeEdgeStatus.CONFIRMED))).thenReturn(List.of(edge1, edge2));
+        when(nodeRepository.findByOwnerIdAndIdIn(any(), Mockito.any())).thenAnswer(inv -> List.of(focus, oneHop));
+        when(edgeSourceRepository.findByOwnerIdAndKnowledgeEdgeIdIn(any(), Mockito.any())).thenReturn(List.of());
 
         var view = service.focusView(KnowledgeNodeType.TRANSFORMATION, sourceRecordId, 1, 25);
 
@@ -131,7 +139,7 @@ class KnowledgeGraphQueryServiceTest {
     @Test
     void freshnessReturnsAllCheckpoints() {
         var checkpoint = new KnowledgeProjectionCheckpointEntity(UUID.randomUUID(), "transformations", OffsetDateTime.now());
-        when(checkpointRepository.findAll()).thenReturn(List.of(checkpoint));
+        when(checkpointRepository.findAllByOwnerId(any())).thenReturn(List.of(checkpoint));
 
         var freshness = service.freshness();
 

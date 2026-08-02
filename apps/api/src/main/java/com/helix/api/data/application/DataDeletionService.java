@@ -79,10 +79,6 @@ public class DataDeletionService {
     public void deleteEverything() {
         var ownerId = currentUserProvider.currentUserId();
 
-        // NOTE (ADR-021 gap): this wipes the caller's OWN semantic search documents, but a rebuild
-        // triggered by any user still repopulates the index from ALL users' reflections/wisdom (see
-        // SemanticIndexingService javadoc) -- so a stale cross-user document could reappear on the
-        // next rebuild until that gap is closed.
         semanticSearchDocumentRepository.deleteAllByOwnerId(ownerId);
 
         memoryProposalRevisionRepository.deleteAllByOwnerId(ownerId);

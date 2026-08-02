@@ -27,7 +27,7 @@ public class KnowledgeEdgeSourceEntity {
     @Column(name = "record_id", nullable = false)
     private UUID recordId;
 
-    // ADR-021 gap: NOT YET set by KnowledgeGraphProjectionService -- see KnowledgeNodeEntity.ownerId.
+    // ADR-021: set by KnowledgeGraphProjectionService and KnowledgeGraphRelationshipDiscoveryService.
     @Column(name = "owner_id")
     private UUID ownerId;
 

@@ -9,7 +9,8 @@ import java.util.List;
 import java.util.UUID;
 
 public interface KnowledgeEdgeRepository extends JpaRepository<KnowledgeEdgeEntity, UUID> {
-    List<KnowledgeEdgeEntity> findBySourceNodeIdOrTargetNodeId(UUID sourceNodeId, UUID targetNodeId);
-    List<KnowledgeEdgeEntity> findByStatus(KnowledgeEdgeStatus status);
-    List<KnowledgeEdgeEntity> findByRelationshipType(KnowledgeEdgeType relationshipType);
+    List<KnowledgeEdgeEntity> findByOwnerIdAndStatus(UUID ownerId, KnowledgeEdgeStatus status);
+    List<KnowledgeEdgeEntity> findByOwnerIdAndRelationshipType(UUID ownerId, KnowledgeEdgeType relationshipType);
+    java.util.Optional<KnowledgeEdgeEntity> findByIdAndOwnerId(UUID id, UUID ownerId);
+    void deleteAllByOwnerId(UUID ownerId);
 }

@@ -1,6 +1,7 @@
 package com.helix.api.knowledge;
 
 import com.helix.api.ai.application.AiAssistantPort;
+import com.helix.api.identity.application.CurrentUserProvider;
 import com.helix.api.knowledge.adapter.out.persistence.KnowledgeEdgeRepository;
 import com.helix.api.knowledge.adapter.out.persistence.KnowledgeEdgeSourceRepository;
 import com.helix.api.knowledge.adapter.out.persistence.KnowledgeNodeRepository;
@@ -24,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 class KnowledgeGraphRelationshipDiscoveryServiceTest {
@@ -32,10 +34,15 @@ class KnowledgeGraphRelationshipDiscoveryServiceTest {
     private final KnowledgeEdgeRepository edgeRepository = Mockito.mock(KnowledgeEdgeRepository.class);
     private final KnowledgeEdgeSourceRepository edgeSourceRepository = Mockito.mock(KnowledgeEdgeSourceRepository.class);
     private final AiAssistantPort aiAssistantPort = Mockito.mock(AiAssistantPort.class);
+    private final CurrentUserProvider currentUserProvider = Mockito.mock(CurrentUserProvider.class);
 
     private final KnowledgeGraphRelationshipDiscoveryService service = new KnowledgeGraphRelationshipDiscoveryService(
-        nodeRepository, edgeRepository, edgeSourceRepository, aiAssistantPort
+        nodeRepository, edgeRepository, edgeSourceRepository, aiAssistantPort, currentUserProvider
     );
+
+    {
+        when(currentUserProvider.currentUserId()).thenReturn(UUID.randomUUID());
+    }
 
     private KnowledgeNodeEntity beliefNode(String label) {
         return new KnowledgeNodeEntity(UUID.randomUUID(), KnowledgeNodeType.BELIEF, UUID.randomUUID(), label, null,
@@ -46,8 +53,8 @@ class KnowledgeGraphRelationshipDiscoveryServiceTest {
     void createsAProposedAiEdgeWhenTheModelSaysTheBeliefsAreRelated() {
         var beliefA = beliefNode("I fall apart under pressure");
         var beliefB = beliefNode("I avoid conflict at work");
-        when(nodeRepository.findByNodeType(KnowledgeNodeType.BELIEF)).thenReturn(List.of(beliefA, beliefB));
-        when(edgeRepository.findByRelationshipType(KnowledgeEdgeType.BELIEF_RELATED_TO_BELIEF)).thenReturn(List.of());
+        when(nodeRepository.findByOwnerIdAndNodeType(any(), eq(KnowledgeNodeType.BELIEF))).thenReturn(List.of(beliefA, beliefB));
+        when(edgeRepository.findByOwnerIdAndRelationshipType(any(), eq(KnowledgeEdgeType.BELIEF_RELATED_TO_BELIEF))).thenReturn(List.of());
         when(aiAssistantPort.proposeBeliefRelationship(any())).thenReturn(
             new AiAssistantPort.AiRelationshipProposal(true, "Both stem from fear of losing control.", "openai", "gpt-4o-mini", false)
         );
@@ -75,8 +82,8 @@ class KnowledgeGraphRelationshipDiscoveryServiceTest {
     void doesNotCreateAnEdgeWhenTheModelSaysTheyAreNotRelated() {
         var beliefA = beliefNode("I fall apart under pressure");
         var beliefB = beliefNode("I love quiet mornings");
-        when(nodeRepository.findByNodeType(KnowledgeNodeType.BELIEF)).thenReturn(List.of(beliefA, beliefB));
-        when(edgeRepository.findByRelationshipType(KnowledgeEdgeType.BELIEF_RELATED_TO_BELIEF)).thenReturn(List.of());
+        when(nodeRepository.findByOwnerIdAndNodeType(any(), eq(KnowledgeNodeType.BELIEF))).thenReturn(List.of(beliefA, beliefB));
+        when(edgeRepository.findByOwnerIdAndRelationshipType(any(), eq(KnowledgeEdgeType.BELIEF_RELATED_TO_BELIEF))).thenReturn(List.of());
         when(aiAssistantPort.proposeBeliefRelationship(any())).thenReturn(
             new AiAssistantPort.AiRelationshipProposal(false, null, "openai", "gpt-4o-mini", false)
         );
@@ -92,13 +99,13 @@ class KnowledgeGraphRelationshipDiscoveryServiceTest {
     void skipsPairsThatAlreadyHaveABeliefRelatedToBeliefEdgeRegardlessOfStatus() {
         var beliefA = beliefNode("I fall apart under pressure");
         var beliefB = beliefNode("I avoid conflict at work");
-        when(nodeRepository.findByNodeType(KnowledgeNodeType.BELIEF)).thenReturn(List.of(beliefA, beliefB));
+        when(nodeRepository.findByOwnerIdAndNodeType(any(), eq(KnowledgeNodeType.BELIEF))).thenReturn(List.of(beliefA, beliefB));
 
         // A previously rejected proposal between this exact pair -- must not be re-asked.
         var existingEdge = new KnowledgeEdgeEntity(UUID.randomUUID(), beliefA.getId(), beliefB.getId(),
             KnowledgeEdgeType.BELIEF_RELATED_TO_BELIEF, KnowledgeEdgeOrigin.AI_PROPOSED, KnowledgeEdgeStatus.REJECTED,
             KnowledgeEdgeConfidence.MODERATE, "explanation", OffsetDateTime.now());
-        when(edgeRepository.findByRelationshipType(KnowledgeEdgeType.BELIEF_RELATED_TO_BELIEF)).thenReturn(List.of(existingEdge));
+        when(edgeRepository.findByOwnerIdAndRelationshipType(any(), eq(KnowledgeEdgeType.BELIEF_RELATED_TO_BELIEF))).thenReturn(List.of(existingEdge));
 
         var summary = service.discoverBeliefRelationships();
 
@@ -114,8 +121,8 @@ class KnowledgeGraphRelationshipDiscoveryServiceTest {
         for (int i = 0; i < 8; i++) {
             beliefs.add(beliefNode("Belief " + i));
         }
-        when(nodeRepository.findByNodeType(KnowledgeNodeType.BELIEF)).thenReturn(beliefs);
-        when(edgeRepository.findByRelationshipType(KnowledgeEdgeType.BELIEF_RELATED_TO_BELIEF)).thenReturn(List.of());
+        when(nodeRepository.findByOwnerIdAndNodeType(any(), eq(KnowledgeNodeType.BELIEF))).thenReturn(beliefs);
+        when(edgeRepository.findByOwnerIdAndRelationshipType(any(), eq(KnowledgeEdgeType.BELIEF_RELATED_TO_BELIEF))).thenReturn(List.of());
         when(aiAssistantPort.proposeBeliefRelationship(any())).thenReturn(
             new AiAssistantPort.AiRelationshipProposal(false, null, "openai", "gpt-4o-mini", false)
         );

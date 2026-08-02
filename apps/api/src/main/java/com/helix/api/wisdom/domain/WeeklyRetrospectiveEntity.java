@@ -44,8 +44,7 @@ public class WeeklyRetrospectiveEntity {
 
     // ADR-021: nullable here only so pre-existing test fixtures (never persisted) keep compiling.
     // The database column is NOT NULL -- see TransformationEntity.ownerId for the full rationale.
-    // NOTE (ADR-021 gap list): owner_id is set on write but read paths (recentSnapshots/search) are
-    // NOT YET owner-scoped -- see the development log for the full list of what's still pending.
+    // ADR-021: set on write; recentSnapshots/get/search are owner-scoped in WeeklyRetrospectiveService.
     @Column(name = "owner_id")
     private UUID ownerId;
 

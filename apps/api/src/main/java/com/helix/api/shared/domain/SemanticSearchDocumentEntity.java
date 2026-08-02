@@ -37,9 +37,8 @@ public class SemanticSearchDocumentEntity {
     private OffsetDateTime indexedAt;
 
     // ADR-021: nullable here only so pre-existing test fixtures (never persisted) keep compiling.
-    // NOTE (ADR-021 gap list): set on write, but SemanticIndexingService.rebuild()'s
-    // repository.deleteAllInBatch() still wipes every user's index on any single rebuild call, and
-    // reads are not owner-scoped either -- see the ADR-021 development log entry.
+    // ADR-021: set on write; SemanticIndexingService.rebuild() scopes both the source reads and the
+    // index wipe (repository.deleteAllByOwnerId) to the caller's own documents.
     @Column(name = "owner_id")
     private UUID ownerId;
 

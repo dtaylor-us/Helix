@@ -63,7 +63,7 @@ public class KnowledgeEdgeEntity {
     @Column(name = "superseded_by_edge_id")
     private UUID supersededByEdgeId;
 
-    // ADR-021 gap: NOT YET set by KnowledgeGraphProjectionService -- see KnowledgeNodeEntity.ownerId.
+    // ADR-021: set by KnowledgeGraphProjectionService and KnowledgeGraphRelationshipDiscoveryService.
     @Column(name = "owner_id")
     private UUID ownerId;
 

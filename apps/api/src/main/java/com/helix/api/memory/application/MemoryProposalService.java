@@ -25,11 +25,6 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
-/**
- * ADR-021 gap: {@code list}/{@code get} below are NOT YET owner-scoped -- ownerId is set on every
- * write (satisfies the NOT NULL column) but reads still cross every user's memory proposals. See the
- * ADR-021 development log entry's gap list before deploying multi-user.
- */
 @Service
 public class MemoryProposalService {
 
@@ -87,7 +82,7 @@ public class MemoryProposalService {
     }
 
     public List<MemoryProposalEntity> list() {
-        return repository.findAllByOrderByRevisedAtDesc();
+        return repository.findAllByOwnerIdOrderByRevisedAtDesc(currentUserProvider.currentUserId());
     }
 
     /**
@@ -128,7 +123,8 @@ public class MemoryProposalService {
     }
 
     public MemoryProposalEntity get(UUID id) {
-        return repository.findById(id).orElseThrow(() -> new NoSuchElementException("Memory proposal not found"));
+        return repository.findByIdAndOwnerId(id, currentUserProvider.currentUserId())
+            .orElseThrow(() -> new NoSuchElementException("Memory proposal not found"));
     }
 
     public List<MemoryProposalRevisionEntity> revisions(UUID id) {
