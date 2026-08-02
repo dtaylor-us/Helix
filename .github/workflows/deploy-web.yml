@@ -51,7 +51,12 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
-          app_location: apps/web
-          output_location: dist
+          # With skip_app_build: true, the action deploys app_location's contents AS-IS (it does not
+          # combine app_location + output_location the way it does during an Oryx-managed build) --
+          # app_location must point directly at the already-built output folder. Pointing it at the
+          # source root (apps/web) instead uploads the whole source tree including node_modules,
+          # which is what caused the "number of static files was too large" failure.
+          app_location: apps/web/dist
+          output_location: ""
           api_location: ""
           skip_app_build: true # already built above, with the right env var baked in
