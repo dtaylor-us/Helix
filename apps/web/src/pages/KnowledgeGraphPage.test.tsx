@@ -133,10 +133,9 @@ describe('KnowledgeGraphPage', () => {
 
     renderGraphPage()
 
-    // Match the exact truncated label text, not a substring regex — the node's <title> tooltip
-    // ("Belief: I fall apart under pressure") also contains that substring and would make the
-    // query ambiguous.
-    fireEvent.click(await screen.findByText('I fall apart under pr…'))
+    // Graph nodes are keyboard-accessible controls, so target the node's complete accessible name
+    // rather than its visually wrapped/truncated SVG label.
+    fireEvent.click(await screen.findByRole('button', { name: 'Belief: I fall apart under pressure' }))
     const link = await screen.findByRole('link', { name: 'View full record' })
     expect(link.getAttribute('href')).toBe('/knowledge?beliefId=b-1')
   })

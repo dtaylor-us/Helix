@@ -3,6 +3,7 @@ import { Link, useParams } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 import type { GraphEdge, GraphEdgeHistory, GraphNode, KnowledgeNodeType } from '../../../../packages/contracts/src/index'
 import { api } from '../api/http'
+import { BackNavigation } from '../components/BackNavigation'
 
 const NODE_TYPE_LABELS: Record<KnowledgeNodeType, string> = {
   TRANSFORMATION: 'Transformation',
@@ -44,6 +45,7 @@ export function KnowledgeGraphPage() {
   const [discoveryStatusText, setDiscoveryStatusText] = useState<string | null>(null)
 
   const focusType = nodeType as KnowledgeNodeType
+  const graphBackDestination = graphBackTarget(focusType)
 
   const graphQuery = useQuery({
     queryKey: ['knowledge-graph', focusType, sourceRecordId],
@@ -103,7 +105,9 @@ export function KnowledgeGraphPage() {
     [view, visibleNodeIds],
   )
 
-  const selectedNode = visibleNodes.find((n) => n.id === selectedNodeId) ?? null
+  const selectedNode = visibleNodes.find((n) => n.id === selectedNodeId)
+    ?? visibleNodes.find((n) => n.id === view?.focusNodeId)
+    ?? null
 
   function toggleType(type: KnowledgeNodeType) {
     setHiddenTypes((prev) => {
@@ -115,7 +119,8 @@ export function KnowledgeGraphPage() {
   }
 
   return (
-    <div className="stack">
+    <div className="stack kg-page">
+      <BackNavigation fallbackTo={graphBackDestination.to} label={graphBackDestination.label} />
       <section className="card kg-header">
         <div className="kg-header-copy">
           <h2>{view?.title ?? 'Connections'}</h2>
@@ -212,7 +217,7 @@ export function KnowledgeGraphPage() {
                   onSelectNode={setSelectedNodeId}
                 />
               </section>
-              <NodeInspector node={selectedNode} />
+              <NodeInspector node={selectedNode} nodes={visibleNodes} edges={visibleEdges} />
             </div>
           )}
 
@@ -250,26 +255,59 @@ export function KnowledgeGraphPage() {
   )
 }
 
-function NodeInspector({ node }: { node: GraphNode | null }) {
+function NodeInspector({ node, nodes, edges }: { node: GraphNode | null; nodes: GraphNode[]; edges: GraphEdge[] }) {
+  const connectedNodes = node
+    ? nodes.filter((candidate) => candidate.id !== node.id && edges.some((edge) =>
+      (edge.sourceNodeId === node.id && edge.targetNodeId === candidate.id)
+      || (edge.targetNodeId === node.id && edge.sourceNodeId === candidate.id)))
+    : []
+  const connectionCounts = ALL_NODE_TYPES
+    .map((type) => ({ type, count: connectedNodes.filter((candidate) => candidate.type === type).length }))
+    .filter(({ count }) => count > 0)
+  const explanations = node
+    ? edges.filter((edge) => edge.sourceNodeId === node.id || edge.targetNodeId === node.id)
+      .map((edge) => edge.explanation).filter(Boolean)
+    : []
+
   return (
-    <aside className="card kg-inspector" aria-live="polite" aria-label="Selected connection details">
-      {node ? (
-        <>
-          <div className="kg-inspector-heading">
-            <ColorSwatch type={node.type} />
-            <p className="kg-eyebrow">{NODE_TYPE_LABELS[node.type]}</p>
-          </div>
-          <h3>{node.label}</h3>
-          {node.summary && <p>{node.summary}</p>}
-          {node.status && <p className="muted">Status: {node.status.toLowerCase()}</p>}
-          {node.sourceRoute && <RecordLink route={node.sourceRoute} />}
-        </>
-      ) : (
-        <>
-          <p className="kg-eyebrow">Details</p>
-          <h3>Select a connection</h3>
-          <p className="muted">Choose any node to see its summary, status, and link to the full record.</p>
-        </>
+    <aside className="kg-inspector" aria-live="polite" aria-label="Selected connection details">
+      <section className="card kg-inspector-card">
+        {node ? (
+          <>
+            <p className="kg-eyebrow">Details</p>
+            <h3>{node.label}</h3>
+            <div className="kg-type-badge"><ColorSwatch type={node.type} />{NODE_TYPE_LABELS[node.type]}</div>
+            {node.summary && <p>{node.summary}</p>}
+            {node.status && <div className="kg-status-row"><strong>Status</strong><span className="kg-status-pill">{node.status.toLowerCase()}</span></div>}
+            {connectionCounts.length > 0 && (
+              <div className="kg-connected">
+                <strong>Connected to</strong>
+                <ul>
+                  {connectionCounts.map(({ type, count }) => (
+                    <li key={type}><ColorSwatch type={type} /><span>{count} {count === 1 ? NODE_TYPE_LABELS[type] : `${NODE_TYPE_LABELS[type]}s`}</span></li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {node.sourceRoute && <RecordLink route={node.sourceRoute} />}
+          </>
+        ) : (
+          <>
+            <p className="kg-eyebrow">Details</p>
+            <h3>Select a connection</h3>
+            <p className="muted">Choose any node to see its summary, status, and link to the full record.</p>
+          </>
+        )}
+      </section>
+      {node && (
+        <section className="card kg-explanation-card">
+          <p className="kg-eyebrow">Relationship explanation</p>
+          <p>{explanations[0] ?? 'This record is connected through the activity, evidence, and insights in your graph.'}</p>
+          <details>
+            <summary>Why these connections?</summary>
+            <p className="muted">Connections are projected from records you created and relationships you confirmed. Suggested relationships remain reviewable.</p>
+          </details>
+        </section>
       )}
     </aside>
   )
@@ -339,12 +377,15 @@ function GraphDiagram({
   selectedNodeId: string | null
   onSelectNode: (id: string) => void
 }) {
-  const size = 520
+  const size = 620
   const center = size / 2
+  const [zoom, setZoom] = useState(1)
   // More neighbors need more room to keep labels from colliding — grow the ring radius (capped)
   // rather than keeping it fixed regardless of how crowded the view is.
   const others = nodes.length - 1
-  const radius = Math.min(size / 2 - 70, 130 + Math.max(0, others - 6) * 10)
+  const radius = Math.min(size / 2 - 85, 190 + Math.max(0, others - 6) * 8)
+  const viewSize = size / zoom
+  const viewOffset = (size - viewSize) / 2
 
   const positions = useMemo(() => {
     const otherNodes = nodes.filter((n) => n.id !== focusNodeId)
@@ -363,15 +404,21 @@ function GraphDiagram({
   const typesPresent = useMemo(() => Array.from(new Set(nodes.map((n) => n.type))), [nodes])
 
   function nodeRadius(node: GraphNode) {
-    return node.id === focusNodeId ? 22 : 15
+    return node.id === focusNodeId ? 28 : 22
   }
 
   return (
     <div className="kg-diagram">
+      <div className="kg-canvas-controls" aria-label="Diagram controls">
+        <button type="button" aria-label="Zoom in" onClick={() => setZoom((value) => Math.min(1.5, value + .15))}>+</button>
+        <button type="button" aria-label="Zoom out" onClick={() => setZoom((value) => Math.max(.7, value - .15))}>−</button>
+        <button type="button" aria-label="Fit diagram" onClick={() => setZoom(1)}>⌗</button>
+        <button type="button" aria-label="Select focus node" onClick={() => onSelectNode(focusNodeId)}>◎</button>
+      </div>
       <svg
         role="img"
         aria-label="Diagram of connections. Use the List view above for a fully accessible version of this information."
-        viewBox={`0 0 ${size} ${size}`}
+        viewBox={`${viewOffset} ${viewOffset} ${viewSize} ${viewSize}`}
         width="100%"
         className="kg-diagram-svg"
       >
@@ -387,18 +434,42 @@ function GraphDiagram({
           if (!from || !to || !targetNode) return null
           // Stop the line (and its arrowhead) at the target circle's edge, not its center, so the
           // arrow is actually visible instead of hiding under the node.
-          const end = shortenToEdge(from, to, nodeRadius(targetNode) + 4)
+          const end = shortenToEdge(from, to, nodeRadius(targetNode) + (targetNode.id === selectedNodeId ? 10 : 4))
+          const isSelectedRelationship = selectedNodeId != null
+            && (edge.sourceNodeId === selectedNodeId || edge.targetNodeId === selectedNodeId)
+          const selectedPosition = edge.sourceNodeId === selectedNodeId ? from : to
+          const otherPosition = edge.sourceNodeId === selectedNodeId ? to : from
+          const dx = otherPosition.x - selectedPosition.x
+          const dy = otherPosition.y - selectedPosition.y
+          const distance = Math.sqrt(dx * dx + dy * dy) || 1
+          const labelX = selectedPosition.x + dx * .58 + (-dy / distance) * 10
+          const labelY = selectedPosition.y + dy * .58 + (dx / distance) * 10
           return (
-            <line
-              key={edge.id}
-              x1={from.x}
-              y1={from.y}
-              x2={end.x}
-              y2={end.y}
-              stroke="var(--border)"
-              strokeWidth={2}
-              markerEnd="url(#kg-arrow)"
-            />
+            <g key={edge.id}>
+              <line
+                x1={from.x}
+                y1={from.y}
+                x2={end.x}
+                y2={end.y}
+                stroke="var(--border)"
+                strokeWidth={2}
+                markerEnd="url(#kg-arrow)"
+              />
+              {isSelectedRelationship && (
+                <text
+                  x={labelX}
+                  y={labelY}
+                  textAnchor="middle"
+                  fontSize="10"
+                  fill="var(--ink)"
+                  stroke="var(--surface)"
+                  strokeWidth="6"
+                  paintOrder="stroke"
+                >
+                  {edge.displayLabel}
+                </text>
+              )}
+            </g>
           )
         })}
         {nodes.map((node) => {
@@ -408,6 +479,7 @@ function GraphDiagram({
           const isSelected = node.id === selectedNodeId
           const colors = NODE_TYPE_COLORS[node.type]
           const r = nodeRadius(node)
+          const labelLines = wrapLabel(node.label)
           return (
             <g
               key={node.id}
@@ -426,18 +498,20 @@ function GraphDiagram({
               style={{ cursor: 'pointer' }}
             >
               <title>{`${isFocus ? 'Focus — ' : ''}${NODE_TYPE_LABELS[node.type]}: ${node.label}`}</title>
-              {isFocus && <circle r={r + 6} fill="none" stroke="var(--accent)" strokeWidth={2} />}
-              {isSelected && <circle r={r + (isFocus ? 11 : 5)} fill="none" stroke="var(--accent)" strokeWidth={2} strokeDasharray="3 3" />}
+              {isSelected && <circle r={r + 7} fill="var(--surface)" stroke="var(--accent)" strokeWidth="2" strokeDasharray="4 3" />}
+              {isFocus && !isSelected && <circle r={r + 7} fill="none" stroke="var(--accent)" strokeWidth={2} />}
               <circle
+                className="kg-node-circle"
                 r={r}
                 fill={colors.soft}
                 stroke={colors.solid}
                 strokeWidth={isFocus ? 3 : 2}
               />
+              <text y="5" textAnchor="middle" fontSize="14" fontWeight="750" fill={colors.solid}>{nodeGlyph(node.type)}</text>
               {/* Text drawn with a canvas-colored halo (paint-order trick) so labels stay legible
                   where an edge line crosses behind them, without needing to measure text width. */}
               <text
-                y={r + 16}
+                y={r + 18}
                 textAnchor="middle"
                 fontSize={isFocus ? 12 : 11}
                 fontWeight={isFocus ? 650 : 550}
@@ -447,7 +521,10 @@ function GraphDiagram({
                 strokeLinejoin="round"
                 paintOrder="stroke"
               >
-                {truncateLabel(node.label)}
+                {labelLines.map((line, index) => <tspan key={line} x="0" dy={index === 0 ? 0 : 14}>{line}</tspan>)}
+              </text>
+              <text y={r + 18 + (labelLines.length * 14) + 4} textAnchor="middle" fontSize="10" fill="var(--muted)">
+                {NODE_TYPE_LABELS[node.type]}
               </text>
             </g>
           )
@@ -518,4 +595,32 @@ function RecordLink({ route }: { route: string }) {
 
 function truncateLabel(label: string): string {
   return label.length > 22 ? `${label.slice(0, 21)}…` : label
+}
+
+function wrapLabel(label: string): string[] {
+  const shortened = truncateLabel(label)
+  if (shortened.length <= 14) return [shortened]
+  const splitAt = shortened.lastIndexOf(' ', 14)
+  if (splitAt < 5) return [shortened]
+  return [shortened.slice(0, splitAt), shortened.slice(splitAt + 1)]
+}
+
+function nodeGlyph(type: KnowledgeNodeType): string {
+  return {
+    TRANSFORMATION: '▲',
+    BELIEF: '●',
+    EXPERIMENT: '⌁',
+    EVIDENCE: '▤',
+    REFLECTION: '◌',
+    WISDOM: '✦',
+    MEMORY: '◷',
+  }[type]
+}
+
+function graphBackTarget(type: KnowledgeNodeType): { to: '/today' | '/transformations' | '/knowledge' | '/library' | '/settings/memory'; label: string } {
+  if (type === 'TRANSFORMATION') return { to: '/transformations', label: 'Journey' }
+  if (type === 'BELIEF' || type === 'EVIDENCE') return { to: '/knowledge', label: 'Knowledge' }
+  if (type === 'WISDOM') return { to: '/library', label: 'Library' }
+  if (type === 'MEMORY') return { to: '/settings/memory', label: 'Memory' }
+  return { to: '/today', label: 'Today' }
 }

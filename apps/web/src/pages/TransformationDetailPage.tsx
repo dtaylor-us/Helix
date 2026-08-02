@@ -3,6 +3,7 @@ import { Link, useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 import type { Experiment } from '../../../../packages/contracts/src/index'
 import { TermHint } from '../components/TermHint'
+import { BackNavigation } from '../components/BackNavigation'
 import { api } from '../api/http'
 
 export function TransformationDetailPage() {
@@ -72,6 +73,7 @@ export function TransformationDetailPage() {
 
   return (
     <div className="stack">
+      <BackNavigation fallbackTo="/transformations" label="Journey" />
       <section className="card">
         <h2>Transformation</h2>
         <p>{transformation.data?.title}</p>
