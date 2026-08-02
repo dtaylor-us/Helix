@@ -1,15 +1,11 @@
 package com.helix.api.knowledge;
 
-import com.helix.api.evidence.adapter.out.persistence.EvidenceRepository;
-import com.helix.api.evidence.domain.EvidenceDirection;
-import com.helix.api.evidence.domain.EvidenceEntity;
-import com.helix.api.evidence.domain.ProvenanceRecordType;
-import com.helix.api.evidence.domain.ProvenanceSourceKind;
 import com.helix.api.knowledge.adapter.in.http.KnowledgeGraphController;
 import com.helix.api.knowledge.application.KnowledgeEdgeGovernanceService;
 import com.helix.api.knowledge.application.KnowledgeGraphProjectionService;
 import com.helix.api.knowledge.application.KnowledgeGraphQueryService;
 import com.helix.api.knowledge.application.KnowledgeGraphRelationshipDiscoveryService;
+import com.helix.api.knowledge.application.KnowledgeSourceRouteService;
 import com.helix.api.knowledge.domain.KnowledgeEdgeConfidence;
 import com.helix.api.knowledge.domain.KnowledgeEdgeEntity;
 import com.helix.api.knowledge.domain.KnowledgeEdgeOrigin;
@@ -27,7 +23,6 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -41,9 +36,9 @@ class KnowledgeGraphControllerTest {
     private final KnowledgeGraphQueryService queryService = Mockito.mock(KnowledgeGraphQueryService.class);
     private final KnowledgeEdgeGovernanceService governanceService = Mockito.mock(KnowledgeEdgeGovernanceService.class);
     private final KnowledgeGraphRelationshipDiscoveryService discoveryService = Mockito.mock(KnowledgeGraphRelationshipDiscoveryService.class);
-    private final EvidenceRepository evidenceRepository = Mockito.mock(EvidenceRepository.class);
+    private final KnowledgeSourceRouteService sourceRouteService = Mockito.mock(KnowledgeSourceRouteService.class);
     private final MockMvc mockMvc = MockMvcBuilders
-        .standaloneSetup(new KnowledgeGraphController(projectionService, queryService, governanceService, discoveryService, evidenceRepository))
+        .standaloneSetup(new KnowledgeGraphController(projectionService, queryService, governanceService, discoveryService, sourceRouteService))
         .setControllerAdvice(new ApiExceptionHandler())
         .build();
 
@@ -78,6 +73,8 @@ class KnowledgeGraphControllerTest {
         Mockito.when(queryService.focusView(KnowledgeNodeType.TRANSFORMATION, transformationId)).thenReturn(
             new KnowledgeGraphQueryService.GraphView(focus, List.of(focus, belief), List.of(edge), Map.of(), false)
         );
+        Mockito.when(sourceRouteService.sourceRoute(KnowledgeNodeType.TRANSFORMATION, transformationId))
+            .thenReturn("/transformations/" + transformationId);
 
         mockMvc.perform(get("/api/v1/knowledge-graph/transformation/" + transformationId))
             .andExpect(status().isOk())
@@ -95,7 +92,7 @@ class KnowledgeGraphControllerTest {
     void beliefAndEvidenceNodesRouteToTheirOwningBeliefOnTheKnowledgePage() throws Exception {
         // Regression test for QA finding KG-3: the Knowledge page can only select a specific belief,
         // not a specific evidence row, so an EVIDENCE node's route must resolve to its parent belief
-        // (via evidenceRepository) rather than a bare "/knowledge" that lands on whatever belief the
+        // (via the route service) rather than a bare "/knowledge" that lands on whatever belief the
         // page defaults to.
         var focusId = UUID.randomUUID();
         var focus = node(KnowledgeNodeType.BELIEF, focusId, "I fall apart under pressure");
@@ -109,11 +106,10 @@ class KnowledgeGraphControllerTest {
         Mockito.when(queryService.focusView(KnowledgeNodeType.BELIEF, focusId)).thenReturn(
             new KnowledgeGraphQueryService.GraphView(focus, List.of(focus, evidenceNode), List.of(edge), Map.of(), false)
         );
-        Mockito.when(evidenceRepository.findById(evidenceSourceId)).thenReturn(Optional.of(
-            new EvidenceEntity(evidenceSourceId, focusId, null, null, "Stayed calm under pressure", null,
-                EvidenceDirection.CHALLENGES, ProvenanceSourceKind.MANUAL_ENTRY, ProvenanceRecordType.MANUAL_ENTRY,
-                null, null, OffsetDateTime.now())
-        ));
+        Mockito.when(sourceRouteService.sourceRoute(KnowledgeNodeType.BELIEF, focusId))
+            .thenReturn("/knowledge?beliefId=" + focusId);
+        Mockito.when(sourceRouteService.sourceRoute(KnowledgeNodeType.EVIDENCE, evidenceSourceId))
+            .thenReturn("/knowledge?beliefId=" + focusId);
 
         mockMvc.perform(get("/api/v1/knowledge-graph/belief/" + focusId))
             .andExpect(status().isOk())

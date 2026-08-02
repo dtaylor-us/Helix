@@ -1,10 +1,10 @@
 package com.helix.api.knowledge.adapter.in.http;
 
-import com.helix.api.evidence.adapter.out.persistence.EvidenceRepository;
 import com.helix.api.knowledge.application.KnowledgeEdgeGovernanceService;
 import com.helix.api.knowledge.application.KnowledgeGraphProjectionService;
 import com.helix.api.knowledge.application.KnowledgeGraphQueryService;
 import com.helix.api.knowledge.application.KnowledgeGraphRelationshipDiscoveryService;
+import com.helix.api.knowledge.application.KnowledgeSourceRouteService;
 import com.helix.api.knowledge.domain.KnowledgeEdgeEntity;
 import com.helix.api.knowledge.domain.KnowledgeEdgeSourceEntity;
 import com.helix.api.knowledge.domain.KnowledgeEdgeType;
@@ -52,18 +52,18 @@ public class KnowledgeGraphController {
     private final KnowledgeGraphQueryService queryService;
     private final KnowledgeEdgeGovernanceService governanceService;
     private final KnowledgeGraphRelationshipDiscoveryService discoveryService;
-    private final EvidenceRepository evidenceRepository;
+    private final KnowledgeSourceRouteService sourceRouteService;
 
     public KnowledgeGraphController(
         KnowledgeGraphProjectionService projectionService, KnowledgeGraphQueryService queryService,
         KnowledgeEdgeGovernanceService governanceService, KnowledgeGraphRelationshipDiscoveryService discoveryService,
-        EvidenceRepository evidenceRepository
+        KnowledgeSourceRouteService sourceRouteService
     ) {
         this.projectionService = projectionService;
         this.queryService = queryService;
         this.governanceService = governanceService;
         this.discoveryService = discoveryService;
-        this.evidenceRepository = evidenceRepository;
+        this.sourceRouteService = sourceRouteService;
     }
 
     @PostMapping("/rebuild")
@@ -132,7 +132,7 @@ public class KnowledgeGraphController {
     private GraphNodeDto toNodeDto(KnowledgeNodeEntity node) {
         return new GraphNodeDto(
             node.getId(), node.getNodeType().name(), node.getDisplayLabel(), node.getSummary(),
-            node.getSourceRecordId(), sourceRoute(node.getNodeType(), node.getSourceRecordId()),
+            node.getSourceRecordId(), sourceRouteService.sourceRoute(node.getNodeType(), node.getSourceRecordId()),
             node.getLifecycleStatus(), node.getNodeType().name().toLowerCase()
         );
     }
@@ -164,24 +164,6 @@ public class KnowledgeGraphController {
             edge.getEffectiveTo() != null ? edge.getEffectiveTo().toString() : null,
             edge.getSupersededByEdgeId()
         );
-    }
-
-    // Bug fix (QA finding KG-3): the Knowledge page can only select a specific belief, not a specific
-    // evidence row, so every EVIDENCE node routes to that evidence's parent belief instead -- landing
-    // on the belief and evidence timeline the graph actually meant, rather than on the Knowledge page's
-    // arbitrary default selection.
-    private String sourceRoute(KnowledgeNodeType type, UUID sourceRecordId) {
-        return switch (type) {
-            case TRANSFORMATION -> "/transformations/" + sourceRecordId;
-            case EXPERIMENT -> "/experiments/" + sourceRecordId;
-            case REFLECTION -> "/reflections/" + sourceRecordId;
-            case BELIEF -> "/knowledge?beliefId=" + sourceRecordId;
-            case EVIDENCE -> evidenceRepository.findById(sourceRecordId)
-                .map(evidence -> "/knowledge?beliefId=" + evidence.getBeliefId())
-                .orElse("/knowledge");
-            case WISDOM -> "/wisdom";
-            case MEMORY -> "/settings/memory";
-        };
     }
 
     public record RebuildResponseDto(int nodeCount, int edgeCount, String rebuiltAt) {}

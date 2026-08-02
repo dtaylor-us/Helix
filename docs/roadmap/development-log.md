@@ -2,6 +2,15 @@
 
 This log is updated at the end of significant delivery sessions.
 
+## 2026-08-02 Session - Knowledge graph HTTP/persistence layer fix
+
+Fixed the `LayeredArchitectureTest.inboundHttpAdaptersMustNotDependOnPersistence` regression by
+moving KG-3 source-route resolution out of `KnowledgeGraphController` and into the application-layer
+`KnowledgeSourceRouteService`. The controller now depends only on application services; evidence
+lookup remains behind the application boundary, and focused tests preserve both parent-belief routing
+and the missing-evidence fallback. This is an architecture correction under ADR-020; it does not
+change a catalogued product requirement.
+
 ## 2026-08-02 Session - Phase 12 fix #4: forced Container App environment replacement
 
 A fourth bug from the same real-world `terraform apply` run: `azurerm_container_app_environment.main`
