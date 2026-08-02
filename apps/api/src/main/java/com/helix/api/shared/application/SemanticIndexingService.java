@@ -1,5 +1,6 @@
 package com.helix.api.shared.application;
 
+import com.helix.api.identity.application.CurrentUserProvider;
 import com.helix.api.reflection.application.ReflectionService;
 import com.helix.api.shared.adapter.out.persistence.SemanticSearchDocumentRepository;
 import com.helix.api.shared.domain.SemanticSearchDocumentEntity;
@@ -14,6 +15,13 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+/**
+ * ADR-021 gap: {@code rebuild()}'s {@code repository.deleteAllInBatch()} wipes every user's indexed
+ * documents, not just the caller's (reflections are owner-scoped going in via
+ * {@code ReflectionService.listForRetrieval()}, but {@code WisdomService.list()} is not yet -- see
+ * the ADR-021 development log entry). Do not expose a rebuild trigger to non-owner-verified callers
+ * until this is fixed.
+ */
 @Service
 public class SemanticIndexingService {
 
@@ -21,20 +29,24 @@ public class SemanticIndexingService {
     private final WisdomService wisdomService;
     private final SemanticSearchDocumentRepository repository;
     private final TextEmbeddingPort textEmbeddingPort;
+    private final CurrentUserProvider currentUserProvider;
 
     public SemanticIndexingService(ReflectionService reflectionService,
                                    WisdomService wisdomService,
                                    SemanticSearchDocumentRepository repository,
-                                   TextEmbeddingPort textEmbeddingPort) {
+                                   TextEmbeddingPort textEmbeddingPort,
+                                   CurrentUserProvider currentUserProvider) {
         this.reflectionService = reflectionService;
         this.wisdomService = wisdomService;
         this.repository = repository;
         this.textEmbeddingPort = textEmbeddingPort;
+        this.currentUserProvider = currentUserProvider;
     }
 
     @Transactional
     public IndexRebuildResult rebuild() {
         var now = OffsetDateTime.now(ZoneOffset.UTC);
+        var ownerId = currentUserProvider.currentUserId();
         var documents = new ArrayList<SemanticSearchDocumentEntity>();
 
         reflectionService.listForRetrieval().forEach(reflection -> documents.add(new SemanticSearchDocumentEntity(
@@ -44,7 +56,8 @@ public class SemanticIndexingService {
             reflection.getContent(),
             serialize(textEmbeddingPort.embed(reflection.getContent())),
             reflection.getCreatedAt(),
-            now
+            now,
+            ownerId
         )));
 
         wisdomService.list().forEach(wisdom -> documents.add(new SemanticSearchDocumentEntity(
@@ -54,7 +67,8 @@ public class SemanticIndexingService {
             wisdom.getStatement(),
             serialize(textEmbeddingPort.embed(wisdom.getStatement())),
             wisdom.getRevisedAt(),
-            now
+            now,
+            ownerId
         )));
 
         repository.deleteAllInBatch();

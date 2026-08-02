@@ -1,5 +1,6 @@
 package com.helix.api.shared;
 
+import com.helix.api.identity.application.CurrentUserProvider;
 import com.helix.api.reflection.application.ReflectionService;
 import com.helix.api.reflection.domain.ReflectionEntity;
 import com.helix.api.shared.adapter.out.embedding.LocalHashEmbeddingAdapter;
@@ -36,11 +37,14 @@ class SemanticIndexingServiceTest {
                 OffsetDateTime.now().minusDays(1), OffsetDateTime.now())
         ));
 
+        var currentUserProvider = Mockito.mock(CurrentUserProvider.class);
+        when(currentUserProvider.currentUserId()).thenReturn(UUID.randomUUID());
         var service = new SemanticIndexingService(
             reflectionService,
             wisdomService,
             repository,
-            new LocalHashEmbeddingAdapter()
+            new LocalHashEmbeddingAdapter(),
+            currentUserProvider
         );
 
         var result = service.rebuild();

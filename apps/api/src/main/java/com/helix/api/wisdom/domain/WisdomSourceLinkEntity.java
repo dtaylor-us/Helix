@@ -33,6 +33,10 @@ public class WisdomSourceLinkEntity {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
+    // ADR-021: nullable here only so pre-existing test fixtures (never persisted) keep compiling.
+    @Column(name = "owner_id")
+    private UUID ownerId;
+
     protected WisdomSourceLinkEntity() {}
 
     public WisdomSourceLinkEntity(UUID id, UUID wisdomId, WisdomSourceType sourceType, UUID sourceRecordId,
@@ -45,10 +49,17 @@ public class WisdomSourceLinkEntity {
         this.createdAt = createdAt;
     }
 
+    public WisdomSourceLinkEntity(UUID id, UUID wisdomId, WisdomSourceType sourceType, UUID sourceRecordId,
+                                  String note, OffsetDateTime createdAt, UUID ownerId) {
+        this(id, wisdomId, sourceType, sourceRecordId, note, createdAt);
+        this.ownerId = ownerId;
+    }
+
     public UUID getId() { return id; }
     public UUID getWisdomId() { return wisdomId; }
     public WisdomSourceType getSourceType() { return sourceType; }
     public UUID getSourceRecordId() { return sourceRecordId; }
     public String getNote() { return note; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
+    public UUID getOwnerId() { return ownerId; }
 }

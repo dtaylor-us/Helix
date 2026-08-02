@@ -30,6 +30,10 @@ public class WisdomRevisionEntity {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
+    // ADR-021: nullable here only so pre-existing test fixtures (never persisted) keep compiling.
+    @Column(name = "owner_id")
+    private UUID ownerId;
+
     protected WisdomRevisionEntity() {}
 
     public WisdomRevisionEntity(UUID id, UUID wisdomId, String previousStatement, String newStatement,
@@ -42,10 +46,17 @@ public class WisdomRevisionEntity {
         this.createdAt = createdAt;
     }
 
+    public WisdomRevisionEntity(UUID id, UUID wisdomId, String previousStatement, String newStatement,
+                                String reason, OffsetDateTime createdAt, UUID ownerId) {
+        this(id, wisdomId, previousStatement, newStatement, reason, createdAt);
+        this.ownerId = ownerId;
+    }
+
     public UUID getId() { return id; }
     public UUID getWisdomId() { return wisdomId; }
     public String getPreviousStatement() { return previousStatement; }
     public String getNewStatement() { return newStatement; }
     public String getReason() { return reason; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
+    public UUID getOwnerId() { return ownerId; }
 }

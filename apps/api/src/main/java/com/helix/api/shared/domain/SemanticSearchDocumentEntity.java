@@ -36,6 +36,13 @@ public class SemanticSearchDocumentEntity {
     @Column(name = "indexed_at", nullable = false)
     private OffsetDateTime indexedAt;
 
+    // ADR-021: nullable here only so pre-existing test fixtures (never persisted) keep compiling.
+    // NOTE (ADR-021 gap list): set on write, but SemanticIndexingService.rebuild()'s
+    // repository.deleteAllInBatch() still wipes every user's index on any single rebuild call, and
+    // reads are not owner-scoped either -- see the ADR-021 development log entry.
+    @Column(name = "owner_id")
+    private UUID ownerId;
+
     protected SemanticSearchDocumentEntity() {
     }
 
@@ -53,6 +60,22 @@ public class SemanticSearchDocumentEntity {
         this.embeddingValues = embeddingValues;
         this.sourceUpdatedAt = sourceUpdatedAt;
         this.indexedAt = indexedAt;
+    }
+
+    public SemanticSearchDocumentEntity(UUID id,
+                                        String recordType,
+                                        UUID recordId,
+                                        String snippet,
+                                        String embeddingValues,
+                                        OffsetDateTime sourceUpdatedAt,
+                                        OffsetDateTime indexedAt,
+                                        UUID ownerId) {
+        this(id, recordType, recordId, snippet, embeddingValues, sourceUpdatedAt, indexedAt);
+        this.ownerId = ownerId;
+    }
+
+    public UUID getOwnerId() {
+        return ownerId;
     }
 
     public UUID getId() {

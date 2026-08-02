@@ -42,6 +42,13 @@ public class WeeklyRetrospectiveEntity {
     @Column(name = "ai_model", length = 100)
     private String aiModel;
 
+    // ADR-021: nullable here only so pre-existing test fixtures (never persisted) keep compiling.
+    // The database column is NOT NULL -- see TransformationEntity.ownerId for the full rationale.
+    // NOTE (ADR-021 gap list): owner_id is set on write but read paths (recentSnapshots/search) are
+    // NOT YET owner-scoped -- see the development log for the full list of what's still pending.
+    @Column(name = "owner_id")
+    private UUID ownerId;
+
     protected WeeklyRetrospectiveEntity() {}
 
     /**
@@ -76,4 +83,12 @@ public class WeeklyRetrospectiveEntity {
     public RetrospectiveSource getSource() { return source; }
     public String getAiProvider() { return aiProvider; }
     public String getAiModel() { return aiModel; }
+    public UUID getOwnerId() { return ownerId; }
+
+    public WeeklyRetrospectiveEntity(UUID id, OffsetDateTime periodStart, OffsetDateTime periodEnd, String summary,
+                                     String assistance, OffsetDateTime createdAt, RetrospectiveSource source,
+                                     String aiProvider, String aiModel, UUID ownerId) {
+        this(id, periodStart, periodEnd, summary, assistance, createdAt, source, aiProvider, aiModel);
+        this.ownerId = ownerId;
+    }
 }

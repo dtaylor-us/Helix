@@ -1,30 +1,35 @@
 package com.helix.api.onboarding.application;
 
+import com.helix.api.identity.application.CurrentUserProvider;
 import com.helix.api.onboarding.adapter.out.persistence.OnboardingStateRepository;
 import com.helix.api.onboarding.domain.OnboardingStateEntity;
 import com.helix.api.onboarding.domain.OnboardingStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
+import java.util.UUID;
 
 @Service
 public class OnboardingService {
 
     private final OnboardingStateRepository repository;
+    private final CurrentUserProvider currentUserProvider;
 
-    public OnboardingService(OnboardingStateRepository repository) {
+    public OnboardingService(OnboardingStateRepository repository, CurrentUserProvider currentUserProvider) {
         this.repository = repository;
+        this.currentUserProvider = currentUserProvider;
     }
 
     /**
-     * Returns the current onboarding status. The singleton row is seeded by migration V10, but
-     * this defensively bootstraps it as {@code NOT_STARTED} if it's ever missing (e.g. a database
-     * reset that skipped the seed insert) rather than throwing.
+     * Returns the current user's onboarding status, bootstrapping a fresh {@code NOT_STARTED} row
+     * for them on first access (ADR-021: one row per user, re-keyed from the old fixed-id singleton
+     * by the V12 migration).
      */
     public OnboardingStateEntity get() {
-        return repository.findById(OnboardingStateEntity.SINGLETON_ID)
+        UUID ownerId = currentUserProvider.currentUserId();
+        return repository.findByOwnerId(ownerId)
             .orElseGet(() -> repository.save(
-                new OnboardingStateEntity(OnboardingStateEntity.SINGLETON_ID, OnboardingStatus.NOT_STARTED, OffsetDateTime.now())
+                new OnboardingStateEntity(UUID.randomUUID(), OnboardingStatus.NOT_STARTED, OffsetDateTime.now(), ownerId)
             ));
     }
 

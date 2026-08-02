@@ -5,6 +5,7 @@ import com.helix.api.beliefs.adapter.out.persistence.BeliefRevisionRepository;
 import com.helix.api.data.application.DataExportService;
 import com.helix.api.evidence.adapter.out.persistence.EvidenceRepository;
 import com.helix.api.experiments.adapter.out.persistence.ExperimentRepository;
+import com.helix.api.identity.application.CurrentUserProvider;
 import com.helix.api.memory.adapter.out.persistence.MemoryProposalRepository;
 import com.helix.api.memory.adapter.out.persistence.MemoryProposalRevisionRepository;
 import com.helix.api.onboarding.application.OnboardingService;
@@ -47,9 +48,12 @@ class DataExportServiceTest {
         var memoryProposalRepository = Mockito.mock(MemoryProposalRepository.class);
         var memoryProposalRevisionRepository = Mockito.mock(MemoryProposalRevisionRepository.class);
         var onboardingService = Mockito.mock(OnboardingService.class);
+        var currentUserProvider = Mockito.mock(CurrentUserProvider.class);
+        var ownerId = UUID.randomUUID();
+        when(currentUserProvider.currentUserId()).thenReturn(ownerId);
 
         var transformationId = UUID.randomUUID();
-        when(transformationRepository.findAll()).thenReturn(List.of(
+        when(transformationRepository.findAllByOwnerId(ownerId)).thenReturn(List.of(
             new TransformationEntity(transformationId, "Become more peaceful", "Practice steadiness", OffsetDateTime.now())
         ));
         when(onboardingService.get()).thenReturn(
@@ -60,7 +64,7 @@ class DataExportServiceTest {
             transformationRepository, experimentRepository, reflectionRepository, suggestionRepository,
             beliefRepository, beliefRevisionRepository, evidenceRepository, weeklyRetrospectiveRepository,
             wisdomEntryRepository, wisdomRevisionRepository, wisdomSourceLinkRepository,
-            memoryProposalRepository, memoryProposalRevisionRepository, onboardingService
+            memoryProposalRepository, memoryProposalRevisionRepository, onboardingService, currentUserProvider
         );
 
         var snapshot = service.export();

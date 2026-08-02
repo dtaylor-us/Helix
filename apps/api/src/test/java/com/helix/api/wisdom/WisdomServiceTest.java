@@ -1,6 +1,7 @@
 package com.helix.api.wisdom;
 
 import com.helix.api.evidence.application.EvidenceService;
+import com.helix.api.identity.application.CurrentUserProvider;
 import com.helix.api.reflection.application.ReflectionService;
 import com.helix.api.reflection.domain.ReflectionEntity;
 import com.helix.api.wisdom.adapter.out.persistence.WisdomEntryRepository;
@@ -42,7 +43,9 @@ class WisdomServiceTest {
         when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(revisionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        var service = new WisdomService(repository, revisionRepository, sourceRepository, retrospectiveService, reflectionService, evidenceService);
+        var currentUserProvider = Mockito.mock(CurrentUserProvider.class);
+        when(currentUserProvider.currentUserId()).thenReturn(UUID.randomUUID());
+        var service = new WisdomService(repository, revisionRepository, sourceRepository, retrospectiveService, reflectionService, evidenceService, currentUserProvider);
 
         var entry = service.create(
             "Small steps protect consistency.",

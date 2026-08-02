@@ -2,6 +2,103 @@
 
 This log is updated at the end of significant delivery sessions.
 
+## 2026-08-02 Session - Authentication & Authorization Foundation (ADR-021)
+
+Summary:
+- User request: enforce authentication and authorization prior to deployment, "me plus a few invited
+  people." Investigated a sibling project's (`dtaylor-us/axiom`) per-service JWT/gateway pattern and
+  rejected it as a direct copy (designed for several independently-deployable services; Helix is one
+  monolith) in favor of Google OAuth2/OIDC SSO with session-cookie auth, plus a denormalized
+  `owner_id` on every table rather than deriving ownership through inconsistent FK chains. Full
+  rationale and alternatives considered in ADR-021.
+
+Authentication — fully done:
+- **ADR-021** written (ADR-013 superseded, ADR-001's "single-user" framing amended).
+- **`V12__authentication_and_ownership.sql`**: `users` + `authorized_users` (invite-only allowlist,
+  seeded with the bootstrap owner's email) tables; `owner_id` (NOT NULL, FK to `users`) added to
+  every one of the 19 pre-existing tables in one migration, backfilled to a bootstrap user row and
+  then the column default dropped — every future insert must supply it explicitly or fail loudly
+  (a missed call site fails closed with a DB constraint error, not an open/unscoped row).
+- **Google OAuth2/OIDC login** (`spring-boot-starter-oauth2-client`): `UserEntity`,
+  `AuthorizedUserEntity` + repositories; `HelixOidcUserService` (checks the allowlist by email, then
+  find-or-creates a `UserEntity`, matching by `google_sub` first and falling back to email only on
+  first login); `HelixOidcUser`/`CurrentUserProvider` carrying the internal user id through Spring
+  Security's context; `SecurityConfig` rewritten to require an authenticated session on every
+  `/api/v1/**` route except `/api/v1/health` and `/api/v1/auth/me` (401 JSON for API calls, not a
+  login-page redirect — see the class javadoc for the CSRF-disabled rationale); `AuthController`
+  (`GET /api/v1/auth/me`); session cookie config (`HttpOnly`, `SameSite=Lax`, `Secure` toggled by
+  `HELIX_SESSION_COOKIE_SECURE` for prod). This fully replaces the old `anyRequest().permitAll()` —
+  no unauthenticated request can reach any business endpoint anymore.
+- **Frontend**: new `AuthGate` component (wraps `AppLayout` at the router root, kept separate so
+  `AppLayout`'s existing tests are unaffected) — calls `GET /api/v1/auth/me` on load; shows a
+  "Sign in with Google" link to `/oauth2/authorization/google` when unauthenticated (with a distinct
+  message if the redirect carries `?error=not_invited` from a rejected allowlist check); renders the
+  app with the signed-in user's name and a sign-out button once authenticated. `http.ts`'s `request()`
+  now sends `credentials: 'include'` on every call (required for the session cookie to be attached)
+  and throws a distinguishable `UnauthorizedError` on 401.
+
+Authorization / data isolation — owner_id enforced end-to-end for the core loop and data
+export/deletion; write-path safe everywhere else; read isolation still open in four modules (see gap
+list):
+- **Core loop, fully enforced**: `Transformation` (root aggregate — `TransformationService.get()` is
+  the enforcement chokepoint every other service resolves a transformationId through), `Experiment`,
+  `Reflection`, `Suggestion`, `Belief`, `BeliefRevision`, `Evidence`. Every entity gained an `ownerId`
+  field via a new constructor overload (existing in-memory test fixtures that are never persisted
+  keep compiling unchanged); repositories gained `...AndOwnerId(...)` finders; every service's
+  create/get/list/search now resolves the caller via `CurrentUserProvider` and 404s (not 403, to
+  avoid confirming a record exists to a non-owner) on a mismatch. All affected services' existing
+  unit tests updated to stub `CurrentUserProvider` and the new finder methods.
+- **Data export/deletion, fully enforced**: `DataExportService.export()` and
+  `DataDeletionService.deleteEverything()` now scope every repository call to the caller's `ownerId`
+  (previously both operated over literally every record in the database with zero scoping — a
+  standing gap `DataController`'s own prior javadoc called out and ADR-015 deferred). Required adding
+  `findAllByOwnerId`/`deleteAllByOwnerId` to several repositories that had no owner-scoped query at
+  all before this (`WeeklyRetrospectiveRepository`, `WisdomEntryRepository`, `WisdomRevisionRepository`,
+  `WisdomSourceLinkRepository`, `MemoryProposalRepository`, `MemoryProposalRevisionRepository`,
+  `SemanticSearchDocumentRepository`).
+- **`OnboardingState`**: re-keyed from the old fixed-id singleton row to one row per `owner_id`
+  (`OnboardingStateRepository.findByOwnerId`); `OnboardingService.get()` bootstraps a fresh row per
+  user on first access.
+- **Wisdom (4 entities), Memory (2 entities), semantic search — write-path only.** Every entity
+  gained `ownerId` and every creating service call sets it (`WisdomService`,
+  `WeeklyRetrospectiveService`, `MemoryProposalService`, `SemanticIndexingService`), so nothing 500s
+  on insert. **Read paths (list/get/search) are explicitly NOT owner-scoped yet** — flagged with an
+  `ADR-021 gap` comment directly on each affected class/field. Any authenticated user can currently
+  read any other user's wisdom entries, weekly retrospectives, and memory proposals.
+- **Knowledge graph — schema-ready, service untouched.** All 4 entities
+  (`KnowledgeNodeEntity`/`KnowledgeEdgeEntity`/`KnowledgeEdgeSourceEntity`/
+  `KnowledgeProjectionCheckpointEntity`) have an `owner_id` column and a constructor overload, but
+  `KnowledgeGraphProjectionService`'s rebuild reads every repository via unscoped `findAll()`-style
+  calls across the whole database with no user parameter threaded through at all — this is a bigger
+  redesign than every other module in this pass (the rebuild would need to accept a caller's
+  `ownerId`, filter every domain-record read by it, and stamp every created node/edge with it).
+  **Rebuilding the knowledge graph will currently fail with a NOT NULL constraint violation.**
+- **Semantic search index rebuild has a real cross-user bug even after this session's fix**:
+  `SemanticIndexingService.rebuild()`'s `repository.deleteAllInBatch()` wipes every user's indexed
+  documents on any single user's rebuild call (only `WisdomService.list()` feeding into it is
+  unscoped; reflections are already owner-scoped going in). Flagged in that class's javadoc.
+
+Verification:
+- Frontend: `npm run typecheck`, `npm run lint`, `npx vitest run` all clean — 42/42 tests passing
+  (2 new: `AuthGate.test.tsx`).
+- Backend: still not compiled in this sandbox (standing constraint this whole engagement — JDK 11
+  only, no Gradle network access). Every change was checked carefully against actual entity/
+  repository/service signatures already in the codebase and against existing test fixtures, but this
+  is not a substitute for a real `./gradlew build`/test run. **Given the size of this change (19
+  tables, ~25 backend files touched), a real build + the same Codex-driven end-to-end QA pass used for
+  the Phase 11 knowledge graph bugs is strongly recommended before deploying, not just before
+  merging** — that pass is what caught real bugs a careful manual review missed last time.
+
+Remaining before this is safe to deploy with real multi-user data:
+1. Owner-scope the read paths (list/get/search) for Wisdom, Weekly Retrospectives, and Memory
+   Proposals — same pattern as the core loop, smaller in scope than it sounds since the entity/
+   write-path work is already done.
+2. Redesign `KnowledgeGraphProjectionService` to accept and filter by a caller's `ownerId` throughout
+   its rebuild, and stamp created nodes/edges/edge-sources/checkpoints with it.
+3. Fix `SemanticIndexingService.rebuild()`'s global index wipe to be owner-scoped.
+4. A real backend build/test run, plus a fresh end-to-end QA pass exercising login, the allowlist
+   rejection path, and cross-user isolation with two real invited accounts.
+
 ## 2026-08-02 Session - Progressive Disclosure and Contextual Help
 
 Summary:

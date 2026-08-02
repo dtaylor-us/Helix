@@ -4,6 +4,7 @@ import com.helix.api.ai.application.AiAssistantPort;
 import com.helix.api.experiments.adapter.out.persistence.ExperimentRepository;
 import com.helix.api.experiments.domain.ExperimentEntity;
 import com.helix.api.experiments.domain.ExperimentStatus;
+import com.helix.api.identity.application.CurrentUserProvider;
 import com.helix.api.onboarding.application.OnboardingService;
 import com.helix.api.transformation.application.TransformationService;
 import com.helix.api.transformation.domain.TransformationEntity;
@@ -22,15 +23,17 @@ public class ExperimentService {
     private final TransformationService transformationService;
     private final AiAssistantPort aiAssistantPort;
     private final OnboardingService onboardingService;
+    private final CurrentUserProvider currentUserProvider;
 
     public ExperimentService(
         ExperimentRepository repository, TransformationService transformationService,
-        AiAssistantPort aiAssistantPort, OnboardingService onboardingService
+        AiAssistantPort aiAssistantPort, OnboardingService onboardingService, CurrentUserProvider currentUserProvider
     ) {
         this.repository = repository;
         this.transformationService = transformationService;
         this.aiAssistantPort = aiAssistantPort;
         this.onboardingService = onboardingService;
+        this.currentUserProvider = currentUserProvider;
     }
 
     public ExperimentEntity create(UUID transformationId, String title, String hypothesis, String nextAction) {
@@ -41,6 +44,8 @@ public class ExperimentService {
         UUID transformationId, String title, String hypothesis, String nextAction,
         String cadence, String evidenceOfSuccess, LocalDate reviewAt
     ) {
+        // transformationService.get() 404s if transformationId doesn't belong to the caller -- this
+        // is what stops someone from creating an experiment under a transformation they don't own.
         transformationService.get(transformationId);
         var entity = new ExperimentEntity(
             UUID.randomUUID(),
@@ -52,7 +57,8 @@ public class ExperimentService {
             evidenceOfSuccess,
             reviewAt,
             ExperimentStatus.ACTIVE,
-            OffsetDateTime.now()
+            OffsetDateTime.now(),
+            currentUserProvider.currentUserId()
         );
         var saved = repository.save(entity);
         // Phase 7: server-persisted onboarding state. No-op once onboarding is already COMPLETE.
@@ -61,7 +67,8 @@ public class ExperimentService {
     }
 
     public ExperimentEntity get(UUID id) {
-        return repository.findById(id).orElseThrow(() -> new NoSuchElementException("Experiment not found"));
+        return repository.findByIdAndOwnerId(id, currentUserProvider.currentUserId())
+            .orElseThrow(() -> new NoSuchElementException("Experiment not found"));
     }
 
     /**
@@ -76,7 +83,7 @@ public class ExperimentService {
     }
 
     public Optional<ExperimentEntity> activeExperiment() {
-        return repository.findFirstByStatusOrderByCreatedAtDesc(ExperimentStatus.ACTIVE);
+        return repository.findFirstByOwnerIdAndStatusOrderByCreatedAtDesc(currentUserProvider.currentUserId(), ExperimentStatus.ACTIVE);
     }
 
     /**

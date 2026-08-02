@@ -9,6 +9,7 @@ import com.helix.api.evidence.domain.ProvenanceSourceKind;
 import com.helix.api.experiments.application.ExperimentService;
 import com.helix.api.experiments.domain.ExperimentEntity;
 import com.helix.api.experiments.domain.ExperimentStatus;
+import com.helix.api.identity.application.CurrentUserProvider;
 import com.helix.api.reflection.application.ReflectionService;
 import com.helix.api.reflection.domain.ReflectionEntity;
 import org.junit.jupiter.api.Test;
@@ -52,7 +53,9 @@ class EvidenceServiceTest {
             OffsetDateTime.now().minusDays(1)
         ));
 
-        var service = new EvidenceService(repository, beliefService, experimentService, reflectionService);
+        var currentUserProvider = Mockito.mock(CurrentUserProvider.class);
+        when(currentUserProvider.currentUserId()).thenReturn(UUID.randomUUID());
+        var service = new EvidenceService(repository, beliefService, experimentService, reflectionService, currentUserProvider);
         var evidence = service.create(
             beliefId,
             experimentId,

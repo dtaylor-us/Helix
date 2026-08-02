@@ -41,6 +41,11 @@ public class ExperimentEntity {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
+    // ADR-021: nullable here only so pre-existing test fixtures (never persisted) keep compiling.
+    // The database column is NOT NULL -- see TransformationEntity.ownerId for the full rationale.
+    @Column(name = "owner_id")
+    private UUID ownerId;
+
     protected ExperimentEntity() {}
 
     public ExperimentEntity(UUID id, UUID transformationId, String title, String hypothesis, String nextAction,
@@ -63,6 +68,13 @@ public class ExperimentEntity {
         this.createdAt = createdAt;
     }
 
+    public ExperimentEntity(UUID id, UUID transformationId, String title, String hypothesis, String nextAction,
+                            String cadence, String evidenceOfSuccess, LocalDate reviewAt,
+                            ExperimentStatus status, OffsetDateTime createdAt, UUID ownerId) {
+        this(id, transformationId, title, hypothesis, nextAction, cadence, evidenceOfSuccess, reviewAt, status, createdAt);
+        this.ownerId = ownerId;
+    }
+
     /**
      * Sets what the experiment's next small action actually is. Previously this could only be set
      * once at creation and never changed — accepting a "Suggested Small Action" on the Today page
@@ -83,4 +95,5 @@ public class ExperimentEntity {
     public LocalDate getReviewAt() { return reviewAt; }
     public ExperimentStatus getStatus() { return status; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
+    public UUID getOwnerId() { return ownerId; }
 }

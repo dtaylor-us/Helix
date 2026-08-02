@@ -92,6 +92,19 @@ h3 { margin-top: var(--space-2); font-size: var(--text-lg); font-weight: var(--w
   gap: var(--space-8);
   padding: 0 var(--space-2) var(--space-8);
 }
+
+/* ADR-021: sign-in gate and account area in the header, shown once authenticated. */
+.account-menu { display: flex; align-items: center; gap: var(--space-3); }
+.login-shell { display: flex; align-items: center; justify-content: center; min-height: 80vh; }
+.login-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  text-align: center;
+  max-width: 28rem;
+  padding: var(--space-8);
+}
 .shell-header > div { max-width: 35rem; }
 .subtitle { margin-top: var(--space-2); color: var(--muted); font-size: var(--text-sm); line-height: 1.5; }
 .nav-list {

@@ -1,5 +1,6 @@
 import { Link, Outlet } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
+import type { CurrentUser } from '../../../../packages/contracts/src/index'
 
 const primaryLinks = [
   { to: '/today', label: 'Today', description: 'Your current focus and next step' },
@@ -17,7 +18,14 @@ const secondaryLinks = [
 
 const activeLinkProps = { className: 'nav-link nav-link-active', 'aria-current': 'page' as const }
 
-export function AppLayout() {
+interface AppLayoutProps {
+  // Optional: AuthGate passes this once signed in. Left optional (with no fallback UI) so this
+  // component's own existing tests, which render it directly with no auth context, are unaffected.
+  currentUser?: CurrentUser
+  onLogout?: () => void
+}
+
+export function AppLayout({ currentUser, onLogout }: AppLayoutProps = {}) {
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false)
   const moreMenuRef = useRef<HTMLDetailsElement>(null)
 
@@ -98,6 +106,16 @@ export function AppLayout() {
             </li>
           </ul>
         </nav>
+        {currentUser && (
+          <div className="account-menu">
+            <span className="muted">{currentUser.displayName || currentUser.email}</span>
+            {onLogout && (
+              <button type="button" className="secondary-button" onClick={onLogout}>
+                Sign out
+              </button>
+            )}
+          </div>
+        )}
       </header>
       <main id="main-content" className="content" tabIndex={-1}>
         <Outlet />

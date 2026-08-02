@@ -4,6 +4,7 @@ import com.helix.api.ai.application.AiAssistantPort;
 import com.helix.api.experiments.application.ExperimentService;
 import com.helix.api.experiments.domain.ExperimentEntity;
 import com.helix.api.experiments.domain.ExperimentStatus;
+import com.helix.api.identity.application.CurrentUserProvider;
 import com.helix.api.reflection.adapter.out.persistence.ReflectionRepository;
 import com.helix.api.reflection.application.ReflectionService;
 import com.helix.api.suggestions.application.SuggestionService;
@@ -25,6 +26,12 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 class ReflectionServiceTest {
+
+    private static CurrentUserProvider stubCurrentUser() {
+        var currentUserProvider = Mockito.mock(CurrentUserProvider.class);
+        when(currentUserProvider.currentUserId()).thenReturn(UUID.randomUUID());
+        return currentUserProvider;
+    }
 
     @Test
     void createAddsAiGeneratedSuggestion() {
@@ -69,7 +76,7 @@ class ReflectionServiceTest {
             )
         );
 
-        var service = new ReflectionService(repo, experimentService, suggestionService, aiAssistantPort);
+        var service = new ReflectionService(repo, experimentService, suggestionService, aiAssistantPort, stubCurrentUser());
         var result = service.create(experimentId, "I did half of it and felt better.");
 
         assertTrue(result.suggestion().getText().startsWith("Walk after breakfast"));
@@ -120,7 +127,7 @@ class ReflectionServiceTest {
             )
         );
 
-        var service = new ReflectionService(repo, experimentService, suggestionService, aiAssistantPort);
+        var service = new ReflectionService(repo, experimentService, suggestionService, aiAssistantPort, stubCurrentUser());
         var result = service.create(
             experimentId,
             "I paused twice today.",

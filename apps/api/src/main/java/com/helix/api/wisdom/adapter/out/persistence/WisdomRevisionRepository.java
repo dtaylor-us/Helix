@@ -8,4 +8,7 @@ import java.util.UUID;
 
 public interface WisdomRevisionRepository extends JpaRepository<WisdomRevisionEntity, UUID> {
     List<WisdomRevisionEntity> findByWisdomIdOrderByCreatedAtDesc(UUID wisdomId);
+    // ADR-021: used by DataExportService/DataDeletionService only -- see WeeklyRetrospectiveRepository.
+    List<WisdomRevisionEntity> findAllByOwnerId(UUID ownerId);
+    void deleteAllByOwnerId(UUID ownerId);
 }

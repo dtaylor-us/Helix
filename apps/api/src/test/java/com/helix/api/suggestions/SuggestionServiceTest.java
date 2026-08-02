@@ -3,6 +3,7 @@ package com.helix.api.suggestions;
 import com.helix.api.experiments.application.ExperimentService;
 import com.helix.api.experiments.domain.ExperimentEntity;
 import com.helix.api.experiments.domain.ExperimentStatus;
+import com.helix.api.identity.application.CurrentUserProvider;
 import com.helix.api.suggestions.adapter.out.persistence.SuggestionRepository;
 import com.helix.api.suggestions.application.SuggestionService;
 import com.helix.api.suggestions.domain.SuggestionEntity;
@@ -21,7 +22,14 @@ class SuggestionServiceTest {
 
     private final SuggestionRepository repository = Mockito.mock(SuggestionRepository.class);
     private final ExperimentService experimentService = Mockito.mock(ExperimentService.class);
-    private final SuggestionService service = new SuggestionService(repository, experimentService);
+    private final CurrentUserProvider currentUserProvider = Mockito.mock(CurrentUserProvider.class);
+    private final UUID ownerId = UUID.randomUUID();
+    private final SuggestionService service;
+
+    {
+        when(currentUserProvider.currentUserId()).thenReturn(ownerId);
+        service = new SuggestionService(repository, experimentService, currentUserProvider);
+    }
 
     private SuggestionEntity proposedSuggestion(UUID experimentId, String text) {
         return new SuggestionEntity(UUID.randomUUID(), experimentId, null, text, SuggestionStatus.PROPOSED,
@@ -34,7 +42,7 @@ class SuggestionServiceTest {
         // with no visible effect on the experiment/journey (the UX gap this fix addresses).
         var experimentId = UUID.randomUUID();
         var suggestion = proposedSuggestion(experimentId, "Take one breath before responding");
-        when(repository.findById(suggestion.getId())).thenReturn(Optional.of(suggestion));
+        when(repository.findByIdAndOwnerId(suggestion.getId(), ownerId)).thenReturn(Optional.of(suggestion));
 
         var result = service.accept(suggestion.getId());
 
@@ -46,7 +54,7 @@ class SuggestionServiceTest {
     void replacingASuggestionRevisesTheExperimentsNextActionWithTheReplacementText() {
         var experimentId = UUID.randomUUID();
         var suggestion = proposedSuggestion(experimentId, "Original AI suggestion");
-        when(repository.findById(suggestion.getId())).thenReturn(Optional.of(suggestion));
+        when(repository.findByIdAndOwnerId(suggestion.getId(), ownerId)).thenReturn(Optional.of(suggestion));
 
         var result = service.replace(suggestion.getId(), "My own smaller version");
 
@@ -59,7 +67,7 @@ class SuggestionServiceTest {
     void dismissingASuggestionDoesNotTouchTheExperiment() {
         var experimentId = UUID.randomUUID();
         var suggestion = proposedSuggestion(experimentId, "Some suggestion");
-        when(repository.findById(suggestion.getId())).thenReturn(Optional.of(suggestion));
+        when(repository.findByIdAndOwnerId(suggestion.getId(), ownerId)).thenReturn(Optional.of(suggestion));
 
         var result = service.dismiss(suggestion.getId());
 
@@ -75,12 +83,15 @@ class SuggestionServiceTest {
         var transformationService = Mockito.mock(com.helix.api.transformation.application.TransformationService.class);
         var aiAssistantPort = Mockito.mock(com.helix.api.ai.application.AiAssistantPort.class);
         var onboardingService = Mockito.mock(com.helix.api.onboarding.application.OnboardingService.class);
-        var experimentService = new ExperimentService(repository, transformationService, aiAssistantPort, onboardingService);
+        var currentUserProvider = Mockito.mock(com.helix.api.identity.application.CurrentUserProvider.class);
+        var ownerId = UUID.randomUUID();
+        Mockito.when(currentUserProvider.currentUserId()).thenReturn(ownerId);
+        var experimentService = new ExperimentService(repository, transformationService, aiAssistantPort, onboardingService, currentUserProvider);
 
         var experimentId = UUID.randomUUID();
         var experiment = new ExperimentEntity(experimentId, UUID.randomUUID(), "Pause before responding",
             "Pausing helps", "old next action", ExperimentStatus.ACTIVE, OffsetDateTime.now());
-        when(repository.findById(experimentId)).thenReturn(Optional.of(experiment));
+        when(repository.findByIdAndOwnerId(experimentId, ownerId)).thenReturn(Optional.of(experiment));
         when(repository.save(experiment)).thenReturn(experiment);
 
         var result = experimentService.reviseNextAction(experimentId, "Take one breath before responding");

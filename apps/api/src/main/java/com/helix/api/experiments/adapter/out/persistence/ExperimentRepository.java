@@ -9,6 +9,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface ExperimentRepository extends JpaRepository<ExperimentEntity, UUID> {
-    Optional<ExperimentEntity> findFirstByStatusOrderByCreatedAtDesc(ExperimentStatus status);
+    Optional<ExperimentEntity> findFirstByOwnerIdAndStatusOrderByCreatedAtDesc(UUID ownerId, ExperimentStatus status);
     List<ExperimentEntity> findByTransformationId(UUID transformationId);
+    Optional<ExperimentEntity> findByIdAndOwnerId(UUID id, UUID ownerId);
+    List<ExperimentEntity> findAllByOwnerId(UUID ownerId);
+    void deleteAllByOwnerId(UUID ownerId);
 }

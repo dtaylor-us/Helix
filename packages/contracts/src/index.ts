@@ -1,5 +1,12 @@
 export type UUID = string;
 
+// ADR-021: the authenticated session's identity, as returned by GET /api/v1/auth/me.
+export interface CurrentUser {
+  id: UUID;
+  email: string;
+  displayName?: string;
+}
+
 export interface Transformation {
   id: UUID;
   title: string;

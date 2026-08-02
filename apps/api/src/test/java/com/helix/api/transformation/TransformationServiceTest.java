@@ -1,10 +1,13 @@
 package com.helix.api.transformation;
 
+import com.helix.api.identity.application.CurrentUserProvider;
 import com.helix.api.onboarding.application.OnboardingService;
 import com.helix.api.transformation.adapter.out.persistence.TransformationRepository;
 import com.helix.api.transformation.application.TransformationService;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -14,13 +17,19 @@ import static org.mockito.Mockito.when;
 
 class TransformationServiceTest {
 
+    private CurrentUserProvider stubCurrentUser() {
+        var currentUserProvider = Mockito.mock(CurrentUserProvider.class);
+        when(currentUserProvider.currentUserId()).thenReturn(UUID.randomUUID());
+        return currentUserProvider;
+    }
+
     @Test
     void createWithGuidedFieldsPersistsDesiredIdentityAndObstacle() {
         var repository = Mockito.mock(TransformationRepository.class);
         when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         var onboardingService = Mockito.mock(OnboardingService.class);
-        var service = new TransformationService(repository, onboardingService);
+        var service = new TransformationService(repository, onboardingService, stubCurrentUser());
         var transformation = service.create(
             "Become more peaceful in the face of criticism",
             "I want to stop losing days to a single hard conversation.",
@@ -42,7 +51,7 @@ class TransformationServiceTest {
         when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         var onboardingService = Mockito.mock(OnboardingService.class);
-        var service = new TransformationService(repository, onboardingService);
+        var service = new TransformationService(repository, onboardingService, stubCurrentUser());
         var transformation = service.create("Build steadier habits", "Practice consistency without pressure");
 
         assertNull(transformation.getDesiredIdentity());

@@ -9,4 +9,8 @@ import java.util.UUID;
 public interface WeeklyRetrospectiveRepository extends JpaRepository<WeeklyRetrospectiveEntity, UUID> {
     List<WeeklyRetrospectiveEntity> findTop20BySummaryContainingIgnoreCaseOrderByCreatedAtDesc(String query);
     List<WeeklyRetrospectiveEntity> findTop10ByOrderByCreatedAtDesc();
+    // ADR-021: used by DataExportService/DataDeletionService only (see gap list -- the read paths
+    // above are not yet owner-scoped, but export/deletion must not touch other users' data).
+    List<WeeklyRetrospectiveEntity> findAllByOwnerId(UUID ownerId);
+    void deleteAllByOwnerId(UUID ownerId);
 }

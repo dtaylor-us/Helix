@@ -1,6 +1,7 @@
 package com.helix.api.wisdom.application;
 
 import com.helix.api.evidence.application.EvidenceService;
+import com.helix.api.identity.application.CurrentUserProvider;
 import com.helix.api.reflection.application.ReflectionService;
 import com.helix.api.wisdom.adapter.out.persistence.WisdomEntryRepository;
 import com.helix.api.wisdom.adapter.out.persistence.WisdomRevisionRepository;
@@ -19,6 +20,11 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
+/**
+ * ADR-021 gap: {@code list}/{@code get}/{@code search} below are NOT YET owner-scoped -- ownerId is
+ * set on every write (satisfies the NOT NULL column) but reads still cross every user's wisdom.
+ * See the ADR-021 development log entry's gap list before deploying multi-user.
+ */
 @Service
 public class WisdomService {
 
@@ -28,19 +34,22 @@ public class WisdomService {
     private final WeeklyRetrospectiveService retrospectiveService;
     private final ReflectionService reflectionService;
     private final EvidenceService evidenceService;
+    private final CurrentUserProvider currentUserProvider;
 
     public WisdomService(WisdomEntryRepository repository,
                          WisdomRevisionRepository revisionRepository,
                          WisdomSourceLinkRepository sourceLinkRepository,
                          WeeklyRetrospectiveService retrospectiveService,
                          ReflectionService reflectionService,
-                         EvidenceService evidenceService) {
+                         EvidenceService evidenceService,
+                         CurrentUserProvider currentUserProvider) {
         this.repository = repository;
         this.revisionRepository = revisionRepository;
         this.sourceLinkRepository = sourceLinkRepository;
         this.retrospectiveService = retrospectiveService;
         this.reflectionService = reflectionService;
         this.evidenceService = evidenceService;
+        this.currentUserProvider = currentUserProvider;
     }
 
     @Transactional
@@ -53,13 +62,15 @@ public class WisdomService {
         }
 
         var now = OffsetDateTime.now(ZoneOffset.UTC);
+        var ownerId = currentUserProvider.currentUserId();
         var entry = repository.save(new WisdomEntryEntity(
             UUID.randomUUID(),
             statement.trim(),
             WisdomStatus.ACCEPTED,
             retrospectiveId,
             now,
-            now
+            now,
+            ownerId
         ));
 
         for (var source : sources) {
@@ -70,7 +81,8 @@ public class WisdomService {
                 source.sourceType(),
                 source.sourceRecordId(),
                 source.note() == null || source.note().isBlank() ? null : source.note().trim(),
-                now
+                now,
+                ownerId
             ));
         }
 
@@ -105,7 +117,8 @@ public class WisdomService {
             entry.getStatement(),
             statement.trim(),
             reason.trim(),
-            now
+            now,
+            currentUserProvider.currentUserId()
         ));
         entry.revise(statement.trim(), now);
         repository.save(entry);

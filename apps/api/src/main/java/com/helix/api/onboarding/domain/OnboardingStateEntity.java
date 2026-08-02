@@ -11,15 +11,17 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 /**
- * Singleton row tracking onboarding progress. Helix is currently single-user with no auth
- * (ADR-013 defers auth behind a port), so there is exactly one row, addressed by
- * {@link #SINGLETON_ID}, rather than one per user — the same shape auth would later key by
- * user_id.
+ * Onboarding progress, one row per user. Previously a single fixed-id singleton row under the
+ * single-user assumption (see V10 migration's own comment anticipating this change) — ADR-021's V12
+ * migration re-keyed it to {@code owner_id} instead, so each invited user gets an independent
+ * onboarding journey.
  */
 @Entity
 @Table(name = "onboarding_state")
 public class OnboardingStateEntity {
 
+    /** Historical fixed id from the pre-ADR-021 singleton row; kept only as a fixture constant for
+     * existing tests (never persisted under this id anymore -- see {@code owner_id}). */
     public static final UUID SINGLETON_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
     @Id
@@ -32,15 +34,27 @@ public class OnboardingStateEntity {
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
 
+    // ADR-021: nullable here only so pre-existing test fixtures (never persisted) keep compiling.
+    // The database column is NOT NULL -- see TransformationEntity.ownerId for the full rationale.
+    @Column(name = "owner_id")
+    private UUID ownerId;
+
     protected OnboardingStateEntity() {}
 
+    /** Legacy constructor, preserved for existing test fixtures. Leaves ownerId unset. */
     public OnboardingStateEntity(UUID id, OnboardingStatus status, OffsetDateTime updatedAt) {
         this.id = id;
         this.status = status;
         this.updatedAt = updatedAt;
     }
 
+    public OnboardingStateEntity(UUID id, OnboardingStatus status, OffsetDateTime updatedAt, UUID ownerId) {
+        this(id, status, updatedAt);
+        this.ownerId = ownerId;
+    }
+
     public UUID getId() { return id; }
+    public UUID getOwnerId() { return ownerId; }
     public OnboardingStatus getStatus() { return status; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
 

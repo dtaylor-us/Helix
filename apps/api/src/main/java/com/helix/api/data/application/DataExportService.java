@@ -8,6 +8,7 @@ import com.helix.api.evidence.adapter.out.persistence.EvidenceRepository;
 import com.helix.api.evidence.domain.EvidenceEntity;
 import com.helix.api.experiments.adapter.out.persistence.ExperimentRepository;
 import com.helix.api.experiments.domain.ExperimentEntity;
+import com.helix.api.identity.application.CurrentUserProvider;
 import com.helix.api.memory.adapter.out.persistence.MemoryProposalRepository;
 import com.helix.api.memory.adapter.out.persistence.MemoryProposalRevisionRepository;
 import com.helix.api.memory.domain.MemoryProposalEntity;
@@ -33,10 +34,10 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 /**
- * Phase 9 (ADR-019): a complete, human-readable export of every user-owned record in the app.
- * Deliberately excludes {@code semantic_search_documents} — that table holds embeddings derived
- * from other records' text, not user-authored content, and is regenerable via the existing
- * {@code POST /api/v1/search/index/rebuild} endpoint.
+ * Phase 9 (ADR-019), scoped per-user by ADR-021: a complete, human-readable export of the calling
+ * user's own records only. Deliberately excludes {@code semantic_search_documents} — that table
+ * holds embeddings derived from other records' text, not user-authored content, and is regenerable
+ * via the existing {@code POST /api/v1/search/index/rebuild} endpoint.
  */
 @Service
 public class DataExportService {
@@ -55,6 +56,7 @@ public class DataExportService {
     private final MemoryProposalRepository memoryProposalRepository;
     private final MemoryProposalRevisionRepository memoryProposalRevisionRepository;
     private final OnboardingService onboardingService;
+    private final CurrentUserProvider currentUserProvider;
 
     public DataExportService(
         TransformationRepository transformationRepository, ExperimentRepository experimentRepository,
@@ -63,7 +65,8 @@ public class DataExportService {
         EvidenceRepository evidenceRepository, WeeklyRetrospectiveRepository weeklyRetrospectiveRepository,
         WisdomEntryRepository wisdomEntryRepository, WisdomRevisionRepository wisdomRevisionRepository,
         WisdomSourceLinkRepository wisdomSourceLinkRepository, MemoryProposalRepository memoryProposalRepository,
-        MemoryProposalRevisionRepository memoryProposalRevisionRepository, OnboardingService onboardingService
+        MemoryProposalRevisionRepository memoryProposalRevisionRepository, OnboardingService onboardingService,
+        CurrentUserProvider currentUserProvider
     ) {
         this.transformationRepository = transformationRepository;
         this.experimentRepository = experimentRepository;
@@ -79,24 +82,26 @@ public class DataExportService {
         this.memoryProposalRepository = memoryProposalRepository;
         this.memoryProposalRevisionRepository = memoryProposalRevisionRepository;
         this.onboardingService = onboardingService;
+        this.currentUserProvider = currentUserProvider;
     }
 
     public DataExportSnapshot export() {
+        var ownerId = currentUserProvider.currentUserId();
         return new DataExportSnapshot(
             onboardingService.get().getStatus(),
-            transformationRepository.findAll(),
-            experimentRepository.findAll(),
-            reflectionRepository.findAll(),
-            suggestionRepository.findAll(),
-            beliefRepository.findAll(),
-            beliefRevisionRepository.findAll(),
-            evidenceRepository.findAll(),
-            weeklyRetrospectiveRepository.findAll(),
-            wisdomEntryRepository.findAll(),
-            wisdomRevisionRepository.findAll(),
-            wisdomSourceLinkRepository.findAll(),
-            memoryProposalRepository.findAll(),
-            memoryProposalRevisionRepository.findAll()
+            transformationRepository.findAllByOwnerId(ownerId),
+            experimentRepository.findAllByOwnerId(ownerId),
+            reflectionRepository.findByOwnerIdOrderByCreatedAtDesc(ownerId),
+            suggestionRepository.findAllByOwnerId(ownerId),
+            beliefRepository.findAllByOwnerIdOrderByRevisedAtDesc(ownerId),
+            beliefRevisionRepository.findAllByOwnerId(ownerId),
+            evidenceRepository.findAllByOwnerId(ownerId),
+            weeklyRetrospectiveRepository.findAllByOwnerId(ownerId),
+            wisdomEntryRepository.findAllByOwnerId(ownerId),
+            wisdomRevisionRepository.findAllByOwnerId(ownerId),
+            wisdomSourceLinkRepository.findAllByOwnerId(ownerId),
+            memoryProposalRepository.findAllByOwnerId(ownerId),
+            memoryProposalRevisionRepository.findAllByOwnerId(ownerId)
         );
     }
 

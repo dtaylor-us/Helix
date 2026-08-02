@@ -3,6 +3,7 @@ package com.helix.api.reflection.application;
 import com.helix.api.ai.application.AiAssistantPort;
 import com.helix.api.experiments.application.ExperimentService;
 import com.helix.api.experiments.domain.ExperimentEntity;
+import com.helix.api.identity.application.CurrentUserProvider;
 import com.helix.api.reflection.adapter.out.persistence.ReflectionRepository;
 import com.helix.api.reflection.domain.ReflectionEntity;
 import com.helix.api.suggestions.application.SuggestionService;
@@ -22,15 +23,17 @@ public class ReflectionService {
     private final ExperimentService experimentService;
     private final SuggestionService suggestionService;
     private final AiAssistantPort aiAssistantPort;
+    private final CurrentUserProvider currentUserProvider;
 
     public ReflectionService(
         ReflectionRepository repository, ExperimentService experimentService,
-        SuggestionService suggestionService, AiAssistantPort aiAssistantPort
+        SuggestionService suggestionService, AiAssistantPort aiAssistantPort, CurrentUserProvider currentUserProvider
     ) {
         this.repository = repository;
         this.experimentService = experimentService;
         this.suggestionService = suggestionService;
         this.aiAssistantPort = aiAssistantPort;
+        this.currentUserProvider = currentUserProvider;
     }
 
     @Transactional
@@ -42,6 +45,7 @@ public class ReflectionService {
     public ReflectionWithSuggestion create(
         UUID experimentId, String content, Boolean attempted, String noticed, String evidenceNoted, String surprise
     ) {
+        // experimentService.get() 404s if experimentId doesn't belong to the caller.
         var experiment = experimentService.get(experimentId);
 
         var normalizedNoticed = noticed == null || noticed.isBlank() ? null : noticed.trim();
@@ -56,7 +60,8 @@ public class ReflectionService {
             normalizedNoticed,
             normalizedEvidenceNoted,
             normalizedSurprise,
-            OffsetDateTime.now()
+            OffsetDateTime.now(),
+            currentUserProvider.currentUserId()
         ));
         int previousAttempts = Math.max(0, repository.findByExperimentIdOrderByCreatedAtDesc(experimentId).size() - 1);
 
@@ -96,23 +101,27 @@ public class ReflectionService {
     }
 
     public ReflectionEntity get(UUID id) {
-        return repository.findById(id).orElseThrow(() -> new NoSuchElementException("Reflection not found"));
+        return repository.findByIdAndOwnerId(id, currentUserProvider.currentUserId())
+            .orElseThrow(() -> new NoSuchElementException("Reflection not found"));
     }
 
     public List<ReflectionEntity> history(UUID experimentId) {
+        // experimentId is expected to already be ownership-checked by the caller (it was resolved
+        // via ExperimentService.get() to get here) -- listing by experimentId alone is safe.
         return repository.findByExperimentIdOrderByCreatedAtDesc(experimentId);
     }
 
     public List<ReflectionEntity> listForRetrieval() {
-        return repository.findAllByOrderByCreatedAtDesc();
+        return repository.findByOwnerIdOrderByCreatedAtDesc(currentUserProvider.currentUserId());
     }
 
     public List<ReflectionEntity> recentSince(OffsetDateTime threshold) {
-        return repository.findByCreatedAtGreaterThanEqualOrderByCreatedAtDesc(threshold);
+        return repository.findByOwnerIdAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(currentUserProvider.currentUserId(), threshold);
     }
 
     public List<ReflectionEntity> search(String query) {
-        return repository.findTop20ByContentContainingIgnoreCaseOrderByCreatedAtDesc(query.trim());
+        return repository.findTop20ByOwnerIdAndContentContainingIgnoreCaseOrderByCreatedAtDesc(
+            currentUserProvider.currentUserId(), query.trim());
     }
 
     public record ReflectionWithSuggestion(ReflectionEntity reflection, SuggestionEntity suggestion) {}

@@ -8,4 +8,7 @@ import java.util.UUID;
 
 public interface SemanticSearchDocumentRepository extends JpaRepository<SemanticSearchDocumentEntity, UUID> {
     List<SemanticSearchDocumentEntity> findAllByOrderByIndexedAtDesc();
+    // ADR-021: used by DataDeletionService only -- see SemanticIndexingService's gap-list javadoc for
+    // why deleteAllInBatch() itself (used by rebuild()) is still NOT owner-scoped.
+    void deleteAllByOwnerId(UUID ownerId);
 }

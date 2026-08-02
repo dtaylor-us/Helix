@@ -8,4 +8,9 @@ import java.util.UUID;
 
 public interface BeliefRevisionRepository extends JpaRepository<BeliefRevisionEntity, UUID> {
     List<BeliefRevisionEntity> findByBeliefIdOrderByCreatedAtDesc(UUID beliefId);
+    // ADR-021: used by DataExportService/DataDeletionService only -- every other read path
+    // (BeliefService.revisionHistory) resolves the parent belief via BeliefService.get() first,
+    // which already enforces ownership.
+    List<BeliefRevisionEntity> findAllByOwnerId(UUID ownerId);
+    void deleteAllByOwnerId(UUID ownerId);
 }

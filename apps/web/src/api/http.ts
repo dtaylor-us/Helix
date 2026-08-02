@@ -35,6 +35,7 @@ import type {
   TodayResponse,
   Transformation,
   CreateWisdomRequest,
+  CurrentUser,
   ReviseWisdomRequest,
   SearchResponse,
   SearchIndexRebuildResponse,
@@ -47,14 +48,37 @@ import type {
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
 
+/** Distinguishes "not signed in" from other request failures, so callers (AuthGate) can react to it
+ * specifically without string-matching an error message. */
+export class UnauthorizedError extends Error {
+  constructor() {
+    super('Not signed in')
+    this.name = 'UnauthorizedError'
+  }
+}
+
+/** Full-page navigation (not a fetch) -- Google's OAuth2 consent flow requires a real browser
+ * redirect, which is what Spring Security's oauth2Login() sets up at this fixed path. */
+export const googleLoginUrl = `${API_BASE}/oauth2/authorization/google`
+
+// ADR-021: the API now requires an authenticated session for almost every route, established via a
+// cookie set on Google login. `credentials: 'include'` is required so the browser attaches that
+// cookie on every request -- without it, every call would come back 401 even immediately after
+// logging in, since same-origin-by-default fetch only sends cookies for same-origin requests, and
+// the API and SPA are commonly on different ports/origins in local dev.
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       ...(init?.headers ?? {}),
     },
     ...init,
   })
+
+  if (response.status === 401) {
+    throw new UnauthorizedError()
+  }
 
   if (!response.ok) {
     const body = await response.text()
@@ -102,6 +126,8 @@ function extractErrorMessage(body: string): string | null {
 }
 
 export const api = {
+  getCurrentUser: () => request<CurrentUser>('/api/v1/auth/me'),
+  logout: () => request<void>('/api/v1/auth/logout', { method: 'POST' }),
   getToday: () => request<TodayResponse>('/api/v1/today'),
   getCurrentFocus: () => request<CurrentFocusResponse>('/api/v1/current-focus'),
   createTransformation: (payload: CreateTransformationRequest) =>

@@ -27,6 +27,10 @@ public class KnowledgeEdgeSourceEntity {
     @Column(name = "record_id", nullable = false)
     private UUID recordId;
 
+    // ADR-021 gap: NOT YET set by KnowledgeGraphProjectionService -- see KnowledgeNodeEntity.ownerId.
+    @Column(name = "owner_id")
+    private UUID ownerId;
+
     protected KnowledgeEdgeSourceEntity() {}
 
     public KnowledgeEdgeSourceEntity(UUID id, UUID knowledgeEdgeId, KnowledgeNodeType recordType, UUID recordId) {
@@ -36,6 +40,12 @@ public class KnowledgeEdgeSourceEntity {
         this.recordId = recordId;
     }
 
+    public KnowledgeEdgeSourceEntity(UUID id, UUID knowledgeEdgeId, KnowledgeNodeType recordType, UUID recordId, UUID ownerId) {
+        this(id, knowledgeEdgeId, recordType, recordId);
+        this.ownerId = ownerId;
+    }
+
+    public UUID getOwnerId() { return ownerId; }
     public UUID getId() { return id; }
     public UUID getKnowledgeEdgeId() { return knowledgeEdgeId; }
     public KnowledgeNodeType getRecordType() { return recordType; }

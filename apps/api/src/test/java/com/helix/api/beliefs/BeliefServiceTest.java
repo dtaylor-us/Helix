@@ -5,6 +5,7 @@ import com.helix.api.beliefs.adapter.out.persistence.BeliefRevisionRepository;
 import com.helix.api.beliefs.application.BeliefService;
 import com.helix.api.beliefs.domain.BeliefEntity;
 import com.helix.api.beliefs.domain.BeliefType;
+import com.helix.api.identity.application.CurrentUserProvider;
 import com.helix.api.transformation.application.TransformationService;
 import com.helix.api.transformation.domain.TransformationEntity;
 import org.junit.jupiter.api.Test;
@@ -26,6 +27,9 @@ class BeliefServiceTest {
         var repository = Mockito.mock(BeliefRepository.class);
         var revisionRepository = Mockito.mock(BeliefRevisionRepository.class);
         var transformationService = Mockito.mock(TransformationService.class);
+        var currentUserProvider = Mockito.mock(CurrentUserProvider.class);
+        var ownerId = UUID.randomUUID();
+        when(currentUserProvider.currentUserId()).thenReturn(ownerId);
 
         var transformationId = UUID.randomUUID();
         var beliefId = UUID.randomUUID();
@@ -44,10 +48,10 @@ class BeliefServiceTest {
             "Practice consistency without pressure",
             OffsetDateTime.now().minusDays(5)
         ));
-        when(repository.findById(beliefId)).thenReturn(Optional.of(belief));
+        when(repository.findByIdAndOwnerId(beliefId, ownerId)).thenReturn(Optional.of(belief));
         when(revisionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        var service = new BeliefService(repository, revisionRepository, transformationService);
+        var service = new BeliefService(repository, revisionRepository, transformationService, currentUserProvider);
         var revision = service.revise(
             beliefId,
             "If I slow down, I can notice what actually helps.",

@@ -40,6 +40,10 @@ public class MemoryProposalRevisionEntity {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
+    // ADR-021: nullable here only so pre-existing test fixtures (never persisted) keep compiling.
+    @Column(name = "owner_id")
+    private UUID ownerId;
+
     protected MemoryProposalRevisionEntity() {
     }
 
@@ -54,6 +58,17 @@ public class MemoryProposalRevisionEntity {
         this.newStatus = newStatus;
         this.reason = reason;
         this.createdAt = createdAt;
+    }
+
+    public MemoryProposalRevisionEntity(UUID id, UUID memoryProposalId, String previousStatement, String newStatement,
+                                        MemoryProposalStatus previousStatus, MemoryProposalStatus newStatus,
+                                        String reason, OffsetDateTime createdAt, UUID ownerId) {
+        this(id, memoryProposalId, previousStatement, newStatement, previousStatus, newStatus, reason, createdAt);
+        this.ownerId = ownerId;
+    }
+
+    public UUID getOwnerId() {
+        return ownerId;
     }
 
     public UUID getId() {

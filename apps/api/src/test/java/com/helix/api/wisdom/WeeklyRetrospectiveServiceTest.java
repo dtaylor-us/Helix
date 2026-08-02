@@ -1,6 +1,7 @@
 package com.helix.api.wisdom;
 
 import com.helix.api.ai.application.AiAssistantPort;
+import com.helix.api.identity.application.CurrentUserProvider;
 import com.helix.api.reflection.application.ReflectionService;
 import com.helix.api.reflection.domain.ReflectionEntity;
 import com.helix.api.wisdom.adapter.out.persistence.WeeklyRetrospectiveRepository;
@@ -39,7 +40,9 @@ class WeeklyRetrospectiveServiceTest {
             "openai", "gpt-4o-mini", false
         ));
 
-        var service = new WeeklyRetrospectiveService(reflectionService, repository, aiAssistantPort);
+        var currentUserProvider = Mockito.mock(CurrentUserProvider.class);
+        when(currentUserProvider.currentUserId()).thenReturn(UUID.randomUUID());
+        var service = new WeeklyRetrospectiveService(reflectionService, repository, aiAssistantPort, currentUserProvider);
         var draft = service.draft();
 
         assertFalse(draft.reflectionSummaries().isEmpty());
@@ -55,7 +58,9 @@ class WeeklyRetrospectiveServiceTest {
 
         when(reflectionService.recentSince(any())).thenReturn(List.of());
 
-        var service = new WeeklyRetrospectiveService(reflectionService, repository, aiAssistantPort);
+        var currentUserProvider = Mockito.mock(CurrentUserProvider.class);
+        when(currentUserProvider.currentUserId()).thenReturn(UUID.randomUUID());
+        var service = new WeeklyRetrospectiveService(reflectionService, repository, aiAssistantPort, currentUserProvider);
         var draft = service.draft();
 
         assertTrue(draft.reflectionSummaries().isEmpty());

@@ -4,7 +4,7 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router'
-import { AppLayout } from '../components/AppLayout'
+import { AuthGate } from '../components/AuthGate'
 import { DataExportPage } from '../pages/DataExportPage'
 import { ExperimentPage } from '../pages/ExperimentPage'
 import { KnowledgeGraphPage } from '../pages/KnowledgeGraphPage'
@@ -20,7 +20,7 @@ import { TransformationsPage } from '../pages/TransformationsPage'
 import { WisdomPage } from '../pages/WisdomPage'
 
 const rootRoute = createRootRoute({
-  component: AppLayout,
+  component: AuthGate,
 })
 
 const todayRoute = createRoute({

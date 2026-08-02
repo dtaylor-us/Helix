@@ -27,8 +27,8 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.UUID;
 
 /**
- * Phase 9 (ADR-015, ADR-019): data export and whole-app deletion. Single-user today (ADR-013 defers
- * auth), so there is no per-user scoping on either endpoint.
+ * Phase 9 (ADR-015, ADR-019): data export and deletion, scoped to the authenticated caller's own
+ * records only (ADR-021).
  */
 @RestController
 @RequestMapping("/api/v1/data")

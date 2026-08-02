@@ -9,4 +9,7 @@ import java.util.UUID;
 public interface WisdomEntryRepository extends JpaRepository<WisdomEntryEntity, UUID> {
     List<WisdomEntryEntity> findAllByOrderByRevisedAtDesc();
     List<WisdomEntryEntity> findTop20ByStatementContainingIgnoreCaseOrderByRevisedAtDesc(String query);
+    // ADR-021: used by DataExportService/DataDeletionService only -- see WeeklyRetrospectiveRepository.
+    List<WisdomEntryEntity> findAllByOwnerId(UUID ownerId);
+    void deleteAllByOwnerId(UUID ownerId);
 }

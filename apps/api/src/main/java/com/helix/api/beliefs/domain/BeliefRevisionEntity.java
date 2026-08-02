@@ -43,6 +43,11 @@ public class BeliefRevisionEntity {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
+    // ADR-021: nullable here only so pre-existing test fixtures (never persisted) keep compiling.
+    // The database column is NOT NULL -- see TransformationEntity.ownerId for the full rationale.
+    @Column(name = "owner_id")
+    private UUID ownerId;
+
     protected BeliefRevisionEntity() {}
 
     public BeliefRevisionEntity(UUID id, UUID beliefId, String previousStatement, String newStatement,
@@ -59,6 +64,13 @@ public class BeliefRevisionEntity {
         this.createdAt = createdAt;
     }
 
+    public BeliefRevisionEntity(UUID id, UUID beliefId, String previousStatement, String newStatement,
+                                BeliefType previousType, BeliefType newType, String reason,
+                                UUID sourceEvidenceId, OffsetDateTime createdAt, UUID ownerId) {
+        this(id, beliefId, previousStatement, newStatement, previousType, newType, reason, sourceEvidenceId, createdAt);
+        this.ownerId = ownerId;
+    }
+
     public UUID getId() { return id; }
     public UUID getBeliefId() { return beliefId; }
     public String getPreviousStatement() { return previousStatement; }
@@ -68,4 +80,5 @@ public class BeliefRevisionEntity {
     public String getReason() { return reason; }
     public UUID getSourceEvidenceId() { return sourceEvidenceId; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
+    public UUID getOwnerId() { return ownerId; }
 }

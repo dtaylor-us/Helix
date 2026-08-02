@@ -63,6 +63,10 @@ public class KnowledgeEdgeEntity {
     @Column(name = "superseded_by_edge_id")
     private UUID supersededByEdgeId;
 
+    // ADR-021 gap: NOT YET set by KnowledgeGraphProjectionService -- see KnowledgeNodeEntity.ownerId.
+    @Column(name = "owner_id")
+    private UUID ownerId;
+
     protected KnowledgeEdgeEntity() {}
 
     public KnowledgeEdgeEntity(
@@ -82,6 +86,16 @@ public class KnowledgeEdgeEntity {
         this.confirmedAt = status == KnowledgeEdgeStatus.CONFIRMED ? createdAt : null;
     }
 
+    public KnowledgeEdgeEntity(
+        UUID id, UUID sourceNodeId, UUID targetNodeId, KnowledgeEdgeType relationshipType,
+        KnowledgeEdgeOrigin origin, KnowledgeEdgeStatus status, KnowledgeEdgeConfidence confidence,
+        String explanation, OffsetDateTime createdAt, UUID ownerId
+    ) {
+        this(id, sourceNodeId, targetNodeId, relationshipType, origin, status, confidence, explanation, createdAt);
+        this.ownerId = ownerId;
+    }
+
+    public UUID getOwnerId() { return ownerId; }
     public UUID getId() { return id; }
     public UUID getSourceNodeId() { return sourceNodeId; }
     public UUID getTargetNodeId() { return targetNodeId; }

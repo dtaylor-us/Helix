@@ -36,6 +36,11 @@ public class ReflectionEntity {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
+    // ADR-021: nullable here only so pre-existing test fixtures (never persisted) keep compiling.
+    // The database column is NOT NULL -- see TransformationEntity.ownerId for the full rationale.
+    @Column(name = "owner_id")
+    private UUID ownerId;
+
     protected ReflectionEntity() {}
 
     public ReflectionEntity(UUID id, UUID experimentId, String content, OffsetDateTime createdAt) {
@@ -56,6 +61,14 @@ public class ReflectionEntity {
         this.createdAt = createdAt;
     }
 
+    public ReflectionEntity(
+        UUID id, UUID experimentId, String content, Boolean attempted,
+        String noticed, String evidenceNoted, String surprise, OffsetDateTime createdAt, UUID ownerId
+    ) {
+        this(id, experimentId, content, attempted, noticed, evidenceNoted, surprise, createdAt);
+        this.ownerId = ownerId;
+    }
+
     public UUID getId() { return id; }
     public UUID getExperimentId() { return experimentId; }
     public String getContent() { return content; }
@@ -64,4 +77,5 @@ public class ReflectionEntity {
     public String getEvidenceNoted() { return evidenceNoted; }
     public String getSurprise() { return surprise; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
+    public UUID getOwnerId() { return ownerId; }
 }

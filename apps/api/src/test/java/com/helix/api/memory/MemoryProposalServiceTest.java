@@ -6,6 +6,7 @@ import com.helix.api.beliefs.application.BeliefService;
 import com.helix.api.experiments.application.ExperimentService;
 import com.helix.api.experiments.domain.ExperimentEntity;
 import com.helix.api.experiments.domain.ExperimentStatus;
+import com.helix.api.identity.application.CurrentUserProvider;
 import com.helix.api.memory.adapter.out.persistence.MemoryProposalRepository;
 import com.helix.api.memory.adapter.out.persistence.MemoryProposalRevisionRepository;
 import com.helix.api.memory.application.MemoryProposalService;
@@ -56,6 +57,8 @@ class MemoryProposalServiceTest {
         when(revisionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         var aiAssistantPort = Mockito.mock(AiAssistantPort.class);
+        var currentUserProvider = Mockito.mock(CurrentUserProvider.class);
+        when(currentUserProvider.currentUserId()).thenReturn(UUID.randomUUID());
         var service = new MemoryProposalService(
             repository,
             revisionRepository,
@@ -65,7 +68,8 @@ class MemoryProposalServiceTest {
             evidenceService,
             wisdomService,
             retrospectiveService,
-            aiAssistantPort
+            aiAssistantPort,
+            currentUserProvider
         );
 
         var proposal = service.create(
@@ -108,6 +112,8 @@ class MemoryProposalServiceTest {
         when(reflectionService.get(missingReflectionId)).thenThrow(new NoSuchElementException("Reflection not found"));
 
         var aiAssistantPort = Mockito.mock(AiAssistantPort.class);
+        var currentUserProvider = Mockito.mock(CurrentUserProvider.class);
+        when(currentUserProvider.currentUserId()).thenReturn(UUID.randomUUID());
         var service = new MemoryProposalService(
             repository,
             revisionRepository,
@@ -117,7 +123,8 @@ class MemoryProposalServiceTest {
             evidenceService,
             wisdomService,
             retrospectiveService,
-            aiAssistantPort
+            aiAssistantPort,
+            currentUserProvider
         );
 
         var error = assertThrows(IllegalArgumentException.class, () -> service.create(
@@ -157,9 +164,12 @@ class MemoryProposalServiceTest {
             "I tend to feel steadier when I pause before reacting.", "openai", "gpt-4o-mini", false
         ));
 
+        var currentUserProvider = Mockito.mock(CurrentUserProvider.class);
+        when(currentUserProvider.currentUserId()).thenReturn(UUID.randomUUID());
         var service = new MemoryProposalService(
             repository, revisionRepository, experimentService, beliefService,
-            reflectionService, evidenceService, wisdomService, retrospectiveService, aiAssistantPort
+            reflectionService, evidenceService, wisdomService, retrospectiveService, aiAssistantPort,
+            currentUserProvider
         );
 
         var draft = service.proposeFromReflection(reflectionId);
@@ -195,9 +205,12 @@ class MemoryProposalServiceTest {
             null, "openai", "gpt-4o-mini", false
         ));
 
+        var currentUserProvider = Mockito.mock(CurrentUserProvider.class);
+        when(currentUserProvider.currentUserId()).thenReturn(UUID.randomUUID());
         var service = new MemoryProposalService(
             repository, revisionRepository, experimentService, beliefService,
-            reflectionService, evidenceService, wisdomService, retrospectiveService, aiAssistantPort
+            reflectionService, evidenceService, wisdomService, retrospectiveService, aiAssistantPort,
+            currentUserProvider
         );
 
         var draft = service.proposeFromReflection(reflectionId);

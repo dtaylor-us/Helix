@@ -53,6 +53,11 @@ public class EvidenceEntity {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
+    // ADR-021: nullable here only so pre-existing test fixtures (never persisted) keep compiling.
+    // The database column is NOT NULL -- see TransformationEntity.ownerId for the full rationale.
+    @Column(name = "owner_id")
+    private UUID ownerId;
+
     protected EvidenceEntity() {}
 
     public EvidenceEntity(UUID id, UUID beliefId, UUID experimentId, UUID reflectionId, String summary,
@@ -73,6 +78,15 @@ public class EvidenceEntity {
         this.createdAt = createdAt;
     }
 
+    public EvidenceEntity(UUID id, UUID beliefId, UUID experimentId, UUID reflectionId, String summary,
+                          String interpretation, EvidenceDirection direction, ProvenanceSourceKind provenanceSourceKind,
+                          ProvenanceRecordType provenanceRecordType, UUID provenanceRecordId,
+                          String provenanceExcerpt, OffsetDateTime createdAt, UUID ownerId) {
+        this(id, beliefId, experimentId, reflectionId, summary, interpretation, direction, provenanceSourceKind,
+            provenanceRecordType, provenanceRecordId, provenanceExcerpt, createdAt);
+        this.ownerId = ownerId;
+    }
+
     public UUID getId() { return id; }
     public UUID getBeliefId() { return beliefId; }
     public UUID getExperimentId() { return experimentId; }
@@ -85,4 +99,5 @@ public class EvidenceEntity {
     public UUID getProvenanceRecordId() { return provenanceRecordId; }
     public String getProvenanceExcerpt() { return provenanceExcerpt; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
+    public UUID getOwnerId() { return ownerId; }
 }

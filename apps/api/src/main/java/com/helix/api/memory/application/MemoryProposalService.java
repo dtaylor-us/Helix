@@ -5,6 +5,7 @@ import com.helix.api.evidence.application.EvidenceService;
 import com.helix.api.beliefs.application.BeliefService;
 import com.helix.api.experiments.application.ExperimentService;
 import com.helix.api.experiments.domain.ExperimentEntity;
+import com.helix.api.identity.application.CurrentUserProvider;
 import com.helix.api.memory.adapter.out.persistence.MemoryProposalRepository;
 import com.helix.api.memory.adapter.out.persistence.MemoryProposalRevisionRepository;
 import com.helix.api.memory.domain.MemoryProposalEntity;
@@ -24,6 +25,11 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
+/**
+ * ADR-021 gap: {@code list}/{@code get} below are NOT YET owner-scoped -- ownerId is set on every
+ * write (satisfies the NOT NULL column) but reads still cross every user's memory proposals. See the
+ * ADR-021 development log entry's gap list before deploying multi-user.
+ */
 @Service
 public class MemoryProposalService {
 
@@ -36,6 +42,7 @@ public class MemoryProposalService {
     private final WisdomService wisdomService;
     private final WeeklyRetrospectiveService retrospectiveService;
     private final AiAssistantPort aiAssistantPort;
+    private final CurrentUserProvider currentUserProvider;
 
     public MemoryProposalService(MemoryProposalRepository repository,
                                  MemoryProposalRevisionRepository revisionRepository,
@@ -45,7 +52,8 @@ public class MemoryProposalService {
                                  EvidenceService evidenceService,
                                  WisdomService wisdomService,
                                  WeeklyRetrospectiveService retrospectiveService,
-                                 AiAssistantPort aiAssistantPort) {
+                                 AiAssistantPort aiAssistantPort,
+                                 CurrentUserProvider currentUserProvider) {
         this.repository = repository;
         this.revisionRepository = revisionRepository;
         this.experimentService = experimentService;
@@ -55,6 +63,7 @@ public class MemoryProposalService {
         this.wisdomService = wisdomService;
         this.retrospectiveService = retrospectiveService;
         this.aiAssistantPort = aiAssistantPort;
+        this.currentUserProvider = currentUserProvider;
     }
 
     @Transactional
@@ -72,7 +81,8 @@ public class MemoryProposalService {
             sourceRecordId,
             sourceExcerpt == null || sourceExcerpt.isBlank() ? null : sourceExcerpt.trim(),
             now,
-            now
+            now,
+            currentUserProvider.currentUserId()
         ));
     }
 
@@ -138,7 +148,8 @@ public class MemoryProposalService {
             proposal.getStatus(),
             MemoryProposalStatus.PROPOSED,
             reason.trim(),
-            now
+            now,
+            currentUserProvider.currentUserId()
         ));
         proposal.revise(statement.trim(), sourceExcerpt == null || sourceExcerpt.isBlank() ? null : sourceExcerpt.trim(), now);
         repository.save(proposal);
@@ -172,7 +183,8 @@ public class MemoryProposalService {
             proposal.getStatus(),
             nextStatus,
             reason.trim(),
-            now
+            now,
+            currentUserProvider.currentUserId()
         ));
         if (nextStatus == MemoryProposalStatus.CONFIRMED) {
             proposal.accept(now);

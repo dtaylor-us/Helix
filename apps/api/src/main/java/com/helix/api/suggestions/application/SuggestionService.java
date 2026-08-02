@@ -1,6 +1,7 @@
 package com.helix.api.suggestions.application;
 
 import com.helix.api.experiments.application.ExperimentService;
+import com.helix.api.identity.application.CurrentUserProvider;
 import com.helix.api.suggestions.adapter.out.persistence.SuggestionRepository;
 import com.helix.api.suggestions.domain.SuggestionEntity;
 import com.helix.api.suggestions.domain.SuggestionSource;
@@ -18,10 +19,14 @@ public class SuggestionService {
 
     private final SuggestionRepository repository;
     private final ExperimentService experimentService;
+    private final CurrentUserProvider currentUserProvider;
 
-    public SuggestionService(SuggestionRepository repository, ExperimentService experimentService) {
+    public SuggestionService(
+        SuggestionRepository repository, ExperimentService experimentService, CurrentUserProvider currentUserProvider
+    ) {
         this.repository = repository;
         this.experimentService = experimentService;
+        this.currentUserProvider = currentUserProvider;
     }
 
     public SuggestionEntity createDeterministic(UUID experimentId, UUID reflectionId, String nextAction, int previousAttempts) {
@@ -41,7 +46,11 @@ public class SuggestionService {
             SuggestionStatus.PROPOSED,
             null,
             OffsetDateTime.now(),
-            null
+            null,
+            SuggestionSource.DETERMINISTIC,
+            null,
+            null,
+            currentUserProvider.currentUserId()
         );
         return repository.save(suggestion);
     }
@@ -66,7 +75,8 @@ public class SuggestionService {
             null,
             deterministicFallback ? SuggestionSource.DETERMINISTIC : SuggestionSource.AI,
             provider,
-            model
+            model,
+            currentUserProvider.currentUserId()
         );
         return repository.save(suggestion);
     }
@@ -110,6 +120,7 @@ public class SuggestionService {
     }
 
     public SuggestionEntity get(UUID id) {
-        return repository.findById(id).orElseThrow(() -> new NoSuchElementException("Suggestion not found"));
+        return repository.findByIdAndOwnerId(id, currentUserProvider.currentUserId())
+            .orElseThrow(() -> new NoSuchElementException("Suggestion not found"));
     }
 }

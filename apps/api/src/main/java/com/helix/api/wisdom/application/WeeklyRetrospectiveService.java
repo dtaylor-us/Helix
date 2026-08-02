@@ -1,6 +1,7 @@
 package com.helix.api.wisdom.application;
 
 import com.helix.api.ai.application.AiAssistantPort;
+import com.helix.api.identity.application.CurrentUserProvider;
 import com.helix.api.reflection.application.ReflectionService;
 import com.helix.api.reflection.domain.ReflectionEntity;
 import com.helix.api.wisdom.adapter.out.persistence.WeeklyRetrospectiveRepository;
@@ -14,6 +15,12 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * ADR-021 gap: {@code recentSnapshots}/{@code get}/{@code search} below are NOT YET owner-scoped
+ * (they still read across every user's retrospectives) -- only {@code createSnapshot} sets
+ * {@code ownerId} on write, which is enough to satisfy the NOT NULL column but not enough for real
+ * per-user isolation. See the ADR-021 development log entry's gap list before deploying multi-user.
+ */
 @Service
 public class WeeklyRetrospectiveService {
 
@@ -22,13 +29,16 @@ public class WeeklyRetrospectiveService {
     private final ReflectionService reflectionService;
     private final WeeklyRetrospectiveRepository repository;
     private final AiAssistantPort aiAssistantPort;
+    private final CurrentUserProvider currentUserProvider;
 
     public WeeklyRetrospectiveService(
-        ReflectionService reflectionService, WeeklyRetrospectiveRepository repository, AiAssistantPort aiAssistantPort
+        ReflectionService reflectionService, WeeklyRetrospectiveRepository repository, AiAssistantPort aiAssistantPort,
+        CurrentUserProvider currentUserProvider
     ) {
         this.reflectionService = reflectionService;
         this.repository = repository;
         this.aiAssistantPort = aiAssistantPort;
+        this.currentUserProvider = currentUserProvider;
     }
 
     public WeeklyRetrospectiveDraft draft() {
@@ -80,7 +90,8 @@ public class WeeklyRetrospectiveService {
             OffsetDateTime.now(ZoneOffset.UTC),
             draft.source(),
             draft.aiProvider(),
-            draft.aiModel()
+            draft.aiModel(),
+            currentUserProvider.currentUserId()
         );
         return repository.save(entity);
     }

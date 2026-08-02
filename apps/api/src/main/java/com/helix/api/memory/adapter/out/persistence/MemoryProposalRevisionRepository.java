@@ -9,4 +9,7 @@ import java.util.UUID;
 public interface MemoryProposalRevisionRepository extends JpaRepository<MemoryProposalRevisionEntity, UUID> {
 
     List<MemoryProposalRevisionEntity> findByMemoryProposalIdOrderByCreatedAtDesc(UUID memoryProposalId);
+    // ADR-021: used by DataExportService/DataDeletionService only -- see WeeklyRetrospectiveRepository.
+    List<MemoryProposalRevisionEntity> findAllByOwnerId(UUID ownerId);
+    void deleteAllByOwnerId(UUID ownerId);
 }

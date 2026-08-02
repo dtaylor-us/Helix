@@ -44,6 +44,11 @@ public class MemoryProposalEntity {
     @Column(name = "revised_at", nullable = false)
     private OffsetDateTime revisedAt;
 
+    // ADR-021: nullable here only so pre-existing test fixtures (never persisted) keep compiling.
+    // Set on write, but read paths (list/get) are NOT YET owner-scoped -- see MemoryProposalService.
+    @Column(name = "owner_id")
+    private UUID ownerId;
+
     protected MemoryProposalEntity() {
     }
 
@@ -59,6 +64,17 @@ public class MemoryProposalEntity {
         this.sourceExcerpt = sourceExcerpt;
         this.createdAt = createdAt;
         this.revisedAt = revisedAt;
+    }
+
+    public MemoryProposalEntity(UUID id, String statement, MemoryProposalStatus status, MemorySourceKind sourceKind,
+                                MemorySourceRecordType sourceRecordType, UUID sourceRecordId, String sourceExcerpt,
+                                OffsetDateTime createdAt, OffsetDateTime revisedAt, UUID ownerId) {
+        this(id, statement, status, sourceKind, sourceRecordType, sourceRecordId, sourceExcerpt, createdAt, revisedAt);
+        this.ownerId = ownerId;
+    }
+
+    public UUID getOwnerId() {
+        return ownerId;
     }
 
     public UUID getId() {

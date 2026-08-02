@@ -3,6 +3,7 @@ package com.helix.api.experiments;
 import com.helix.api.ai.application.AiAssistantPort;
 import com.helix.api.experiments.adapter.out.persistence.ExperimentRepository;
 import com.helix.api.experiments.application.ExperimentService;
+import com.helix.api.identity.application.CurrentUserProvider;
 import com.helix.api.onboarding.application.OnboardingService;
 import com.helix.api.transformation.application.TransformationService;
 import com.helix.api.transformation.domain.TransformationEntity;
@@ -20,6 +21,12 @@ import static org.mockito.Mockito.when;
 
 class ExperimentServiceTest {
 
+    private static CurrentUserProvider stubCurrentUser() {
+        var currentUserProvider = Mockito.mock(CurrentUserProvider.class);
+        when(currentUserProvider.currentUserId()).thenReturn(UUID.randomUUID());
+        return currentUserProvider;
+    }
+
     @Test
     void createWithGuidedFieldsPersistsCadenceEvidenceAndReviewDate() {
         var repository = Mockito.mock(ExperimentRepository.class);
@@ -33,7 +40,7 @@ class ExperimentServiceTest {
 
         var aiAssistantPort = Mockito.mock(AiAssistantPort.class);
         var onboardingService = Mockito.mock(OnboardingService.class);
-        var service = new ExperimentService(repository, transformationService, aiAssistantPort, onboardingService);
+        var service = new ExperimentService(repository, transformationService, aiAssistantPort, onboardingService, stubCurrentUser());
         var reviewDate = LocalDate.now().plusWeeks(1);
         var experiment = service.create(
             transformationId,
@@ -64,7 +71,7 @@ class ExperimentServiceTest {
 
         var aiAssistantPort = Mockito.mock(AiAssistantPort.class);
         var onboardingService = Mockito.mock(OnboardingService.class);
-        var service = new ExperimentService(repository, transformationService, aiAssistantPort, onboardingService);
+        var service = new ExperimentService(repository, transformationService, aiAssistantPort, onboardingService, stubCurrentUser());
         var experiment = service.create(transformationId, "Pause before responding", "Pausing helps", "Breathe once");
 
         assertNull(experiment.getCadence());
@@ -88,7 +95,7 @@ class ExperimentServiceTest {
         ));
 
         var onboardingService = Mockito.mock(OnboardingService.class);
-        var service = new ExperimentService(repository, transformationService, aiAssistantPort, onboardingService);
+        var service = new ExperimentService(repository, transformationService, aiAssistantPort, onboardingService, stubCurrentUser());
         var draft = service.proposeDraft(transformationId);
 
         assertEquals("Pause before responding", draft.title());

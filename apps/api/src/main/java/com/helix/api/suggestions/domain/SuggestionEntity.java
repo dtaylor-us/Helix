@@ -44,6 +44,11 @@ public class SuggestionEntity {
     @Column(name = "ai_model", length = 100)
     private String aiModel;
 
+    // ADR-021: nullable here only so pre-existing test fixtures (never persisted) keep compiling.
+    // The database column is NOT NULL -- see TransformationEntity.ownerId for the full rationale.
+    @Column(name = "owner_id")
+    private UUID ownerId;
+
     protected SuggestionEntity() {}
 
     /**
@@ -72,6 +77,14 @@ public class SuggestionEntity {
         this.aiModel = aiModel;
     }
 
+    public SuggestionEntity(UUID id, UUID experimentId, UUID reflectionId, String text, SuggestionStatus status,
+                            String replacementText, OffsetDateTime createdAt, OffsetDateTime respondedAt,
+                            SuggestionSource source, String aiProvider, String aiModel, UUID ownerId) {
+        this(id, experimentId, reflectionId, text, status, replacementText, createdAt, respondedAt,
+            source, aiProvider, aiModel);
+        this.ownerId = ownerId;
+    }
+
     public UUID getId() { return id; }
     public UUID getExperimentId() { return experimentId; }
     public UUID getReflectionId() { return reflectionId; }
@@ -83,6 +96,7 @@ public class SuggestionEntity {
     public SuggestionSource getSource() { return source; }
     public String getAiProvider() { return aiProvider; }
     public String getAiModel() { return aiModel; }
+    public UUID getOwnerId() { return ownerId; }
 
     public void accept() {
         this.status = SuggestionStatus.ACCEPTED;
